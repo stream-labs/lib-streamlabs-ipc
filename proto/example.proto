@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+message Example {
+	int64 timestamp = 1;
+	string sender = 2;
+	string message = 3;
+	string targets = 4;
+}

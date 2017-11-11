@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+enum ValueType {
+	Null = 0;
+	Float = 1;
+	Double = 2;
+	Int32 = 3;
+	Int64 = 4;
+	UInt32 = 5;
+	UInt64 = 6;
+	String = 7;
+	Binary = 8;
+}
+
+message Value {
+	ValueType type = 2;
+	oneof value {
+		bool   val_bool   = 3;
+		float  val_float  = 4;
+		double val_double = 5;
+		sint32 val_int32  = 6;
+		sint64 val_int64  = 7;
+		uint32 val_uint32 = 8;
+		uint64 val_uint64 = 9;
+		string val_string = 10;
+		bytes  val_binary = 11;
+	}
+}
+
+message Function {
+	string name = 1;
+	ValueType type = 2;
+	repeated ValueType parameters = 3;
+}
+
+message Class {
+	string name = 1;
+	repeated Function functions = 2;
+}
+
+message FunctionCall {	
+	sint64 timestamp = 1;
+	string className = 2;
+	string functionName = 3;
+	repeated Value arguments = 4;
+}
+
+message FunctionCallError {
+	sint64 timestamp = 1;
+	string error = 2;
+}
+
+message FunctionCallReply {
+	sint64 timestamp = 1;
+	Value value = 2;
+}
