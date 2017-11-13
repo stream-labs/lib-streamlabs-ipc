@@ -24,109 +24,60 @@ extern "C" { // clang++ compatible
 }
 
 namespace OS {
-	class NamedSocketConnectionWindows : public NamedSocketConnection {
-		public:
-		NamedSocketConnectionWindows(OS::NamedSocket* handler, HANDLE socket);
-		virtual ~NamedSocketConnectionWindows();
-
-		virtual ClientId_t GetClientId() override;
-
-		virtual bool Good() override;
-		virtual bool Bad() override;
-
-		virtual size_t Write(const char* buf, size_t length) override;
-		virtual size_t Write(const std::vector<char>& buf) override;
-		
-		virtual size_t ReadAvail() override;
-		virtual size_t Read(char* buf, size_t length) override;
-		virtual size_t Read(std::vector<char>& out) override;
-		virtual std::vector<char> Read() override;
-		
-		protected:
-		typedef void(*DestructorHandler_t)(void* data, OS::NamedSocketConnection* socket);
-		void SetDestructorCallback(DestructorHandler_t func, void* data);
-		
-		protected:
-		HANDLE m_handle;
-
-		private:
-		DestructorHandler_t m_cbDestructor;
-		void* m_cbDestructorData;
-
-		friend class NamedSocketWindows;
-	};
-
 	class NamedSocketWindows : public NamedSocket {
 		public:
+		NamedSocketWindows();
 		virtual ~NamedSocketWindows();
 
-		// Only callable before Initialize()
-#pragma region Pre-Initialize
-		public:		
+	#pragma region Options
 		virtual bool SetReceiveBufferSize(size_t size) override;
 		virtual size_t GetReceiveBufferSize() override;
-		
+
 		virtual bool SetSendBufferSize(size_t size) override;
 		virtual size_t GetSendBufferSize() override;
-		
+
 		virtual bool SetDefaultTimeOut(std::chrono::nanoseconds time) override;
 		virtual std::chrono::nanoseconds GetDefaultTimeOut() override;
-		
+
 		virtual bool SetWaitTimeOut(std::chrono::nanoseconds time) override;
 		virtual std::chrono::nanoseconds GetWaitTimeOut() override;
-		
+
 		virtual bool SetReceiveTimeOut(std::chrono::nanoseconds time) override;
 		virtual std::chrono::nanoseconds GetReceiveTimeOut() override;
-		
+
 		virtual bool SetSendTimeOut(std::chrono::nanoseconds time) override;
 		virtual std::chrono::nanoseconds GetSendTimeOut() override;
+	#pragma endregion Options
 
-		virtual bool SetConnectHandler(ConnectHandler_t handler, void* data) override;
-		virtual ConnectHandler_t GetConnectHandler() override;
-		virtual void* GetConnectHandlerData() override;
+	#pragma region Listen/Connect/Close
+		virtual bool Listen(std::string path, size_t backlog) override;
+		virtual bool Connect(std::string path) override;
+		virtual bool Close() override;
+	#pragma endregion Listen/Connect/Close
 
-		virtual bool SetDisconnectHandler(DisconnectHandler_t handler, void* data) override;
-		virtual DisconnectHandler_t GetDisconnectHandler() override;
-		virtual void* GetDisconnectHandlerData() override;
-		
-		virtual bool SetBacklog(size_t backlog) override;
-		virtual size_t GetBacklog() override;
-#pragma endregion Pre-Initialize
-
-		public:
-		virtual bool Initialize(std::string path, bool doCreate, bool doConnect) override;
-		virtual bool Finalize() override;
-		virtual bool IsServer() override;
-		virtual bool IsClient() override;
-
-		// Owner Functionality
-		public:
-#pragma region Post-Initialize Server
+	#pragma region Server Only
 		virtual bool WaitForConnection() override;
 		virtual std::shared_ptr<OS::NamedSocketConnection> AcceptConnection() override;
 		virtual bool Disconnect(std::shared_ptr<OS::NamedSocketConnection> connection) override;
-#pragma endregion Post-Initialize Server
+	#pragma endregion Server Only
 
-		// Child & Owner Functionality
-		public:
+	#pragma region Server & Client
+		virtual bool IsServer() override;
+		virtual bool IsClient() override;
+	#pragma endregion Server & Client
 
-
-		// Child Functionality
-		public:
-#pragma region Post-Initialize Client
+	#pragma region Client Only
 		virtual std::shared_ptr<OS::NamedSocketConnection> GetConnection() override;
-#pragma endregion Post-Initialize Client
+	#pragma endregion Client Only
 
-		// Private Functionality
+		protected:
+	#pragma region Utility Functions
+		bool is_valid_path(std::string path);
+		LPCTSTR make_valid_path(std::string path);
+		HANDLE create_pipe();
+	#pragma endregion Utility Functions
+
 		private:
-		bool _IsValidPipeName(std::string path);
-		LPCTSTR _MakeValidPipeName(std::string path);
-		bool _Connect(std::string path);
-		bool _Create(std::string path);
-		HANDLE _CreateExtra();
-		bool _Close();
-		HANDLE _Wait();
-		std::shared_ptr<OS::NamedSocketConnection> _Accept();
 		static void _ConnectionDestructorHandler(void* data, OS::NamedSocketConnection* ptr);
 
 		// Private Memory
@@ -155,10 +106,42 @@ namespace OS {
 			m_handlesSleepingMtx,
 			m_handlesAwakeMtx,
 			m_handlesWorkingMtx;
-		std::vector<HANDLE> 
+		std::vector<HANDLE>
 			m_handlesSleeping,	// Sleeping, can be waited on.
 			m_handlesAwake,	// Have a connection pending.
 			m_handlesWorking;	// Connected to a client.
-		std::shared_ptr<OS::NamedSocketConnectionWindows> m_clientConnection;
+		std::shared_ptr<OS::NamedSocketConnection> m_clientConnection;
+	};
+
+	class NamedSocketConnectionWindows : public NamedSocketConnection {
+		public:
+		NamedSocketConnectionWindows(OS::NamedSocket* handler, HANDLE socket);
+		virtual ~NamedSocketConnectionWindows();
+
+		virtual ClientId_t GetClientId() override;
+
+		virtual bool Good() override;
+		virtual bool Bad() override;
+
+		virtual size_t Write(const char* buf, size_t length) override;
+		virtual size_t Write(const std::vector<char>& buf) override;
+
+		virtual size_t ReadAvail() override;
+		virtual size_t Read(char* buf, size_t length) override;
+		virtual size_t Read(std::vector<char>& out) override;
+		virtual std::vector<char> Read() override;
+
+		protected:
+		typedef void(*DestructorHandler_t)(void* data, OS::NamedSocketConnection* socket);
+		void SetDestructorCallback(DestructorHandler_t func, void* data);
+
+		protected:
+		HANDLE m_handle;
+
+		private:
+		DestructorHandler_t m_cbDestructor;
+		void* m_cbDestructorData;
+
+		friend class NamedSocketWindows;
 	};
 }

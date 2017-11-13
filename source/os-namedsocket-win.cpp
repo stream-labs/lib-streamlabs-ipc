@@ -22,11 +22,19 @@ std::unique_ptr<OS::NamedSocket> OS::NamedSocket::Create() {
 	return std::make_unique<OS::NamedSocketWindows>();
 }
 
-OS::NamedSocketWindows::~NamedSocketWindows() {
-	if (m_isInitialized)
-		Finalize();
+#pragma region NamedSocketWindows
+#pragma region De-/Constructor
+OS::NamedSocketWindows::NamedSocketWindows() {
+
 }
 
+OS::NamedSocketWindows::~NamedSocketWindows() {
+	if (m_isInitialized)
+		Close();
+}
+#pragma endregion De-/Constructor
+
+#pragma region Options
 bool OS::NamedSocketWindows::SetReceiveBufferSize(size_t size) {
 	if (m_isInitialized)
 		return false;
@@ -109,175 +117,18 @@ bool OS::NamedSocketWindows::SetSendTimeOut(std::chrono::nanoseconds time) {
 std::chrono::nanoseconds OS::NamedSocketWindows::GetSendTimeOut() {
 	return std::chrono::duration_cast<std::chrono::nanoseconds>(m_timeOutSend);
 }
+#pragma endregion Options
 
-bool OS::NamedSocketWindows::SetConnectHandler(ConnectHandler_t handler, void* data) {
-	if (m_isInitialized)
-		return false;
-	if (!m_isServer)
-		return false;
-	m_onConnectHandler = handler;
-	m_onConnectHandlerData = data;
-	return true;
-}
-
-OS::ConnectHandler_t OS::NamedSocketWindows::GetConnectHandler() {
-	return m_onConnectHandler;
-}
-
-void* OS::NamedSocketWindows::GetConnectHandlerData() {
-	return m_onConnectHandlerData;
-}
-
-bool OS::NamedSocketWindows::SetDisconnectHandler(DisconnectHandler_t handler, void* data) {
-	if (m_isInitialized)
-		return false;
-	if (!m_isServer)
-		return false;
-	m_onDisconnectHandler = handler;
-	m_onDisconnectHandlerData = data;
-	return true;
-}
-
-OS::DisconnectHandler_t OS::NamedSocketWindows::GetDisconnectHandler() {
-	return m_onDisconnectHandler;
-}
-
-void* OS::NamedSocketWindows::GetDisconnectHandlerData() {
-	return m_onDisconnectHandlerData;
-}
-
-bool OS::NamedSocketWindows::SetBacklog(size_t backlog) {
-	if (m_isInitialized)
-		return false;
-	if (backlog == 0)
-		return false;
-	m_connectionBacklog = backlog;
-	return true;
-}
-
-size_t OS::NamedSocketWindows::GetBacklog() {
-	return m_connectionBacklog;
-}
-
-bool OS::NamedSocketWindows::Initialize(std::string path, bool doCreate, bool doConnect) {
+#pragma region Listen/Connect/Close
+bool OS::NamedSocketWindows::Listen(std::string path, size_t backlog) {
 	if (m_isInitialized)
 		return false;
 
-	// Attempt to connect first.
-	if (doConnect)
-		if (_Connect(path))
-			return true;
-
-	// If that failed, create a new one if allowed.
-	if (doCreate)
-		if (_Create(path))
-			return true;
-
-	return false;
-}
-
-bool OS::NamedSocketWindows::Finalize() {
-	_Close();
-	m_isInitialized = false;
-	return !m_isInitialized;
-}
-
-bool OS::NamedSocketWindows::IsServer() {
-	return m_isServer;
-}
-
-bool OS::NamedSocketWindows::IsClient() {
-	return !m_isServer;
-}
-
-bool OS::NamedSocketWindows::WaitForConnection() {
-	if (!m_isServer)
-		return false;
-	return _Wait() != 0;
-}
-
-std::shared_ptr<OS::NamedSocketConnection> OS::NamedSocketWindows::AcceptConnection() {
-	if (!m_isServer)
-		return nullptr;
-	return _Accept();
-}
-
-bool OS::NamedSocketWindows::Disconnect(std::shared_ptr<OS::NamedSocketConnection> socket) {
-	std::shared_ptr<OS::NamedSocketConnectionWindows> sock = 
-		std::dynamic_pointer_cast<OS::NamedSocketConnectionWindows>(socket);
-	return DisconnectNamedPipe(sock->m_handle) != 0;
-}
-
-std::shared_ptr<OS::NamedSocketConnection> OS::NamedSocketWindows::GetConnection() {
-	return m_clientConnection;
-}
-
-bool OS::NamedSocketWindows::_IsValidPipeName(std::string path) {
-	// Path can't be larger than 255 characters, limit set by WinAPI.
-	if (path.length() > 255)
-		return false; // !TODO! Throw some kind of error to signal why it failed.
-
-	return true;
-}
-
-LPCTSTR OS::NamedSocketWindows::_MakeValidPipeName(std::string path) {
-	m_pipeName = "\\\\.\\pipe\\";
-
-	// Convert path to proper Win32 Named Pipe name.
-	boost::replace_all(path, "\\", "/"); // Backslash is not allowed.
-
-	// Attach to Pipe
-	m_pipeName += path;
-
-	return m_pipeName.data();
-}
-
-bool OS::NamedSocketWindows::_Connect(std::string path) {
 	// Validate Arguments
-	if (!_IsValidPipeName(path))
+	if (!is_valid_path(path))
 		return false;
 
-	// Connect to pipe.
-	std::string fullPath = _MakeValidPipeName(path);
-#ifdef UNICODE
-	std::wstring pipeNameWS = fullPath;
-	LPCTSTR pipeName = pipeNameWS.c_str();
-#else
-	LPCTSTR pipeName = fullPath.c_str();
-#endif
-
-	size_t attempts = 0;
-	for (size_t attempt = 0; attempt < 5; attempt++) {
-		m_handleMain = CreateFile(pipeName,
-			GENERIC_READ | GENERIC_WRITE,
-			0, NULL,
-			OPEN_EXISTING, 
-			0, NULL);
-
-		if (m_handleMain != INVALID_HANDLE_VALUE)
-			break;
-
-		if (GetLastError() != ERROR_PIPE_BUSY)
-			return false;
-
-		if (!WaitNamedPipe(pipeName, (DWORD)m_timeOutWait.count())) {
-			if (attempt < 4) {
-				continue;
-			} else {
-				return false;
-			}
-		}			
-	}
-	m_clientConnection = std::make_shared<OS::NamedSocketConnectionWindows>(this, m_handleMain);
-
-	m_isServer = false;
-	return true;
-}
-
-bool OS::NamedSocketWindows::_Create(std::string path) {
-	// Validate Arguments
-	if (!_IsValidPipeName(path))
-		return false;
+	m_isServer = true;
 
 	// Create Security descriptors.	
 	m_securityAttributes.bInheritHandle = true;
@@ -285,7 +136,7 @@ bool OS::NamedSocketWindows::_Create(std::string path) {
 	m_securityAttributes.nLength = sizeof(SECURITY_ATTRIBUTES);
 
 	// Create pipe.
-	m_pipeName = _MakeValidPipeName(path);
+	m_pipeName = make_valid_path(path);
 #ifdef UNICODE
 	std::wstring pipeNameWS = m_pipeName;
 	LPCTSTR pipeName = pipeNameWS.c_str();
@@ -302,52 +153,77 @@ bool OS::NamedSocketWindows::_Create(std::string path) {
 		return false;
 
 	if (GetLastError() != ERROR_SUCCESS)
-		return false; // !TODO! Use GetLastError to determine actual error.
+		return false;
 
 	m_handlesSleeping.push_back(m_handleMain);
 
 	// Create backlog handles.
 	bool failedBacklog = false;
 	for (size_t n = 1; n < m_connectionBacklog; n++) {
-		HANDLE handle = _CreateExtra();
+		HANDLE handle = create_pipe();
 		if (!handle) {
-			// !TODO! Use GetLastError to determine actual error.
 			failedBacklog = true;
 			break;
 		}
 		m_handlesSleeping.push_back(handle);
 	}
 	if (failedBacklog) {
-		_Close();
+		Close();
 		return false;
 	}
 
-	m_isServer = true;
+	m_isInitialized = true;
 	return true;
 }
 
-HANDLE OS::NamedSocketWindows::_CreateExtra() {
+bool OS::NamedSocketWindows::Connect(std::string path) {
+	if (m_isInitialized)
+		return false;
+
+	// Validate Arguments
+	if (!is_valid_path(path))
+		return false;
+
+	m_isServer = false;
+
+	// Connect to pipe.
+	std::string fullPath = make_valid_path(path);
 #ifdef UNICODE
-	std::wstring pipeNameWS = m_pipeName;
+	std::wstring pipeNameWS = fullPath;
 	LPCTSTR pipeName = pipeNameWS.c_str();
 #else
-	LPCTSTR pipeName = m_pipeName.c_str();
+	LPCTSTR pipeName = fullPath.c_str();
 #endif
-	HANDLE handle = CreateNamedPipe(pipeName,
-		PIPE_ACCESS_DUPLEX/* | FILE_FLAG_OVERLAPPED*/,
-		PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE,
-		PIPE_UNLIMITED_INSTANCES,
-		(DWORD)m_bufferSizeSend, (DWORD)m_bufferSizeRecv,
-		(DWORD)m_timeOutDefault.count(), &m_securityAttributes);
-	if (!m_handleMain) {
-		// !TODO! Use GetLastError to determine actual error.
-		return nullptr;
-	}
 
-	return handle;
+	size_t attempts = 0;
+	for (size_t attempt = 0; attempt < 5; attempt++) {
+		m_handleMain = CreateFile(pipeName,
+			GENERIC_READ | GENERIC_WRITE,
+			0, NULL,
+			OPEN_EXISTING,
+			0, NULL);
+
+		if (m_handleMain != INVALID_HANDLE_VALUE)
+			break;
+
+		if (GetLastError() != ERROR_PIPE_BUSY)
+			return false;
+
+		if (!WaitNamedPipe(pipeName, (DWORD)m_timeOutWait.count())) {
+			if (attempt < 4) {
+				continue;
+			} else {
+				return false;
+			}
+		}
+	}
+	m_clientConnection = std::make_shared<OS::NamedSocketConnectionWindows>(this, m_handleMain);
+
+	m_isInitialized = true;
+	return true;
 }
 
-bool OS::NamedSocketWindows::_Close() {
+bool OS::NamedSocketWindows::Close() {
 	if (m_isServer) {
 		{
 			std::unique_lock<std::mutex> ulock(m_handlesWorkingMtx);
@@ -375,15 +251,22 @@ bool OS::NamedSocketWindows::_Close() {
 	} else {
 		CloseHandle(m_handleMain);
 	}
-	return true;
-}
 
-HANDLE OS::NamedSocketWindows::_Wait() {
+	m_isInitialized = false;
+	return !m_isInitialized;
+}
+#pragma endregion Listen/Connect/Close
+
+#pragma region Server Only
+bool OS::NamedSocketWindows::WaitForConnection() {
+	if (!m_isServer)
+		return false;
+
 	// Clear waiting handles first.
 	{
 		std::unique_lock<std::mutex> slock(m_handlesAwakeMtx);
 		if (m_handlesAwake.size() > 0)
-			return m_handlesAwake.front();
+			return true;
 	}
 
 	std::unique_lock<std::mutex> slock(m_handlesSleepingMtx);
@@ -409,7 +292,7 @@ HANDLE OS::NamedSocketWindows::_Wait() {
 					m_handlesSleeping.erase(m_handlesSleeping.begin() + nidx);
 					std::unique_lock<std::mutex> slock(m_handlesAwakeMtx);
 					m_handlesAwake.push_back(hndl);
-					return hndl;
+					return true;
 				}
 			}
 			std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -427,24 +310,23 @@ HANDLE OS::NamedSocketWindows::_Wait() {
 			m_handlesSleeping.erase(m_handlesSleeping.begin() + idx);
 			std::unique_lock<std::mutex> slock(m_handlesAwakeMtx);
 			m_handlesAwake.push_back(hndl);
-			return hndl;
+			return true;
 		}
 	}
 
-	return 0;
+	return false;
 }
 
-std::shared_ptr<OS::NamedSocketConnection> OS::NamedSocketWindows::_Accept() {
+std::shared_ptr<OS::NamedSocketConnection> OS::NamedSocketWindows::AcceptConnection() {
+	if (!m_isServer)
+		return nullptr;
+
 	std::unique_lock<std::mutex> slock(m_handlesAwakeMtx);
 	if (m_handlesAwake.size() == 0)
 		return nullptr;
 
 	HANDLE hndl = m_handlesAwake.back();
-
 	OVERLAPPED ov; memset(&ov, 0, sizeof(ov));
-
-
-
 	BOOL result = ConnectNamedPipe(hndl, NULL);
 	if (result == 0) {
 		DWORD err = GetLastError();
@@ -463,7 +345,7 @@ std::shared_ptr<OS::NamedSocketConnection> OS::NamedSocketWindows::_Accept() {
 		m_handlesWorking.push_back(hndl);
 	}
 
-	hndl = _CreateExtra();
+	hndl = create_pipe();
 	if (hndl) {
 		std::unique_lock<std::mutex> slock(m_handlesSleepingMtx);
 		m_handlesSleeping.push_back(hndl);
@@ -475,6 +357,73 @@ std::shared_ptr<OS::NamedSocketConnection> OS::NamedSocketWindows::_Accept() {
 		m_onConnectHandler(m_onConnectHandlerData, client.get());
 	return client;
 }
+
+bool OS::NamedSocketWindows::Disconnect(std::shared_ptr<OS::NamedSocketConnection> socket) {
+	std::shared_ptr<OS::NamedSocketConnectionWindows> sock =
+		std::dynamic_pointer_cast<OS::NamedSocketConnectionWindows>(socket);
+	return DisconnectNamedPipe(sock->m_handle) != 0;
+}
+
+#pragma endregion Server Only
+
+#pragma region Server & Client
+bool OS::NamedSocketWindows::IsServer() {
+	return m_isServer;
+}
+
+bool OS::NamedSocketWindows::IsClient() {
+	return !m_isServer;
+}
+#pragma endregion Server & Client
+
+#pragma region Client Only
+std::shared_ptr<OS::NamedSocketConnection> OS::NamedSocketWindows::GetConnection() {
+	return m_clientConnection;
+}
+#pragma endregion Client Only
+
+bool OS::NamedSocketWindows::is_valid_path(std::string path) {
+	// Path can't be larger than 255 characters, limit set by WinAPI.
+	if (path.length() > 255)
+		return false; // !TODO! Throw some kind of error to signal why it failed.
+
+	return true;
+}
+
+LPCTSTR OS::NamedSocketWindows::make_valid_path(std::string path) {
+	m_pipeName = "\\\\.\\pipe\\";
+
+	// Convert path to proper Win32 Named Pipe name.
+	boost::replace_all(path, "\\", "/"); // Backslash is not allowed.
+
+										 // Attach to Pipe
+	m_pipeName += path;
+
+	return m_pipeName.data();
+}
+
+HANDLE OS::NamedSocketWindows::create_pipe() {
+#ifdef UNICODE
+	std::wstring pipeNameWS = m_pipeName;
+	LPCTSTR pipeName = pipeNameWS.c_str();
+#else
+	LPCTSTR pipeName = m_pipeName.c_str();
+#endif
+	HANDLE handle = CreateNamedPipe(pipeName,
+		PIPE_ACCESS_DUPLEX/* | FILE_FLAG_OVERLAPPED*/,
+		PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE,
+		PIPE_UNLIMITED_INSTANCES,
+		(DWORD)m_bufferSizeSend, (DWORD)m_bufferSizeRecv,
+		(DWORD)m_timeOutDefault.count(), &m_securityAttributes);
+	if (!m_handleMain) {
+		// !TODO! Use GetLastError to determine actual error.
+		return nullptr;
+	}
+
+	return handle;
+}
+
+#pragma endregion NamedSocketWindows
 
 void OS::NamedSocketWindows::_ConnectionDestructorHandler(void* data, OS::NamedSocketConnection* ptr) {
 	OS::NamedSocketWindows* nsw = static_cast<OS::NamedSocketWindows*>(data);
@@ -518,7 +467,11 @@ OS::ClientId_t OS::NamedSocketConnectionWindows::GetClientId() {
 }
 
 bool OS::NamedSocketConnectionWindows::Good() {
-	return GetClientId() != 0;
+	ULONG pid;
+	if (GetNamedPipeClientProcessId(m_handle, &pid)) {
+		return pid != 0;
+	}
+	return false;
 }
 
 bool OS::NamedSocketConnectionWindows::Bad() {
