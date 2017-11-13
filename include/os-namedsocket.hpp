@@ -24,32 +24,15 @@
 
 namespace OS {
 	typedef int64_t ClientId_t;
-
-	class NamedSocketConnection {
-		public:
-		virtual ClientId_t GetClientId() = 0;
-
-		virtual bool Good() = 0;
-		virtual bool Bad() = 0;
-
-		virtual size_t Write(const char* buf, size_t length) = 0;
-		virtual size_t Write(const std::vector<char>& buf) = 0;
-
-		virtual size_t ReadAvail() = 0;
-		virtual std::vector<char> Read() = 0;
-		virtual size_t Read(char* buf, size_t length) = 0;
-		virtual size_t Read(std::vector<char>& out) = 0;
-	};
-
 	typedef void(*ConnectHandler_t)(void* data, OS::NamedSocketConnection* socket);
 	typedef void(*DisconnectHandler_t)(void* data, OS::NamedSocketConnection* socket);
 
+	class NamedSocketConnection;
 	class NamedSocket {
 		public:
 		static std::unique_ptr<OS::NamedSocket> Create();
 
-		// Only callable before Initialize()
-		public:
+	#pragma region Options
 		/// Adjust the incoming(receive) buffer size.
 		virtual bool SetReceiveBufferSize(size_t size) = 0;
 		virtual size_t GetReceiveBufferSize() = 0;
@@ -73,54 +56,57 @@ namespace OS {
 		/// Adjust the timeout for sending data.
 		virtual bool SetSendTimeOut(std::chrono::nanoseconds time) = 0;
 		virtual std::chrono::nanoseconds GetSendTimeOut() = 0;
+	#pragma endregion Options
 
-		// The callback to call if a new client connected.
-		virtual bool SetConnectHandler(ConnectHandler_t handler, void* data) = 0;
-		virtual ConnectHandler_t GetConnectHandler() = 0;
-		virtual void* GetConnectHandlerData() = 0;
+	#pragma region Listen/Connect/Close
+		// Listen to a Named Socket.
+		/// Listens on the specified path for connections of clients. These clients can be local or
+		///  on the network depending on what platform this is run on.
+		/// It will also attempt to keep a set amount of connections waiting for more clients, also
+		///  known as the backlog. A larger backlog can negatively impact performance while a lower
+		///  one means that less clients can connect simultaneously, resulting in delays.
+		virtual bool Listen(std::string path, size_t backlog) = 0;
 
-		// The callback to call if an existing client disconnects (by any means).
-		virtual bool SetDisconnectHandler(DisconnectHandler_t handler, void* data) = 0;
-		virtual DisconnectHandler_t GetDisconnectHandler() = 0;
-		virtual void* GetDisconnectHandlerData() = 0;
+		// Connect to a Named Socket.
+		/// Connects to an existing named socket (if possible), otherwise immediately returns false.
+		virtual bool Connect(std::string path) = 0;
 
-		// Socket Backlog
-		/// Backlog defines how many sleeping and/or waiting connections to keep around.
-		/// A low number means that clients have to wait while a high number might reduce performance.
-		virtual bool SetBacklog(size_t count) = 0;
-		virtual size_t GetBacklog() = 0;
-
-		public:
-		// Initialize the Named Socket.
-		/// Behavior differs depending on mode:
-		/// - Create acts like a Server and has control over the Socket.
-		/// - Connect acts like a Client and just reads/writes to the Socket.
-		///   (May fail if the Server has no more connections backlogged.)
-		/// Create and Connect are not exclusive, use IsServer and IsClient to know what was chosen.
-		virtual bool Initialize(std::string path, bool doCreate, bool doConnect) = 0;
 		// Finalize the Named Socket.
 		/// Different behavior depending on Initialized mode:
 		/// - Create disconnects all clients and closes the socket.
 		/// - Connect just disconnects from the socket and closes it.
-		virtual bool Finalize() = 0;
-		// Check if the Named Socket is run as a Server or Client.
-		virtual bool IsServer() = 0;
-		virtual bool IsClient() = 0;
+		virtual bool Close() = 0;
+	#pragma endregion Listen/Connect/Close
 
-
-		// Owner Functionality
-		public:
+	#pragma region Server Only
 		virtual bool WaitForConnection() = 0;
 		virtual std::shared_ptr<OS::NamedSocketConnection> AcceptConnection() = 0;
 		virtual bool Disconnect(std::shared_ptr<OS::NamedSocketConnection> connection) = 0;
+	#pragma endregion Server Only
 
-		// Child & Owner Functionality
-		public:
+	#pragma region Server & Client
+		virtual bool IsServer() = 0;
+		virtual bool IsClient() = 0;
+	#pragma endregion Server & Client
 
-
-		// Child Functionality
-		public:
+	#pragma region Client Only
 		virtual std::shared_ptr<OS::NamedSocketConnection> GetConnection() = 0;
+	#pragma endregion Client Only
+	};
+	
+	class NamedSocketConnection {
+		public:
+		virtual ClientId_t GetClientId() = 0;
 
+		virtual bool Good() = 0;
+		virtual bool Bad() = 0;
+
+		virtual size_t Write(const char* buf, size_t length) = 0;
+		virtual size_t Write(const std::vector<char>& buf) = 0;
+
+		virtual size_t ReadAvail() = 0;
+		virtual std::vector<char> Read() = 0;
+		virtual size_t Read(char* buf, size_t length) = 0;
+		virtual size_t Read(std::vector<char>& out) = 0;
 	};
 }
