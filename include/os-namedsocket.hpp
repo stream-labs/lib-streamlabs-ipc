@@ -24,10 +24,23 @@
 
 namespace OS {
 	typedef int64_t ClientId_t;
-	typedef void(*ConnectHandler_t)(void* data, OS::NamedSocketConnection* socket);
-	typedef void(*DisconnectHandler_t)(void* data, OS::NamedSocketConnection* socket);
 
-	class NamedSocketConnection;
+	class NamedSocketConnection {
+		public:
+		virtual ClientId_t GetClientId() = 0;
+
+		virtual bool Good() = 0;
+		virtual bool Bad() = 0;
+
+		virtual size_t Write(const char* buf, size_t length) = 0;
+		virtual size_t Write(const std::vector<char>& buf) = 0;
+
+		virtual size_t ReadAvail() = 0;
+		virtual std::vector<char> Read() = 0;
+		virtual size_t Read(char* buf, size_t length) = 0;
+		virtual size_t Read(std::vector<char>& out) = 0;
+	};
+
 	class NamedSocket {
 		public:
 		static std::unique_ptr<OS::NamedSocket> Create();
@@ -71,7 +84,7 @@ namespace OS {
 		/// Connects to an existing named socket (if possible), otherwise immediately returns false.
 		virtual bool Connect(std::string path) = 0;
 
-		// Finalize the Named Socket.
+		// Close the Named Socket.
 		/// Different behavior depending on Initialized mode:
 		/// - Create disconnects all clients and closes the socket.
 		/// - Connect just disconnects from the socket and closes it.
@@ -79,8 +92,8 @@ namespace OS {
 	#pragma endregion Listen/Connect/Close
 
 	#pragma region Server Only
-		virtual bool WaitForConnection() = 0;
-		virtual std::shared_ptr<OS::NamedSocketConnection> AcceptConnection() = 0;
+		virtual bool Wait() = 0;
+		virtual std::shared_ptr<OS::NamedSocketConnection> Accept() = 0;
 		virtual bool Disconnect(std::shared_ptr<OS::NamedSocketConnection> connection) = 0;
 	#pragma endregion Server Only
 
@@ -92,21 +105,5 @@ namespace OS {
 	#pragma region Client Only
 		virtual std::shared_ptr<OS::NamedSocketConnection> GetConnection() = 0;
 	#pragma endregion Client Only
-	};
-	
-	class NamedSocketConnection {
-		public:
-		virtual ClientId_t GetClientId() = 0;
-
-		virtual bool Good() = 0;
-		virtual bool Bad() = 0;
-
-		virtual size_t Write(const char* buf, size_t length) = 0;
-		virtual size_t Write(const std::vector<char>& buf) = 0;
-
-		virtual size_t ReadAvail() = 0;
-		virtual std::vector<char> Read() = 0;
-		virtual size_t Read(char* buf, size_t length) = 0;
-		virtual size_t Read(std::vector<char>& out) = 0;
 	};
 }
