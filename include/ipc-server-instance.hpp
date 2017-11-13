@@ -42,6 +42,8 @@ namespace IPC {
 		bool ReaderTask();
 		bool WriterTask();
 
+		bool IsAlive();
+
 		private:
 		Server* m_parent = nullptr;
 		std::shared_ptr<OS::NamedSocketConnection> m_socket;
