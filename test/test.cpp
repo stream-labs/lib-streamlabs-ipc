@@ -64,27 +64,45 @@ static void blog(std::string format, ...) {
 	std::cout << buf.data();
 }
 
-std::mutex lck;
-size_t msgcount = 0;
-uint64_t msgtime = 0;
-std::chrono::high_resolution_clock::time_point msglast = std::chrono::high_resolution_clock::time_point(std::chrono::nanoseconds(0));
+using namespace std::chrono;
+struct ClientData {
+	high_resolution_clock::time_point connectTime;
+	high_resolution_clock::time_point lastMessageTime;
+	uint64_t messageCount, messageTotalTime;
+	uint64_t replyCount, replyTotalTime;
+};
+
+std::map<OS::ClientId_t, ClientData> clientInfo;
 
 bool serverOnConnect(void* data, OS::ClientId_t id) {
-	msglast = std::chrono::high_resolution_clock::now();
+	ClientData cd;
+	cd.connectTime = std::chrono::high_resolution_clock::now();
+	cd.lastMessageTime = cd.connectTime;
+	cd.messageCount = cd.messageTotalTime = 0;
+	cd.replyCount = cd.replyTotalTime = 1;
+	clientInfo.insert(std::make_pair(id, cd));
 	blog(std::string("Server: Connect from %lld."), id);
 	return true;
 }
 
 void serverOnDisconnect(void* data, OS::ClientId_t id) {
-	blog(std::string("Server: Disconnect by %lld."), id);
+	ClientData& cd = clientInfo.at(id);
+	blog("Server: Disconnect by %lld\n"
+		"- Messages: %lld, Time: %lld ns, Average: %lld ns\n"
+		"- Replies: %lld, Time: %lld ns, Average: %lld ns", id,
+		cd.messageCount, cd.messageTotalTime, uint64_t(double_t(cd.messageTotalTime) / double_t(cd.messageCount)),
+		cd.replyCount, cd.replyTotalTime, uint64_t(double_t(cd.replyTotalTime) / double_t(cd.replyCount))
+	);
 }
 
 void serverOnMessage(void* data, OS::ClientId_t id, const std::vector<char>& msg) {
-	//blog(std::string("Server: Incoming Message by %lld: %*s"), id, msg.size(), msg.data());
-	std::unique_lock<std::mutex> ulock(lck);
-	msgcount++;
-	msgtime += (std::chrono::high_resolution_clock::now() - msglast).count();
-	msglast = std::chrono::high_resolution_clock::now();
+	ClientData& cd = clientInfo.at(id);
+	uint64_t delta = duration_cast<nanoseconds>(high_resolution_clock::now() - cd.lastMessageTime).count();
+	cd.lastMessageTime = high_resolution_clock::now();
+	cd.messageCount++;
+	cd.messageTotalTime += delta;
+
+	// Reply?
 }
 
 int serverThread() {
@@ -92,15 +110,15 @@ int serverThread() {
 	server.SetMessageHandler(serverOnMessage, nullptr);
 	server.SetConnectHandler(serverOnConnect, nullptr);
 	server.SetDisconnectHandler(serverOnDisconnect, nullptr);
+	
 	blog("Server: Starting...");
 	server.Initialize(sockpath);
 	blog("Server: Started.");
+
 	while (!killswitch) {
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	}
-	blog("Server: %lld Messages", msgcount);
-	blog("Server: %lld ns Time", msgtime);
-	blog("Server: %lld ns Average Time", uint64_t(msgtime / double_t(msgcount)));
+	
 	blog("Server: Shutting down...");
 	server.Finalize();
 	blog("Server: Shut down.");
@@ -111,6 +129,7 @@ int clientThread() {
 	blog("Client: Starting...");
 	IPC::Client client = { sockpath };
 	blog("Client: Started.");
+
 	std::vector<char> data(5);
 	data[0] = 'P'; data[1] = 'i'; data[2] = 'n'; data[3] = 'g'; data[4] = '\0';
 	auto bg = std::chrono::high_resolution_clock::now();
@@ -121,6 +140,7 @@ int clientThread() {
 	}
 	size_t ns = (std::chrono::high_resolution_clock::now() - bg).count();
 	blog("Client: Sent %lld in %lld ns, average %lld ns.", maxmsg, ns, uint64_t(ns / double_t(maxmsg)));
+	
 	blog("Client: Shutting down...");
 	return 0;
 }
@@ -163,7 +183,7 @@ int main(int argc, char** argv) {
 			NULL,
 			NULL,
 			false,
-			0,
+			CREATE_NEW_CONSOLE,
 			NULL,
 			NULL,
 			&si,
