@@ -25,7 +25,7 @@ IPC::Client::Client(std::string socketPath) {
 }
 
 IPC::Client::~Client() {
-	m_socket->Finalize();
+	m_socket->Close();
 }
 
 void IPC::Client::RawWrite(const std::vector<char>& buf) {

@@ -39,7 +39,7 @@ void IPC::Server::Finalize() {
 		m_stopWorker = true;
 		m_worker.join();
 		m_clients.clear();
-		m_socket->Finalize();
+		m_socket->Close();
 	}
 }
 
