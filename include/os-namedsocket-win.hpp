@@ -131,6 +131,7 @@ namespace OS {
 
 		protected:
 		HANDLE m_handle;
+		bool m_isGood = true;
 
 		private:
 		DestructorHandler_t m_cbDestructor;

@@ -152,7 +152,7 @@ bool OS::NamedSocketWindows::Listen(std::string path, size_t backlog) {
 	if (GetLastError() != ERROR_SUCCESS)
 		return false;
 
-	m_handlesSleeping.push_back(m_handleMain);
+	//m_handlesSleeping.push_back(m_handleMain);
 
 	// Create backlog handles.
 	bool failedBacklog = false;
@@ -465,11 +465,17 @@ OS::ClientId_t OS::NamedSocketConnectionWindows::GetClientId() {
 }
 
 bool OS::NamedSocketConnectionWindows::Good() {
+	if (!m_isGood)
+		return false;
+
 	ULONG pid;
-	if (GetNamedPipeClientProcessId(m_handle, &pid)) {
-		return pid != 0;
-	}
-	return false;
+	if (!GetNamedPipeClientProcessId(m_handle, &pid))
+		return false;
+
+	if (ReadAvail() == -1)
+		return false;
+
+	return true;
 }
 
 bool OS::NamedSocketConnectionWindows::Bad() {
@@ -488,7 +494,13 @@ size_t OS::NamedSocketConnectionWindows::Write(const std::vector<char>& buf) {
 
 size_t OS::NamedSocketConnectionWindows::ReadAvail() {
 	DWORD availBytes = 0;
-	PeekNamedPipe(m_handle, NULL, NULL, NULL, &availBytes, NULL);
+	if (!PeekNamedPipe(m_handle, NULL, NULL, NULL, &availBytes, NULL)) {
+		DWORD err = GetLastError();
+		if (err == ERROR_BROKEN_PIPE) {
+			m_isGood = false;
+			return -1;
+		}
+	}
 	return availBytes;
 }
 
@@ -503,9 +515,10 @@ size_t OS::NamedSocketConnectionWindows::Read(std::vector<char>& out) {
 }
 
 std::vector<char> OS::NamedSocketConnectionWindows::Read() {
-	DWORD msgLen = 0;
-	PeekNamedPipe(m_handle, NULL, NULL, NULL, NULL, &msgLen);
-	std::vector<char> buf(msgLen);
+	size_t bufSize = ReadAvail();
+	if (bufSize < 0)
+		return std::vector<char>(0);
+	std::vector<char> buf(bufSize);
 	Read(buf);
 	return buf;
 }
