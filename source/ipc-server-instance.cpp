@@ -63,11 +63,11 @@ void IPC::ServerInstance::WorkerLocal(bool writer) {
 }
 
 bool IPC::ServerInstance::ReaderTask() {
-	if (IsAlive())
+	if (!IsAlive())
 		return false;
 
 	while (m_socket->ReadAvail() > 0) {
-		if (IsAlive())
+		if (!IsAlive())
 			return false;
 
 		m_parent->ExecuteMessage(m_clientId, m_socket->Read());
@@ -83,7 +83,7 @@ bool IPC::ServerInstance::WriterTask() {
 		return m_writeWorker.shutdown || m_writeQueue.size() > 0 || m_socket->Bad();
 	});
 
-	if (IsAlive())
+	if (!IsAlive())
 		return false;
 
 	while (m_writeQueue.size() > 0) {
@@ -95,7 +95,7 @@ bool IPC::ServerInstance::WriterTask() {
 			m_writeQueue.push(data);
 		}
 
-		if (m_socket->Bad())
+		if (!IsAlive())
 			return false;
 	}
 
