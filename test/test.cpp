@@ -162,6 +162,7 @@ int main(int argc, char** argv) {
 	if (isServer) {
 		worker = std::thread(serverThread);
 
+		std::cin.get();
 	#ifdef _WIN32
 		std::stringstream args;
 		args << '"' << argv[0] << '"' << " ";
