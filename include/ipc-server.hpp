@@ -66,6 +66,7 @@ namespace IPC {
 		std::thread m_worker;
 		bool m_stopWorker = false;
 
+		// Client management.
 		std::mutex m_clientLock;
 		std::map<OS::ClientId_t, std::shared_ptr<ServerInstance>> m_clients;
 		std::map<std::string, IPC::Class> m_classes;

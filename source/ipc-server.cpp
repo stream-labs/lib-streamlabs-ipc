@@ -20,7 +20,6 @@
 
 IPC::Server::Server() {
 	m_socket = OS::NamedSocket::Create();
-	m_socket->SetBacklog(0);
 }
 
 IPC::Server::~Server() {
@@ -28,7 +27,7 @@ IPC::Server::~Server() {
 }
 
 void IPC::Server::Initialize(std::string socketPath) {
-	if (!m_socket->Initialize(socketPath, true, false))
+	if (!m_socket->Listen(socketPath, 4))
 		throw std::exception("Failed to initialize socket.");
 	m_worker = std::thread(WorkerMain, this);
 	m_isInitialized = true;
@@ -102,8 +101,8 @@ void IPC::Server::WorkerMain(Server* ptr) {
 
 void IPC::Server::WorkerLocal() {
 	while (m_stopWorker == false) {
-		if (m_socket->WaitForConnection()) {
-			std::shared_ptr<OS::NamedSocketConnection> conn = m_socket->AcceptConnection();
+		if (m_socket->Wait()) {
+			std::shared_ptr<OS::NamedSocketConnection> conn = m_socket->Accept();
 			if (conn && conn->Good()) {
 				bool allow = true;
 				if (m_handlerConnect.first != nullptr)
