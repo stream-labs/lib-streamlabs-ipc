@@ -24,13 +24,10 @@ std::unique_ptr<OS::NamedSocket> OS::NamedSocket::Create() {
 
 #pragma region NamedSocketWindows
 #pragma region De-/Constructor
-OS::NamedSocketWindows::NamedSocketWindows() {
-
-}
+OS::NamedSocketWindows::NamedSocketWindows() {}
 
 OS::NamedSocketWindows::~NamedSocketWindows() {
-	if (m_isInitialized)
-		Close();
+	Close();
 }
 #pragma endregion De-/Constructor
 
@@ -224,6 +221,9 @@ bool OS::NamedSocketWindows::Connect(std::string path) {
 }
 
 bool OS::NamedSocketWindows::Close() {
+	if (!m_isInitialized)
+		return false;
+
 	if (m_isServer) {
 		{
 			std::unique_lock<std::mutex> ulock(m_handlesWorkingMtx);
@@ -258,7 +258,7 @@ bool OS::NamedSocketWindows::Close() {
 #pragma endregion Listen/Connect/Close
 
 #pragma region Server Only
-bool OS::NamedSocketWindows::WaitForConnection() {
+bool OS::NamedSocketWindows::Wait() {
 	if (!m_isServer)
 		return false;
 
@@ -317,7 +317,7 @@ bool OS::NamedSocketWindows::WaitForConnection() {
 	return false;
 }
 
-std::shared_ptr<OS::NamedSocketConnection> OS::NamedSocketWindows::AcceptConnection() {
+std::shared_ptr<OS::NamedSocketConnection> OS::NamedSocketWindows::Accept() {
 	if (!m_isServer)
 		return nullptr;
 
@@ -353,8 +353,6 @@ std::shared_ptr<OS::NamedSocketConnection> OS::NamedSocketWindows::AcceptConnect
 		// !TODO! Replace with proper warning.
 	}
 
-	if (m_onConnectHandler)
-		m_onConnectHandler(m_onConnectHandlerData, client.get());
 	return client;
 }
 
@@ -382,6 +380,7 @@ std::shared_ptr<OS::NamedSocketConnection> OS::NamedSocketWindows::GetConnection
 }
 #pragma endregion Client Only
 
+#pragma region Utility Functions
 bool OS::NamedSocketWindows::is_valid_path(std::string path) {
 	// Path can't be larger than 255 characters, limit set by WinAPI.
 	if (path.length() > 255)
@@ -394,11 +393,11 @@ LPCTSTR OS::NamedSocketWindows::make_valid_path(std::string path) {
 	m_pipeName = "\\\\.\\pipe\\";
 
 	// Convert path to proper Win32 Named Pipe name.
-	boost::replace_all(path, "\\", "/"); // Backslash is not allowed.
+	/// Backslash is not allowed.
+	boost::replace_all(path, "\\", "/");
 
-										 // Attach to Pipe
+	// Generate proper name.
 	m_pipeName += path;
-
 	return m_pipeName.data();
 }
 
@@ -422,6 +421,7 @@ HANDLE OS::NamedSocketWindows::create_pipe() {
 
 	return handle;
 }
+#pragma endregion Utility Functions
 
 #pragma endregion NamedSocketWindows
 
@@ -440,8 +440,6 @@ void OS::NamedSocketWindows::_ConnectionDestructorHandler(void* data, OS::NamedS
 		std::unique_lock<std::mutex> nlock(nsw->m_handlesSleepingMtx);
 		nsw->m_handlesSleeping.push_back(sock->m_handle);
 	}
-	if (nsw->m_onDisconnectHandler)
-		nsw->m_onDisconnectHandler(nsw->m_onDisconnectHandlerData, sock);
 }
 
 OS::NamedSocketConnectionWindows::NamedSocketConnectionWindows(OS::NamedSocket* handler, HANDLE socket) {

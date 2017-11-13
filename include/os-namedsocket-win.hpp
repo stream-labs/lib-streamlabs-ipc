@@ -56,8 +56,8 @@ namespace OS {
 	#pragma endregion Listen/Connect/Close
 
 	#pragma region Server Only
-		virtual bool WaitForConnection() override;
-		virtual std::shared_ptr<OS::NamedSocketConnection> AcceptConnection() override;
+		virtual bool Wait() override;
+		virtual std::shared_ptr<OS::NamedSocketConnection> Accept() override;
 		virtual bool Disconnect(std::shared_ptr<OS::NamedSocketConnection> connection) override;
 	#pragma endregion Server Only
 
@@ -82,9 +82,9 @@ namespace OS {
 
 		// Private Memory
 		private:
-		bool m_isInitialized;
-		bool m_isServer;
-		std::string m_pipeName;
+		bool m_isInitialized = false;
+		bool m_isServer = false;
+		std::string m_pipeName = "";
 		size_t m_bufferSizeSend = 65535;
 		size_t m_bufferSizeRecv = 65535;
 		std::chrono::milliseconds m_timeOutDefault = std::chrono::milliseconds(50);
@@ -92,15 +92,9 @@ namespace OS {
 		std::chrono::milliseconds m_timeOutSend = std::chrono::milliseconds(50);
 		std::chrono::milliseconds m_timeOutRecv = std::chrono::milliseconds(50);
 
-		/// Callbacks
-		ConnectHandler_t m_onConnectHandler;
-		void* m_onConnectHandlerData;
-		DisconnectHandler_t m_onDisconnectHandler;
-		void* m_onDisconnectHandlerData;
-
 		/// Simulate TCP networking.
 		size_t m_connectionBacklog = 4;
-		HANDLE m_handleMain;
+		HANDLE m_handleMain = 0;
 		SECURITY_ATTRIBUTES m_securityAttributes;
 		std::mutex
 			m_handlesSleepingMtx,
