@@ -19,7 +19,7 @@
 
 IPC::Client::Client(std::string socketPath) {
 	m_socket = OS::NamedSocket::Create();
-	if (!m_socket->Initialize(socketPath, false, true)) {
+	if (!m_socket->Connect(socketPath)) {
 		throw std::exception("Failed to initialize socket.");
 	}
 }
