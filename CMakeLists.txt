@@ -30,6 +30,10 @@ SET(Protobuf_PROTOC_LIBRARY_DEBUG	"${PROJECT_SOURCE_DIR}/third-party/protobuf/bi
 SET(Protobuf_PROTOC_LIBRARY_RELEASE	"${PROJECT_SOURCE_DIR}/third-party/protobuf/bin/Release/libprotoc.lib")
 find_package(Protobuf REQUIRED)
 
+## Boost
+SET(Boost_USE_STATIC_LIBS ON)
+find_package(Boost REQUIRED system)
+
 # Only allow Debug or Release builds.
 SET(CMAKE_CONFIGURATION_TYPES			"Debug;Release")
 SET(CMAKE_CXX_FLAGS_RELEASE				"${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
@@ -62,6 +66,7 @@ SET(lib-streamlabs-ipc_SOURCES
 	"${PROJECT_SOURCE_DIR}/include/ipc-server-instance.hpp"
 	"${PROJECT_SOURCE_DIR}/source/ipc-value.cpp"
 	"${PROJECT_SOURCE_DIR}/include/ipc-value.hpp"
+	"${PROJECT_SOURCE_DIR}/source/os-namedsocket.cpp"
 	"${PROJECT_SOURCE_DIR}/include/os-namedsocket.hpp"
 	"${PROJECT_SOURCE_DIR}/include/util.h"
 )
@@ -133,7 +138,7 @@ ENDIF()
 # Protobuf
 protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${lib-streamlabs-ipc_PROTOBUF})
 
-# Includes
+# Directories
 INCLUDE_DIRECTORIES(
 	${PROJECT_SOURCE_DIR}/source
 	${PROJECT_SOURCE_DIR}/include
@@ -141,7 +146,9 @@ INCLUDE_DIRECTORIES(
 	${Protobuf_INCLUDE_DIRS}
 	${PROJECT_BINARY_DIR}
 )
-MESSAGE("${Protobuf_INCLUDE_DIRS}")
+LINK_DIRECTORIES(
+	${Boost_LIBRARY_DIRS}
+)
 
 # Building
 ADD_LIBRARY(${PROJECT_NAME} STATIC
@@ -151,9 +158,9 @@ ADD_LIBRARY(${PROJECT_NAME} STATIC
 
 # Linking
 TARGET_LINK_LIBRARIES(${PROJECT_NAME}
-	${CMAKE_JS_LIB}
 	${lib-streamlabs-ipc_LIBRARIES}
 	${Protobuf_LIBRARIES}
+	${Boost_LIBRARIES}
 )
 
 # TEsts
