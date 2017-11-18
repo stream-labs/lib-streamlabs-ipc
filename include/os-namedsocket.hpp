@@ -16,59 +16,46 @@
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110 - 1301, USA.
 
 #pragma once
+#include <boost/asio.hpp>
 #include <chrono>
-#include <streambuf>
 #include <memory>
+#include <thread>
 #include <string>
 #include <vector>
 
 namespace OS {
 	typedef int64_t ClientId_t;
 
-	class NamedSocketConnection {
-		public:
-		virtual ClientId_t GetClientId() = 0;
-
-		virtual bool Good() = 0;
-		virtual bool Bad() = 0;
-
-		virtual size_t Write(const char* buf, size_t length) = 0;
-		virtual size_t Write(const std::vector<char>& buf) = 0;
-
-		virtual size_t ReadAvail() = 0;
-		virtual std::vector<char> Read() = 0;
-		virtual size_t Read(char* buf, size_t length) = 0;
-		virtual size_t Read(std::vector<char>& out) = 0;
-	};
-
+	class NamedSocketConnection;
 	class NamedSocket {
 		public:
 		static std::unique_ptr<OS::NamedSocket> Create();
+		typedef void(*ConnectHandler_t)(std::shared_ptr<OS::NamedSocketConnection> conn);
+		typedef void(*DisconnectHandler_t)(std::shared_ptr<OS::NamedSocketConnection> conn);
+
+		NamedSocket();
+		virtual ~NamedSocket();
 
 	#pragma region Options
 		/// Adjust the incoming(receive) buffer size.
-		virtual bool SetReceiveBufferSize(size_t size) = 0;
-		virtual size_t GetReceiveBufferSize() = 0;
+		bool SetReceiveBufferSize(size_t size);
+		size_t GetReceiveBufferSize();
 
 		/// Adjust the outgoing(send) buffer size.
-		virtual bool SetSendBufferSize(size_t size) = 0;
-		virtual size_t GetSendBufferSize() = 0;
-
-		/// Adjust the default timeout for send/receive/wait.
-		virtual bool SetDefaultTimeOut(std::chrono::nanoseconds time) = 0;
-		virtual std::chrono::nanoseconds GetDefaultTimeOut() = 0;
-
+		bool SetSendBufferSize(size_t size);
+		size_t GetSendBufferSize();
+		
 		/// Adjust the timeout for waiting.
-		virtual bool SetWaitTimeOut(std::chrono::nanoseconds time) = 0;
-		virtual std::chrono::nanoseconds GetWaitTimeOut() = 0;
+		bool SetWaitTimeOut(std::chrono::nanoseconds time);
+		std::chrono::nanoseconds GetWaitTimeOut();
 
 		/// Adjust the timeout for receiving data.
-		virtual bool SetReceiveTimeOut(std::chrono::nanoseconds time) = 0;
-		virtual std::chrono::nanoseconds GetReceiveTimeOut() = 0;
+		bool SetReceiveTimeOut(std::chrono::nanoseconds time);
+		std::chrono::nanoseconds GetReceiveTimeOut();
 
 		/// Adjust the timeout for sending data.
-		virtual bool SetSendTimeOut(std::chrono::nanoseconds time) = 0;
-		virtual std::chrono::nanoseconds GetSendTimeOut() = 0;
+		bool SetSendTimeOut(std::chrono::nanoseconds time);
+		std::chrono::nanoseconds GetSendTimeOut();
 	#pragma endregion Options
 
 	#pragma region Listen/Connect/Close
@@ -78,32 +65,81 @@ namespace OS {
 		/// It will also attempt to keep a set amount of connections waiting for more clients, also
 		///  known as the backlog. A larger backlog can negatively impact performance while a lower
 		///  one means that less clients can connect simultaneously, resulting in delays.
-		virtual bool Listen(std::string path, size_t backlog) = 0;
+		bool Listen(std::string path, size_t backlog);
 
 		// Connect to a Named Socket.
 		/// Connects to an existing named socket (if possible), otherwise immediately returns false.
-		virtual bool Connect(std::string path) = 0;
+		bool Connect(std::string path);
 
 		// Close the Named Socket.
 		/// Different behavior depending on Initialized mode:
 		/// - Create disconnects all clients and closes the socket.
 		/// - Connect just disconnects from the socket and closes it.
-		virtual bool Close() = 0;
+		bool Close();
 	#pragma endregion Listen/Connect/Close
 
-	#pragma region Server Only
-		virtual bool Wait() = 0;
-		virtual std::shared_ptr<OS::NamedSocketConnection> Accept() = 0;
-		virtual bool Disconnect(std::shared_ptr<OS::NamedSocketConnection> connection) = 0;
-	#pragma endregion Server Only
-
 	#pragma region Server & Client
-		virtual bool IsServer() = 0;
-		virtual bool IsClient() = 0;
+		bool IsInitialized();
+		bool IsServer();
+		bool IsClient();
 	#pragma endregion Server & Client
 
+	#pragma region Server Only
+		virtual std::weak_ptr<OS::NamedSocketConnection> Accept();
+	#pragma endregion Server Only
+
 	#pragma region Client Only
-		virtual std::shared_ptr<OS::NamedSocketConnection> GetConnection() = 0;
+		std::shared_ptr<OS::NamedSocketConnection> GetConnection();
 	#pragma endregion Client Only
+
+		protected:
+		virtual bool _listen(std::string path, size_t backlog) = 0;
+		virtual bool _connect(std::string path) = 0;
+		virtual bool _close() = 0;
+
+		private:
+		// Flags
+		bool m_isInitialized;
+		bool m_isListening;
+
+		// Times for timing out.
+		std::chrono::nanoseconds m_timeOutWait;
+		std::chrono::nanoseconds m_timeOutReceive;
+		std::chrono::nanoseconds m_timeOutSend;
+
+		// Buffers
+		size_t m_bufferReceiveSize;
+		size_t m_bufferSendSize;
+
+		// IO
+		protected:
+		std::list<std::shared_ptr<NamedSocketConnection>> m_ioConnections;
+	};
+
+	class NamedSocketConnection {
+		public:
+		
+		// Status
+		virtual bool IsReady() = 0;
+		virtual bool IsWaiting() = 0;
+		virtual bool IsConnected() = 0;
+		virtual bool Connect() = 0;
+		virtual bool Disconnect() = 0;
+		virtual bool EoF() = 0;
+		virtual bool Good() = 0;
+		virtual bool Bad();
+
+		// Reading
+		virtual size_t ReadAvail() = 0;
+		virtual size_t Read(char* buf, size_t length) = 0;
+		virtual size_t Read(std::vector<char>& out);
+		virtual std::vector<char> Read();
+
+		// Writing
+		virtual size_t Write(const char* buf, size_t length) = 0;
+		virtual size_t Write(const std::vector<char>& buf);
+
+		// Info
+		virtual ClientId_t GetClientId() = 0;
 	};
 }
