@@ -103,6 +103,9 @@ void serverOnMessage(void* data, OS::ClientId_t id, const std::vector<char>& msg
 	cd.messageTotalTime += delta;
 
 	// Reply?
+	if ((cd.messageCount % 1000) == 0)
+		blog("Server: Messages by %lld so far: %lld, Time: %lld ns, Average: %lld ns",
+			id, cd.messageCount, cd.messageTotalTime, uint64_t(double_t(cd.messageTotalTime) / double_t(cd.messageCount)));
 }
 
 int serverThread() {
@@ -133,10 +136,14 @@ int clientThread() {
 	std::vector<char> data(5);
 	data[0] = 'P'; data[1] = 'i'; data[2] = 'n'; data[3] = 'g'; data[4] = '\0';
 	auto bg = std::chrono::high_resolution_clock::now();
+	client.RawWrite(data);
+	std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
 	const size_t maxmsg = 100000;
 	for (size_t idx = 0; idx < maxmsg; idx++) {
 		client.RawWrite(data);
+		if ((idx % 1000) == 0)
+			blog("Send! %lld", idx);
 	}
 	size_t ns = (std::chrono::high_resolution_clock::now() - bg).count();
 	blog("Client: Sent %lld in %lld ns, average %lld ns.", maxmsg, ns, uint64_t(ns / double_t(maxmsg)));
@@ -196,8 +203,10 @@ int main(int argc, char** argv) {
 		killswitch = true;
 	} else {
 		worker = std::thread(clientThread);
+		std::cin.get();
 	}
-	worker.join();
+	if (worker.joinable())
+		worker.join();
 
 	return 0;
 }
