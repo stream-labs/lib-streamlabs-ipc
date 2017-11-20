@@ -16,12 +16,12 @@
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110 - 1301, USA.
 
 #pragma once
-#include <boost/asio.hpp>
 #include <chrono>
 #include <memory>
 #include <thread>
 #include <string>
 #include <vector>
+#include <list>
 
 namespace OS {
 	typedef int64_t ClientId_t;
@@ -85,7 +85,7 @@ namespace OS {
 	#pragma endregion Server & Client
 
 	#pragma region Server Only
-		virtual std::weak_ptr<OS::NamedSocketConnection> Accept();
+		std::weak_ptr<OS::NamedSocketConnection> Accept();
 	#pragma endregion Server Only
 
 	#pragma region Client Only
@@ -113,14 +113,13 @@ namespace OS {
 
 		// IO
 		protected:
-		std::list<std::shared_ptr<NamedSocketConnection>> m_ioConnections;
+		std::list<std::shared_ptr<NamedSocketConnection>> m_connections;
 	};
 
 	class NamedSocketConnection {
 		public:
 		
 		// Status
-		virtual bool IsReady() = 0;
 		virtual bool IsWaiting() = 0;
 		virtual bool IsConnected() = 0;
 		virtual bool Connect() = 0;
@@ -132,12 +131,15 @@ namespace OS {
 		// Reading
 		virtual size_t ReadAvail() = 0;
 		virtual size_t Read(char* buf, size_t length) = 0;
-		virtual size_t Read(std::vector<char>& out);
-		virtual std::vector<char> Read();
+		virtual size_t Read(std::vector<char>& out) = 0;
+		virtual std::vector<char> Read() = 0;
 
 		// Writing
-		virtual size_t Write(const char* buf, size_t length) = 0;
-		virtual size_t Write(const std::vector<char>& buf);
+		virtual size_t Write(const char* buf, const size_t length) = 0;
+		virtual size_t Write(const std::vector<char>& buf) = 0;
+
+		// Waiting
+		virtual void Wait() = 0;
 
 		// Info
 		virtual ClientId_t GetClientId() = 0;

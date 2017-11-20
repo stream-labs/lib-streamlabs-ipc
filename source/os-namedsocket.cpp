@@ -17,16 +17,7 @@
 
 #include "os-namedsocket.hpp"
 
-#ifdef _WIN32
-#define _WIN32_WINNT 0x0501
-#include <Windows.h>
-#else
-
-#endif
-
-#define DEFAULT_TIMEOUT 50000000
 #define MINIMUM_TIMEOUT 1000000
-#define DEFAULT_BUFFER_SIZE 1048576
 #define MINIMUM_BUFFER_SIZE 32768
 
 #pragma region Named Socket
@@ -36,13 +27,13 @@ OS::NamedSocket::NamedSocket() {
 		m_isListening = false;
 
 	// Timing out defaults to 50ms.
-	m_timeOutWait =
-		m_timeOutReceive =
-		m_timeOutSend = std::chrono::nanoseconds(DEFAULT_TIMEOUT);
+	m_timeOutWait = std::chrono::nanoseconds(50000000);
+	m_timeOutReceive = std::chrono::nanoseconds(1000000000);
+	m_timeOutSend = std::chrono::nanoseconds(1000000000);
 
 	// Buffers default to 1 MB Size.
-	m_bufferReceiveSize =
-		m_bufferSendSize = DEFAULT_BUFFER_SIZE;
+	m_bufferReceiveSize = 1048576;
+	m_bufferSendSize = 1048576;
 }
 
 OS::NamedSocket::~NamedSocket() {
@@ -174,26 +165,25 @@ bool OS::NamedSocket::IsClient() {
 }
 
 std::weak_ptr<OS::NamedSocketConnection> OS::NamedSocket::Accept() {
-	for (std::shared_ptr<NamedSocketConnection> sock : m_ioConnections) {
-		if (sock->IsWaiting()) {
-			return sock;
+	for (auto frnt = m_connections.begin(); frnt != m_connections.end(); frnt++) {
+		if ((*frnt)->IsWaiting()) {
+			return std::weak_ptr<OS::NamedSocketConnection>(*frnt);
 		}
 	}
 	return std::weak_ptr<OS::NamedSocketConnection>();
 }
-
 #pragma endregion Server & Client
 
 #pragma region Client Only
 std::shared_ptr<OS::NamedSocketConnection> OS::NamedSocket::GetConnection() {
-	return m_ioConnections.front();
+	return m_connections.front();
 }
 #pragma endregion Client Only
 #pragma endregion Named Socket
 
 #pragma region Named Socket Connection
 bool OS::NamedSocketConnection::Bad() {
-	return EoF() || !Good();
+	return !Good();
 }
 
 size_t OS::NamedSocketConnection::Read(std::vector<char>& out) {
