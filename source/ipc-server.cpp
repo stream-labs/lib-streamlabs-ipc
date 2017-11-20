@@ -36,8 +36,10 @@ void IPC::Server::Initialize(std::string socketPath) {
 void IPC::Server::Finalize() {
 	if (m_isInitialized) {
 		m_stopWorker = true;
-		m_worker.join();
+		if (m_worker.joinable())
+			m_worker.join();
 		m_clients.clear();
+		m_clientsDisconnectDelay.clear();
 		m_socket->Close();
 	}
 }
@@ -62,15 +64,15 @@ bool IPC::Server::RegisterClass(IPC::Class cls) {
 	return true;
 }
 
-void IPC::Server::OnClientDisconnected(OS::ClientId_t clientId) {
-	std::unique_lock<std::mutex> ulock(m_clientLock);
+void IPC::Server::handle_disconnect(OS::ClientId_t clientId) {
 	if (m_handlerDisconnect.first != nullptr)
 		m_handlerDisconnect.first(m_handlerDisconnect.second, clientId);
 
+	std::unique_lock<std::mutex> ulock(m_clientLock);
 	m_clients.erase(clientId);
 }
 
-void IPC::Server::ExecuteMessage(OS::ClientId_t clientId, std::vector<char> message) {
+void IPC::Server::handle_message(OS::ClientId_t clientId, std::vector<char> message) {
 	if (m_handlerMessage.first)
 		m_handlerMessage.first(m_handlerMessage.second, clientId, message);
 
@@ -101,17 +103,20 @@ void IPC::Server::WorkerMain(Server* ptr) {
 
 void IPC::Server::WorkerLocal() {
 	while (m_stopWorker == false) {
-		if (m_socket->Wait()) {
-			std::shared_ptr<OS::NamedSocketConnection> conn = m_socket->Accept();
-			if (conn && conn->Good()) {
-				bool allow = true;
-				if (m_handlerConnect.first != nullptr)
-					allow = m_handlerConnect.first(m_handlerConnect.second, conn->GetClientId());
+		std::shared_ptr<OS::NamedSocketConnection> conn = m_socket->Accept().lock();
+		if (!conn)
+			continue;
+		
+		bool allow = true;
+		if (m_handlerConnect.first != nullptr)
+			allow = m_handlerConnect.first(m_handlerConnect.second, conn->GetClientId());
 
-				std::unique_lock<std::mutex> ulock(m_clientLock);
-				std::shared_ptr<ServerInstance> instance = std::make_shared<ServerInstance>(this, conn);
-				m_clients.insert(std::make_pair(conn->GetClientId(), instance));
-			}
-		}
+		if (allow)
+			if (!conn->Connect())
+				continue;
+
+		std::unique_lock<std::mutex> ulock(m_clientLock);
+		std::shared_ptr<ServerInstance> instance = std::make_shared<ServerInstance>(this, conn);
+		m_clients.insert(std::make_pair(conn->GetClientId(), instance));
 	}
 }

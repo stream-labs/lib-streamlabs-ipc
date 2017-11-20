@@ -25,6 +25,7 @@ IPC::Client::Client(std::string socketPath) {
 }
 
 IPC::Client::~Client() {
+	m_socket->GetConnection()->Wait();
 	m_socket->Close();
 }
 

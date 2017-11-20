@@ -29,10 +29,13 @@ IPC::ServerInstance::ServerInstance(IPC::Server* owner, std::shared_ptr<OS::Name
 }
 
 IPC::ServerInstance::~ServerInstance() {
-	m_readWorker.shutdown = m_writeWorker.shutdown = true;
-	m_readWorker.worker.join();
+	m_readWorker.shutdown = true;
+	if (m_readWorker.worker.joinable())
+		m_readWorker.worker.join();
+	m_writeWorker.shutdown = true;
 	m_writeCV.notify_all();
-	m_writeWorker.worker.join();
+	if (m_writeWorker.worker.joinable())
+		m_writeWorker.worker.join();
 }
 
 void IPC::ServerInstance::QueueMessage(std::vector<char> data) {
@@ -47,57 +50,58 @@ void IPC::ServerInstance::WorkerMain(ServerInstance* ptr, bool writer) {
 
 void IPC::ServerInstance::WorkerLocal(bool writer) {
 	WorkerStruct* work = (writer ? &m_writeWorker : &m_readWorker);
-	while (!work->shutdown) {
+	while ((m_readWorker.shutdown == false) && IsAlive()) {
 		if (writer) {
-			if (!WriterTask()) {
+			if (!WriterTask())
 				break;
-			}
 		} else {
-			if (!ReaderTask()) {
+			if (!ReaderTask())
 				break;
-			}
 		}
 	}
 
-	m_parent->OnClientDisconnected(m_clientId);
+	if (work->shutdown == false)
+		m_parent->handle_disconnect(m_clientId);
 }
 
 bool IPC::ServerInstance::ReaderTask() {
+	while (m_socket->ReadAvail() > 0)
+		m_parent->handle_message(m_clientId, m_socket->Read());
+
 	if (!IsAlive())
 		return false;
-
-	while (m_socket->ReadAvail() > 0) {
-		if (!IsAlive())
-			return false;
-
-		m_parent->ExecuteMessage(m_clientId, m_socket->Read());
-	}
 
 	std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	return true;
 }
 
 bool IPC::ServerInstance::WriterTask() {
-	std::unique_lock<std::mutex> ulock(m_writeLock);
-	m_writeCV.wait(ulock, [this] {
-		return m_writeWorker.shutdown || m_writeQueue.size() > 0 || m_socket->Bad();
-	});
+	std::queue<std::vector<char>> dataQueue;
+	{
+		std::unique_lock<std::mutex> ulock(m_writeLock);
+		m_writeCV.wait(ulock, [this] {
+			return m_writeWorker.shutdown || m_writeQueue.size() > 0 || !IsAlive();
+		});
 
-	if (!IsAlive())
-		return false;
+		if (m_writeWorker.shutdown || !IsAlive())
+			return false;
 
-	while (m_writeQueue.size() > 0) {
-		std::vector<char> data = m_writeQueue.front();
+		if (m_writeQueue.size() > 0) {
+			dataQueue.swap(m_writeQueue);
+		}
+	}
+
+	while (dataQueue.size() > 0) {
+		std::vector<char> data = std::move(dataQueue.front());
 		if (m_socket->Write(data) == data.size()) {
 			m_writeQueue.pop();
 		} else {
-			m_writeQueue.pop();
-			m_writeQueue.push(data);
-		}
-
-		if (!IsAlive())
 			return false;
+		}
 	}
+
+	if (!IsAlive())
+		return false;
 
 	return true;
 }
