@@ -138,9 +138,6 @@ namespace OS {
 		virtual size_t Write(const char* buf, const size_t length) = 0;
 		virtual size_t Write(const std::vector<char>& buf) = 0;
 
-		// Waiting
-		virtual void Wait() = 0;
-
 		// Info
 		virtual ClientId_t GetClientId() = 0;
 	};

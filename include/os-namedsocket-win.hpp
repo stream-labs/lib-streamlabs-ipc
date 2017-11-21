@@ -70,8 +70,6 @@ namespace OS {
 		virtual size_t Write(const char* buf, const size_t length) override;
 		virtual size_t Write(const std::vector<char>& buf) override;
 
-		virtual void Wait() override;
-
 		// Info
 		virtual ClientId_t GetClientId() override;
 
