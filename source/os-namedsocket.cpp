@@ -18,7 +18,7 @@
 #include "os-namedsocket.hpp"
 
 #define MINIMUM_TIMEOUT 1000000
-#define MINIMUM_BUFFER_SIZE 32768
+#define MINIMUM_BUFFER_SIZE 32767
 
 #pragma region Named Socket
 OS::NamedSocket::NamedSocket() {
@@ -26,14 +26,14 @@ OS::NamedSocket::NamedSocket() {
 	m_isInitialized =
 		m_isListening = false;
 
-	// Timing out defaults to 50ms.
-	m_timeOutWait = std::chrono::nanoseconds(50000000);
-	m_timeOutReceive = std::chrono::nanoseconds(1000000000);
-	m_timeOutSend = std::chrono::nanoseconds(1000000000);
+	// Timing out defaults to 2ms.
+	m_timeOutWait = std::chrono::nanoseconds(2000000);
+	m_timeOutReceive = std::chrono::nanoseconds(2000000);
+	m_timeOutSend = std::chrono::nanoseconds(2000000);
 
 	// Buffers default to 1 MB Size.
-	m_bufferReceiveSize = 1048576;
-	m_bufferSendSize = 1048576;
+	m_bufferReceiveSize = MINIMUM_BUFFER_SIZE;
+	m_bufferSendSize = MINIMUM_BUFFER_SIZE;
 }
 
 OS::NamedSocket::~NamedSocket() {
@@ -184,20 +184,5 @@ std::shared_ptr<OS::NamedSocketConnection> OS::NamedSocket::GetConnection() {
 #pragma region Named Socket Connection
 bool OS::NamedSocketConnection::Bad() {
 	return !Good();
-}
-
-size_t OS::NamedSocketConnection::Read(std::vector<char>& out) {
-	return Read(out.data(), out.size());
-}
-
-std::vector<char> OS::NamedSocketConnection::Read() {
-	size_t sz = ReadAvail();
-	std::vector<char> buf(sz);
-	buf.resize(Read(buf));
-	return std::move(buf);
-}
-
-size_t OS::NamedSocketConnection::Write(const std::vector<char>& buf) {
-	return Write(buf.data(), buf.size());
 }
 #pragma endregion Named Socket Connection
