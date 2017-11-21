@@ -103,9 +103,11 @@ void serverOnMessage(void* data, OS::ClientId_t id, const std::vector<char>& msg
 	cd.messageTotalTime += delta;
 
 	// Reply?
-	if ((cd.messageCount % 1000) == 0)
+	if ((cd.messageCount % 1000) == 0) {
 		blog("Server: Messages by %lld so far: %lld, Time: %lld ns, Average: %lld ns",
 			id, cd.messageCount, cd.messageTotalTime, uint64_t(double_t(cd.messageTotalTime) / double_t(cd.messageCount)));
+		//cd.messageCount = cd.messageTotalTime = 0;
+	}
 }
 
 int serverThread() {
@@ -140,8 +142,10 @@ int clientThread() {
 	std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
 	const size_t maxmsg = 100000;
-	for (size_t idx = 0; idx < maxmsg; idx++) {
-		client.RawWrite(data);
+	size_t idx = 0;
+	while (idx < maxmsg) {
+		if (client.RawWrite(data) != 0)
+			idx++;
 		if ((idx % 1000) == 0)
 			blog("Send! %lld", idx);
 	}
