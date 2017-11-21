@@ -26,10 +26,10 @@ OS::NamedSocket::NamedSocket() {
 	m_isInitialized =
 		m_isListening = false;
 
-	// Timing out defaults to 2ms.
-	m_timeOutWait = std::chrono::nanoseconds(2000000);
-	m_timeOutReceive = std::chrono::nanoseconds(2000000);
-	m_timeOutSend = std::chrono::nanoseconds(2000000);
+	// Timing out defaults to 5ms.
+	m_timeOutWait = std::chrono::milliseconds(5);
+	m_timeOutReceive = std::chrono::milliseconds(5);
+	m_timeOutSend = std::chrono::milliseconds(5);
 
 	// Buffers default to 1 MB Size.
 	m_bufferReceiveSize = MINIMUM_BUFFER_SIZE;
