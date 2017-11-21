@@ -59,9 +59,6 @@ void IPC::ServerInstance::WorkerLocal(bool writer) {
 				break;
 		}
 	}
-
-	if (work->shutdown == false)
-		m_parent->handle_disconnect(m_clientId);
 }
 
 bool IPC::ServerInstance::ReaderTask() {
