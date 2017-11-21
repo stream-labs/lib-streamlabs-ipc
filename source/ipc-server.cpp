@@ -104,19 +104,20 @@ void IPC::Server::WorkerMain(Server* ptr) {
 void IPC::Server::WorkerLocal() {
 	while (m_stopWorker == false) {
 		std::shared_ptr<OS::NamedSocketConnection> conn = m_socket->Accept().lock();
-		if (!conn)
-			continue;
-		
-		bool allow = true;
-		if (m_handlerConnect.first != nullptr)
-			allow = m_handlerConnect.first(m_handlerConnect.second, conn->GetClientId());
+		if (conn) {
+			bool allow = true;
+			if (m_handlerConnect.first != nullptr)
+				allow = m_handlerConnect.first(m_handlerConnect.second, conn->GetClientId());
 
-		if (allow)
-			if (!conn->Connect())
-				continue;
+			if (allow && conn->Connect()) {
+				std::unique_lock<std::mutex> ulock(m_clientLock);
+				std::shared_ptr<ServerInstance> instance = std::make_shared<ServerInstance>(this, conn);
+				m_clients.insert(std::make_pair(conn->GetClientId(), instance));
+			}
+		}
+		for (auto& cl : m_clients) {
+			//if (cl.second->)
+		}
 
-		std::unique_lock<std::mutex> ulock(m_clientLock);
-		std::shared_ptr<ServerInstance> instance = std::make_shared<ServerInstance>(this, conn);
-		m_clients.insert(std::make_pair(conn->GetClientId(), instance));
 	}
 }
