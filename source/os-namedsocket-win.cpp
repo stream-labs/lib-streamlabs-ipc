@@ -236,79 +236,108 @@ bool OS::NamedSocketConnectionWindows::Good() {
 }
 
 size_t OS::NamedSocketConnectionWindows::ReadAvail() {
-	std::unique_lock<std::mutex> ulock(m_readLock);
-	if (m_readQueue.size() == 0)
-		return 0;
-	return m_readQueue.front().size();
+	DWORD availBytes = 0;
+	PeekNamedPipe(m_handle, NULL, NULL, NULL, NULL, &availBytes);
+	return availBytes;
 }
 
 size_t OS::NamedSocketConnectionWindows::Read(char* buf, size_t length) {
-	{
-		std::unique_lock<std::mutex> ulock(m_readLock);
-		if (m_readQueue.size() > 0) {
-			auto m = std::move(m_readQueue.front());
-			m_readQueue.pop();
+	if (length >= m_parent->GetReceiveBufferSize())
+		return 0;
+	
+	OVERLAPPED ov;
+	memset(&ov, 0, sizeof(ov));
+	ov.hEvent = CreateEvent(NULL, true, false, NULL);
 
-			size_t trueread = min(length, m.size());
-			memcpy(buf, m.data(), trueread);
-			return trueread;
-		}
+	DWORD bytesRead = 0;
+	ReadFile(m_handle, buf, length, &bytesRead, &ov);
+	DWORD res = GetLastError();
+	if (res == ERROR_SUCCESS) {
+		goto read_success;
+	} else if (res != ERROR_IO_PENDING) {
+		std::cout << "IO not pending!" << std::endl;
+		goto read_fail;
 	}
+
+	DWORD waitTime = (DWORD)std::chrono::duration_cast<std::chrono::milliseconds>(
+		m_parent->GetReceiveTimeOut()).count();
+	res = WaitForSingleObjectEx(m_handle, waitTime, false);
+	if (res == WAIT_TIMEOUT) {
+		goto read_fail;
+	} else if (res == WAIT_ABANDONED) {
+		goto read_fail;
+	} else if (res == WAIT_FAILED) {
+		goto read_fail;
+	}
+
+read_success:
+	CloseHandle(ov.hEvent);
+	return bytesRead;
+
+read_fail:
+	CancelIoEx(m_handle, &ov);
+	CloseHandle(ov.hEvent);
 	return 0;
 }
 
 size_t OS::NamedSocketConnectionWindows::Read(std::vector<char>& out) {
-	{
-		std::unique_lock<std::mutex> ulock(m_readLock);
-		if (m_readQueue.size() > 0) {
-			out = std::move(m_readQueue.front());
-			m_readQueue.pop();
-			return out.size();
-		}
-	}
-	return 0;
+	return Read(out.data(), out.size());
 }
 
 std::vector<char> OS::NamedSocketConnectionWindows::Read() {
-	{
-		std::unique_lock<std::mutex> ulock(m_readLock);
-		if (m_readQueue.size() > 0) {
-			auto m = std::move(m_readQueue.front());
-			m_readQueue.pop();
-			return std::move(m);
-		}
-	}
-	return std::vector<char>();
+	size_t bytes = ReadAvail();
+	if (bytes == 0)
+		return std::vector<char>();
+
+	std::vector<char> buf(bytes);
+	size_t read = Read(buf.data(), buf.size());
+	if (read == 0)
+		return std::vector<char>();
+	
+	buf.resize(read);
+	return std::move(buf);
 }
 
 size_t OS::NamedSocketConnectionWindows::Write(const char* buf, size_t length) {
 	if (length >= m_parent->GetSendBufferSize())
 		return 0;
 
-	{
-		std::unique_lock<std::mutex> ulock(m_writeLock);
-		m_writeQueue.push(std::vector<char>(buf, buf + length));
+	OVERLAPPED ov;
+	memset(&ov, 0, sizeof(ov));
+	ov.hEvent = CreateEvent(NULL, true, false, NULL);
+
+	DWORD bytesWritten = 0;
+	WriteFile(m_handle, buf, length, &bytesWritten, &ov);
+	DWORD res = GetLastError();
+	if (res == ERROR_SUCCESS) {
+		goto write_success;
+	} else if (res != ERROR_IO_PENDING) {
+		goto write_fail;
+	}
+	
+	DWORD waitTime = (DWORD)std::chrono::duration_cast<std::chrono::milliseconds>(
+		m_parent->GetSendTimeOut()).count();
+	res = WaitForSingleObjectEx(m_handle, waitTime, false);
+	if (res == WAIT_TIMEOUT) {
+		goto write_fail;
+	} else if (res == WAIT_ABANDONED) {
+		goto write_fail;
+	} else if (res == WAIT_FAILED) {
+		goto write_fail;
 	}
 
-	return length;
-}
+write_success:
+	CloseHandle(ov.hEvent);
+	return bytesWritten;
 
-void OS::NamedSocketConnectionWindows::Wait() {
-	while (m_state == State::Connected) {
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
-	}
+write_fail:
+	CancelIoEx(m_handle, &ov);
+	CloseHandle(ov.hEvent);
+	return 0;
 }
 
 size_t OS::NamedSocketConnectionWindows::Write(const std::vector<char>& buf) {
-	if (buf.size() >= m_parent->GetSendBufferSize())
-		return 0;
-
-	{
-		std::unique_lock<std::mutex> ulock(m_writeLock);
-		m_writeQueue.push(buf);
-	}
-
-	return buf.size();
+	return Write(buf.data(), buf.size());
 }
 
 OS::ClientId_t OS::NamedSocketConnectionWindows::GetClientId() {
@@ -320,20 +349,11 @@ void OS::NamedSocketConnectionWindows::ThreadMain(void* ptr) {
 }
 
 void OS::NamedSocketConnectionWindows::ThreadLocal() {
-	OVERLAPPED ovWrite, ovRead;
+	OVERLAPPED ovWrite;
 	createOverlapped(ovWrite);
-	createOverlapped(ovRead);
 	
 	bool pendingIO = false;
-	bool pendingWrite = false;
-	bool pendingRead = false;
-
-	auto writeIOtime = std::chrono::high_resolution_clock::now();
-	auto readIOtime = std::chrono::high_resolution_clock::now();
-
-	std::vector<char> msg(m_parent->GetReceiveBufferSize());
-	DWORD actuallyRead;
-
+	
 	while (!m_stopWorkers) {
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
@@ -362,8 +382,8 @@ void OS::NamedSocketConnectionWindows::ThreadLocal() {
 					case WAIT_OBJECT_0:
 					{
 						DWORD bytes;
-						ResetEvent(ovWrite.hEvent);
 						BOOL success = GetOverlappedResult(m_handle, &ovWrite, &bytes, FALSE);
+						ResetEvent(ovWrite.hEvent);
 						if (success) {
 							m_state = State::Waiting;
 						} else {
@@ -384,104 +404,11 @@ void OS::NamedSocketConnectionWindows::ThreadLocal() {
 				DWORD err = GetLastError();
 				err = err;
 			}
-			readIOtime = writeIOtime = std::chrono::high_resolution_clock::now();
-			pendingIO = pendingRead = pendingWrite = false;
+			pendingIO = false;
 		} else if (m_state == State::Connected) {
 			if (m_isServer) {
 				if (!Good()) {
 					Disconnect();
-					m_state = State::Sleeping;
-				}
-			}
-
-			// Read
-			if (!pendingRead) {
-				DWORD availBytes = 0;
-				if (PeekNamedPipe(m_handle, NULL, NULL, NULL, &availBytes, NULL)) {
-					if (availBytes > 0) {
-						ReadFile(m_handle, msg.data(), availBytes, &actuallyRead, &ovRead);
-						DWORD err = GetLastError();
-						switch (err) {
-							case ERROR_IO_PENDING:
-								pendingRead = true;
-								readIOtime = std::chrono::high_resolution_clock::now();
-								break;
-							case ERROR_PIPE_NOT_CONNECTED:
-								if (m_isServer)
-									Disconnect();
-								m_state = State::Sleeping;
-								break;
-							default:
-								err = err;
-								break;
-						}
-					}
-				}
-			} else {
-				if (HasOverlappedIoCompleted(&ovRead)) {
-					DWORD bytes;
-					BOOL success = GetOverlappedResult(m_handle, &ovRead, &bytes, FALSE);
-					if (success) {
-						ResetEvent(ovRead.hEvent);
-						pendingRead = false;
-						std::cout << "read  " << (std::chrono::high_resolution_clock::now() - readIOtime).count() << " ns" << std::endl;
-						readIOtime = std::chrono::high_resolution_clock::now();
-						std::unique_lock<std::mutex> ulock(m_readLock);
-						m_readQueue.push(msg);
-					} else {
-						DWORD err = GetLastError();
-						pendingRead = false;
-						// Error?
-					}
-				}
-			}
-
-			// Write/Read Tasks
-			if (!pendingWrite) {
-				std::unique_lock<std::mutex> ulock(m_writeLock);
-				if (m_writeQueue.size() > 0) {
-					auto& m = m_writeQueue.front();
-					DWORD bytes;
-					WriteFile(m_handle, m.data(), m.size(), &bytes, &ovWrite);
-					DWORD err = GetLastError();
-					switch (err) {
-						case ERROR_IO_PENDING:
-							pendingWrite = true;
-							writeIOtime = std::chrono::high_resolution_clock::now();
-							break;
-						case ERROR_PIPE_NOT_CONNECTED:
-							if (m_isServer)
-								Disconnect();
-							m_state = State::Sleeping;
-							break;
-					}
-				}
-			} else {
-				if (HasOverlappedIoCompleted(&ovWrite)) {
-					DWORD bytes;
-					BOOL success = GetOverlappedResult(m_handle, &ovWrite, &bytes, FALSE);
-					if (success) {
-						ResetEvent(ovWrite.hEvent);
-						pendingWrite = false;
-						std::cout << "write " << (std::chrono::high_resolution_clock::now() - writeIOtime).count() << " ns" << std::endl;
-						writeIOtime = std::chrono::high_resolution_clock::now();
-						std::unique_lock<std::mutex> ulock(m_writeLock);
-						m_writeQueue.pop();
-					} else {
-						DWORD err = GetLastError();
-						pendingWrite = false;
-						// Error?
-					}
-				}
-			}
-
-			if (m_isServer) {
-				auto wtime = std::chrono::high_resolution_clock::now() - writeIOtime;
-				auto rtime = std::chrono::high_resolution_clock::now() - readIOtime;
-				if ((wtime > m_parent->GetSendTimeOut()) && (rtime > m_parent->GetReceiveTimeOut())) {
-					CancelIo(m_handle);
-					DisconnectNamedPipe(m_handle);
-					pendingRead = pendingWrite = pendingIO = false;
 					m_state = State::Sleeping;
 				}
 			}
