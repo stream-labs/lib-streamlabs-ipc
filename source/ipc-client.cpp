@@ -25,12 +25,11 @@ IPC::Client::Client(std::string socketPath) {
 }
 
 IPC::Client::~Client() {
-	m_socket->GetConnection()->Wait();
 	m_socket->Close();
 }
 
-void IPC::Client::RawWrite(const std::vector<char>& buf) {
-	m_socket->GetConnection()->Write(buf);
+size_t IPC::Client::RawWrite(const std::vector<char>& buf) {
+	return m_socket->GetConnection()->Write(buf);
 }
 
 std::vector<char> IPC::Client::RawRead() {

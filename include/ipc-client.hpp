@@ -28,7 +28,7 @@ namespace IPC {
 		virtual ~Client();
 
 	public: // Debug
-		void RawWrite(const std::vector<char>& buf);
+		size_t RawWrite(const std::vector<char>& buf);
 		std::vector<char> RawRead();
 		size_t RawAvail();
 
