@@ -135,8 +135,8 @@ int clientThread() {
 	IPC::Client client = { sockpath };
 	blog("Client: Started.");
 
-	std::vector<char> data(5);
-	data[0] = 'P'; data[1] = 'i'; data[2] = 'n'; data[3] = 'g'; data[4] = '\0';
+	const char* longmessage = "Hey so this is a really long message okay? It about matches the size of an average call.\0";
+	std::vector<char> data(longmessage, longmessage+strlen(longmessage));
 	auto bg = std::chrono::high_resolution_clock::now();
 	client.RawWrite(data);
 	std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -207,7 +207,6 @@ int main(int argc, char** argv) {
 		killswitch = true;
 	} else {
 		worker = std::thread(clientThread);
-		std::cin.get();
 	}
 	if (worker.joinable())
 		worker.join();
