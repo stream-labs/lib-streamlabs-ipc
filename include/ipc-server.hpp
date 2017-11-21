@@ -53,7 +53,6 @@ namespace IPC {
 		bool RegisterClass(IPC::Class cls);
 		
 	protected: // Client -> Server Callback
-		void handle_disconnect(OS::ClientId_t clientId);
 		void handle_message(OS::ClientId_t clientId, std::vector<char> message);
 
 	private:
@@ -69,7 +68,6 @@ namespace IPC {
 		// Client management.
 		std::mutex m_clientLock;
 		std::map<OS::ClientId_t, std::shared_ptr<ServerInstance>> m_clients;
-		std::list<std::shared_ptr<ServerInstance>> m_clientsDisconnectDelay;
 		std::map<std::string, IPC::Class> m_classes;
 
 		// Event Handlers

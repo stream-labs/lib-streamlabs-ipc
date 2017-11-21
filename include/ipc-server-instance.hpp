@@ -29,6 +29,8 @@ namespace IPC {
 	class Server;
 
 	class ServerInstance {
+		friend class Server;
+
 		public:
 		ServerInstance();
 		ServerInstance(Server* owner, std::shared_ptr<OS::NamedSocketConnection> conn);
@@ -44,9 +46,11 @@ namespace IPC {
 
 		bool IsAlive();
 
+		protected:
+		std::shared_ptr<OS::NamedSocketConnection> m_socket;
+
 		private:
 		Server* m_parent = nullptr;
-		std::shared_ptr<OS::NamedSocketConnection> m_socket;
 		OS::ClientId_t m_clientId;
 
 		struct WorkerStruct {

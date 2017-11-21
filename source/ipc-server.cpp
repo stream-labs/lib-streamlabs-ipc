@@ -39,7 +39,6 @@ void IPC::Server::Finalize() {
 		if (m_worker.joinable())
 			m_worker.join();
 		m_clients.clear();
-		m_clientsDisconnectDelay.clear();
 		m_socket->Close();
 	}
 }
@@ -62,14 +61,6 @@ bool IPC::Server::RegisterClass(IPC::Class cls) {
 
 	m_classes.insert(std::make_pair(cls.GetName(), cls));
 	return true;
-}
-
-void IPC::Server::handle_disconnect(OS::ClientId_t clientId) {
-	if (m_handlerDisconnect.first != nullptr)
-		m_handlerDisconnect.first(m_handlerDisconnect.second, clientId);
-
-	std::unique_lock<std::mutex> ulock(m_clientLock);
-	m_clients.erase(clientId);
 }
 
 void IPC::Server::handle_message(OS::ClientId_t clientId, std::vector<char> message) {
@@ -102,6 +93,7 @@ void IPC::Server::WorkerMain(Server* ptr) {
 }
 
 void IPC::Server::WorkerLocal() {
+	std::queue<OS::ClientId_t> dcQueue;
 	while (m_stopWorker == false) {
 		std::shared_ptr<OS::NamedSocketConnection> conn = m_socket->Accept().lock();
 		if (conn) {
@@ -115,9 +107,17 @@ void IPC::Server::WorkerLocal() {
 				m_clients.insert(std::make_pair(conn->GetClientId(), instance));
 			}
 		}
-		for (auto& cl : m_clients) {
-			//if (cl.second->)
+		
+		for (auto kv = m_clients.begin(); kv != m_clients.end(); kv++) {
+			if (!kv->second->m_socket->IsConnected())
+				dcQueue.push(kv->first);
 		}
-
+		while (dcQueue.size() > 0) {
+			OS::ClientId_t id = dcQueue.front();
+			if (m_handlerDisconnect.first != nullptr)
+				m_handlerDisconnect.first(m_handlerDisconnect.second, id);
+			m_clients.erase(id);
+			dcQueue.pop();
+		}
 	}
 }
