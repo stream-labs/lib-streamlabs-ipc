@@ -14,9 +14,9 @@
 
 bool killswitch = false;
 std::string sockpath = "";
+const char* longmessage = "Hey so this is a really long message okay? It about matches the size of an average call.\0";
 
 std::chrono::high_resolution_clock hrc;
-
 std::chrono::high_resolution_clock::time_point tp = std::chrono::high_resolution_clock::now();
 
 static std::vector<char> varlog(std::string format, va_list args) {
@@ -96,17 +96,19 @@ void serverOnDisconnect(void* data, OS::ClientId_t id) {
 }
 
 void serverOnMessage(void* data, OS::ClientId_t id, const std::vector<char>& msg) {
-	ClientData& cd = clientInfo.at(id);
-	uint64_t delta = duration_cast<nanoseconds>(high_resolution_clock::now() - cd.lastMessageTime).count();
-	cd.lastMessageTime = high_resolution_clock::now();
-	cd.messageCount++;
-	cd.messageTotalTime += delta;
+	if (strcmp(msg.data(), longmessage) == 0) {
+		ClientData& cd = clientInfo.at(id);
+		uint64_t delta = duration_cast<nanoseconds>(high_resolution_clock::now() - cd.lastMessageTime).count();
+		cd.lastMessageTime = high_resolution_clock::now();
+		cd.messageCount++;
+		cd.messageTotalTime += delta;
+		
 
-	// Reply?
-	if ((cd.messageCount % 1000) == 0) {
-		blog("Server: Messages by %lld so far: %lld, Time: %lld ns, Average: %lld ns",
-			id, cd.messageCount, cd.messageTotalTime, uint64_t(double_t(cd.messageTotalTime) / double_t(cd.messageCount)));
-		//cd.messageCount = cd.messageTotalTime = 0;
+		if ((cd.messageCount % 1000) == 0) {
+			blog("Server: Messages by %lld so far: %lld, Time: %lld ns, Average: %lld ns",
+				id, cd.messageCount, cd.messageTotalTime, uint64_t(double_t(cd.messageTotalTime) / double_t(cd.messageCount)));
+			//cd.messageCount = cd.messageTotalTime = 0;
+		}
 	}
 }
 
@@ -135,7 +137,6 @@ int clientThread() {
 	IPC::Client client = { sockpath };
 	blog("Client: Started.");
 
-	const char* longmessage = "Hey so this is a really long message okay? It about matches the size of an average call.\0";
 	std::vector<char> data(longmessage, longmessage+strlen(longmessage));
 	auto bg = std::chrono::high_resolution_clock::now();
 	client.RawWrite(data);
@@ -143,16 +144,24 @@ int clientThread() {
 
 	const size_t maxmsg = 100000;
 	size_t idx = 0;
+	size_t failidx = 0;
 	while (idx < maxmsg) {
-		if (client.RawWrite(data) != 0)
+		size_t wr = client.RawWrite(data);
+		if (wr == data.size())
 			idx++;
+		else {
+			failidx++;
+			blog("Failed to send message %lld", idx);
+		}
 		if ((idx % 1000) == 0)
 			blog("Send! %lld", idx);
 	}
 	size_t ns = (std::chrono::high_resolution_clock::now() - bg).count();
 	blog("Client: Sent %lld in %lld ns, average %lld ns.", maxmsg, ns, uint64_t(ns / double_t(maxmsg)));
+	blog("Client: Failed sending %lld messages.", failidx);
 	
 	blog("Client: Shutting down...");
+	std::cin.get();
 	return 0;
 }
 
