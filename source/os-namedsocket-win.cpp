@@ -242,8 +242,8 @@ size_t OS::NamedSocketConnectionWindows::ReadAvail() {
 }
 
 size_t OS::NamedSocketConnectionWindows::Read(char* buf, size_t length) {
-	if (length >= m_parent->GetReceiveBufferSize())
-		return 0;
+	if (length > m_parent->GetReceiveBufferSize())
+		return -1;
 	
 	OVERLAPPED ov;
 	memset(&ov, 0, sizeof(ov));
@@ -281,7 +281,10 @@ read_fail:
 }
 
 size_t OS::NamedSocketConnectionWindows::Read(std::vector<char>& out) {
-	return Read(out.data(), out.size());
+	size_t readLength = out.size();
+	if (readLength > m_parent->GetReceiveBufferSize())
+		readLength = m_parent->GetReceiveBufferSize();
+	return Read(out.data(), readLength);
 }
 
 std::vector<char> OS::NamedSocketConnectionWindows::Read() {
@@ -290,8 +293,8 @@ std::vector<char> OS::NamedSocketConnectionWindows::Read() {
 		return std::vector<char>();
 
 	std::vector<char> buf(bytes);
-	size_t read = Read(buf.data(), buf.size());
-	if (read == 0)
+	size_t read = Read(buf);
+	if (read == 0ull || read == std::numeric_limits<size_t>::max())
 		return std::vector<char>();
 	
 	buf.resize(read);
@@ -300,7 +303,7 @@ std::vector<char> OS::NamedSocketConnectionWindows::Read() {
 
 size_t OS::NamedSocketConnectionWindows::Write(const char* buf, size_t length) {
 	if (length >= m_parent->GetSendBufferSize())
-		return 0;
+		return -1;
 
 	OVERLAPPED ov;
 	memset(&ov, 0, sizeof(ov));
@@ -319,7 +322,13 @@ size_t OS::NamedSocketConnectionWindows::Write(const char* buf, size_t length) {
 		m_parent->GetSendTimeOut()).count();
 	res = WaitForSingleObjectEx(m_handle, waitTime, false);
 	if (res == WAIT_TIMEOUT) {
-		goto write_fail;
+		if (!HasOverlappedIoCompleted(&ov)) {
+			goto write_fail;
+		} else {
+			if (!GetOverlappedResult(m_handle, &ov, &bytesWritten, false)) {
+				goto write_fail;
+			}
+		}
 	} else if (res == WAIT_ABANDONED) {
 		goto write_fail;
 	} else if (res == WAIT_FAILED) {
