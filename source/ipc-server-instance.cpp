@@ -16,6 +16,7 @@
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110 - 1301, USA.
 
 #include "ipc-server-instance.hpp"
+#include "ipc.pb.h"
 
 IPC::ServerInstance::ServerInstance() {}
 
@@ -24,91 +25,96 @@ IPC::ServerInstance::ServerInstance(IPC::Server* owner, std::shared_ptr<OS::Name
 	m_socket = conn;
 	m_clientId = m_socket->GetClientId();
 
-	m_readWorker.worker = std::thread(WorkerMain, this, false);
-	m_writeWorker.worker = std::thread(WorkerMain, this, true);
+	m_readWorker.worker = std::thread(ReaderThread, this);
+	m_executeWorker.worker = std::thread(ExecuteThread, this);
+	m_writeWorker.worker = std::thread(WriterThread, this);
 }
 
 IPC::ServerInstance::~ServerInstance() {
-	m_readWorker.shutdown = true;
+	// Threading
+	m_stopWorkers = true;
+	m_readWorker.cv.notify_all();
 	if (m_readWorker.worker.joinable())
 		m_readWorker.worker.join();
-	m_writeWorker.shutdown = true;
-	m_writeCV.notify_all();
+	m_executeWorker.cv.notify_all();
+	if (m_executeWorker.worker.joinable())
+		m_executeWorker.worker.join();
+	m_writeWorker.cv.notify_all();
 	if (m_writeWorker.worker.joinable())
 		m_writeWorker.worker.join();
 }
 
 void IPC::ServerInstance::QueueMessage(std::vector<char> data) {
-	std::unique_lock<std::mutex> ulock(m_writeLock);
-	m_writeQueue.push(data);
-	m_writeCV.notify_all();
-}
-
-void IPC::ServerInstance::WorkerMain(ServerInstance* ptr, bool writer) {
-	ptr->WorkerLocal(writer);
-}
-
-void IPC::ServerInstance::WorkerLocal(bool writer) {
-	WorkerStruct* work = (writer ? &m_writeWorker : &m_readWorker);
-	while ((m_readWorker.shutdown == false) && IsAlive()) {
-		if (writer) {
-			if (!WriterTask())
-				break;
-		} else {
-			if (!ReaderTask())
-				break;
-		}
-	}
-}
-
-bool IPC::ServerInstance::ReaderTask() {
-	while (m_socket->ReadAvail() > 0)
-		m_parent->handle_message(m_clientId, m_socket->Read());
-
-	if (!IsAlive())
-		return false;
-
-	std::this_thread::sleep_for(std::chrono::milliseconds(1));
-	return true;
-}
-
-bool IPC::ServerInstance::WriterTask() {
-	std::queue<std::vector<char>> dataQueue;
-	{
-		std::unique_lock<std::mutex> ulock(m_writeLock);
-		m_writeCV.wait(ulock, [this] {
-			return m_writeWorker.shutdown || m_writeQueue.size() > 0 || !IsAlive();
-		});
-
-		if (m_writeWorker.shutdown || !IsAlive())
-			return false;
-
-		if (m_writeQueue.size() > 0) {
-			dataQueue.swap(m_writeQueue);
-		}
-	}
-
-	while (dataQueue.size() > 0) {
-		std::vector<char> data = std::move(dataQueue.front());
-		if (m_socket->Write(data) == data.size()) {
-			m_writeQueue.pop();
-		} else {
-			return false;
-		}
-	}
-
-	if (!IsAlive())
-		return false;
-
-	return true;
+	//std::unique_lock<std::mutex> ulock(m_writeLock);
+	//m_writeQueue.push(data);
+	//m_writeCV.notify_all();
 }
 
 bool IPC::ServerInstance::IsAlive() {
 	if (m_socket->Bad())
 		return false;
 
-	if (m_writeWorker.shutdown)
+	if (m_stopWorkers)
 		return false;
 
 	return true;
 }
+
+void IPC::ServerInstance::ReaderThread(ServerInstance* ptr) {
+	std::vector<char> buf(65535);
+	while (!ptr->m_stopWorkers) {
+		if (ptr->m_socket->Bad())
+			break;
+
+		if (ptr->m_socket->ReadAvail() == 0) {
+			std::this_thread::sleep_for(std::chrono::milliseconds(1));
+			continue;
+		}
+
+		size_t bytes = ptr->m_socket->Read(buf);
+		if ((bytes != 0) && (bytes != std::numeric_limits<size_t>::max())) {
+			std::unique_lock<std::mutex> ulock(ptr->m_executeWorker.lock);
+			ptr->m_executeWorker.queue.push(buf);
+			ptr->m_executeWorker.cv.notify_all();
+		}
+	}
+}
+
+void IPC::ServerInstance::ExecuteThread(ServerInstance* ptr) {
+	std::unique_lock<std::mutex> ulock(ptr->m_executeWorker.lock);
+	while (!ptr->m_stopWorkers) {
+		ptr->m_executeWorker.cv.wait(ulock, [ptr]() {
+			return (ptr->m_stopWorkers || (ptr->m_executeWorker.queue.size() > 0));
+		});
+
+		std::vector<char>& msg = ptr->m_executeWorker.queue.front();
+		ptr->m_parent->HandleMessage(ptr->m_clientId, msg);
+		ptr->m_executeWorker.queue.pop();
+	}
+}
+
+void IPC::ServerInstance::WriterThread(ServerInstance* ptr) {
+	std::unique_lock<std::mutex> ulock(ptr->m_writeWorker.lock);
+	while (!ptr->m_stopWorkers) {
+		if (ptr->m_socket->Bad())
+			break;
+
+		ptr->m_writeWorker.cv.wait(ulock, [ptr]() {
+			return (ptr->m_stopWorkers || (ptr->m_writeWorker.queue.size() > 0));
+		});
+
+		auto& msg = ptr->m_writeWorker.queue.front();
+		if (msg.size() > 0) {
+			size_t written = ptr->m_socket->Write(msg);
+			if (written == msg.size()) {
+				ptr->m_writeWorker.queue.pop();
+			} else if (written == std::numeric_limits<size_t>::max()) {
+				// Notify parent of a write too large?
+				ptr->m_writeWorker.queue.pop();
+			}
+		} else {
+			ptr->m_writeWorker.queue.pop();
+		}
+	}
+}
+

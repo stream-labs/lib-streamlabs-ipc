@@ -37,15 +37,21 @@ namespace IPC {
 		~ServerInstance();
 		
 		void QueueMessage(std::vector<char> data);
-
-		private:
-		static void WorkerMain(ServerInstance* ptr, bool writer);
-		void WorkerLocal(bool writer);
-		bool ReaderTask();
-		bool WriterTask();
-
 		bool IsAlive();
 
+		private: // Threading
+		bool m_stopWorkers = false;
+		struct {
+			std::thread worker;
+			std::mutex lock;
+			std::condition_variable cv;
+			std::queue<std::vector<char>> queue;
+		} m_readWorker, m_executeWorker, m_writeWorker;
+
+		static void ReaderThread(ServerInstance* ptr);
+		static void ExecuteThread(ServerInstance* ptr);
+		static void WriterThread(ServerInstance* ptr);
+		
 		protected:
 		std::shared_ptr<OS::NamedSocketConnection> m_socket;
 
@@ -53,12 +59,7 @@ namespace IPC {
 		Server* m_parent = nullptr;
 		OS::ClientId_t m_clientId;
 
-		struct WorkerStruct {
-			std::thread worker;
-			bool shutdown = false;
-		} m_readWorker, m_writeWorker;
-		std::queue<std::vector<char>> m_writeQueue;
-		std::mutex m_writeLock;
-		std::condition_variable m_writeCV;
+		bool m_isAuthenticated = false;
+
 	};
 }
