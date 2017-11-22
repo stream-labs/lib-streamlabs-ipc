@@ -36,30 +36,35 @@ namespace IPC {
 	typedef void(*ServerMessageHandler_t)(void*, OS::ClientId_t, const std::vector<char>&);
 
 	class Server {
-	public:
+		friend class ServerInstance;
+
+		public:
 		Server();
 		~Server();
 
-	public: // Status
+		public: // Status
 		void Initialize(std::string socketPath);
 		void Finalize();
 
-	public: // Events
+		public: // Events
 		void SetConnectHandler(ServerConnectHandler_t handler, void* data);
 		void SetDisconnectHandler(ServerDisconnectHandler_t handler, void* data);
 		void SetMessageHandler(ServerMessageHandler_t handler, void* data);
 
-	public: // Functionality
+		public: // Functionality
 		bool RegisterClass(IPC::Class cls);
-		
-	protected: // Client -> Server Callback
-		void handle_message(OS::ClientId_t clientId, std::vector<char> message);
 
-	private:
+		protected: // Client -> Server Callback
+		std::vector<char> HandleMessage(OS::ClientId_t clientId, std::vector<char> message);
+
+		private: // Threading
 		static void WorkerMain(Server* ptr);
 		void WorkerLocal();
 
-	private:
+		private:
+		void PropagateClassRegistration(std::string className);
+
+		private:
 		std::unique_ptr<OS::NamedSocket> m_socket;
 		bool m_isInitialized = false;
 		std::thread m_worker;
@@ -68,13 +73,11 @@ namespace IPC {
 		// Client management.
 		std::mutex m_clientLock;
 		std::map<OS::ClientId_t, std::shared_ptr<ServerInstance>> m_clients;
-		std::map<std::string, IPC::Class> m_classes;
+		std::map<std::string, std::shared_ptr<IPC::Class>> m_classes;
 
 		// Event Handlers
 		std::pair<ServerConnectHandler_t, void*> m_handlerConnect;
 		std::pair<ServerDisconnectHandler_t, void*> m_handlerDisconnect;
 		std::pair<ServerMessageHandler_t, void*> m_handlerMessage;
-		
-		friend class ServerInstance;
 	};
 }

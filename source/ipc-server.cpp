@@ -59,13 +59,15 @@ bool IPC::Server::RegisterClass(IPC::Class cls) {
 	if (m_classes.count(cls.GetName()) > 0)
 		return false;
 
-	m_classes.insert(std::make_pair(cls.GetName(), cls));
+	m_classes.insert(std::make_pair(cls.GetName(), std::make_shared<IPC::Class>(cls)));
 	return true;
 }
 
-void IPC::Server::handle_message(OS::ClientId_t clientId, std::vector<char> message) {
+std::vector<char> IPC::Server::HandleMessage(OS::ClientId_t clientId, std::vector<char> message) {
 	if (m_handlerMessage.first)
 		m_handlerMessage.first(m_handlerMessage.second, clientId, message);
+
+	return std::vector<char>();
 
 	//FunctionCall fcall;
 	//if (fcall.ParseFromArray(message.data(), message.size())) {
