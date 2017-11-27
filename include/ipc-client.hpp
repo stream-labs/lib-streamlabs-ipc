@@ -20,19 +20,32 @@
 #include "os-namedsocket.hpp"
 #include <string>
 #include <vector>
+#include <map>
+#include <mutex>
+#include <queue>
+#include <thread>
+#include <vector>
 
 namespace IPC {
+	typedef void(*CallReturn_t)(void* data, IPC::Value rval);
+
 	class Client {
-	public:
+		public:
 		Client(std::string socketPath);
 		virtual ~Client();
 
-	public: // Debug
-		size_t RawWrite(const std::vector<char>& buf);
-		std::vector<char> RawRead();
-		size_t RawAvail();
-
-	private:
+		bool Authenticate();
+		bool Call(std::string cname, std::string fname, std::vector<IPC::Value> args, CallReturn_t fn, void* data);
+		
+		private:
 		std::unique_ptr<OS::NamedSocket> m_socket;
+		bool m_authenticated = false;
+		std::map<int64_t, std::pair<CallReturn_t, void*>> m_cb;
+
+		private: // Threading
+		bool m_stopWorkers = false;
+		std::thread m_worker;
+		std::mutex m_lock;
+		static void WorkerThread(Client* ptr);
 	};
 }
