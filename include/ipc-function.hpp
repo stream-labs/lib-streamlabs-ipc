@@ -21,12 +21,14 @@
 #include <memory>
 
 namespace IPC {
-	typedef Value(*CallHandler_t)(void* data, std::vector<Value>);
+	typedef Value(*CallHandler_t)(int64_t id, void* data, std::vector<Value>);
 
-	class Function : public std::enable_shared_from_this<Function> {
+	class Function {
 		public:
 		Function(std::string name);
 		Function(std::string name, std::vector<Type> params);
+		Function(std::string name, CallHandler_t ptr, void* data);
+		Function(std::string name, std::vector<Type> params, CallHandler_t ptr, void* data);
 		virtual ~Function();
 
 		/** Retrieve the original name of this function.
@@ -55,16 +57,9 @@ namespace IPC {
 		 * 
 		 */
 		void SetCallHandler(CallHandler_t ptr, void* data);
-
-
-		void Call(std::shared_ptr<Base> caller, std::vector<Value> args);
-		Value CallWithValue(std::shared_ptr<Base> caller, std::vector<Value> args);
-
-
-
-		protected:
-		Value OnCall(std::vector<Value> args, std::shared_ptr<Base> caller);
-
+		
+		Value Call(int64_t id, std::vector<Value> args);
+		
 		private:
 		std::string m_name;
 		std::vector<Type> m_params;

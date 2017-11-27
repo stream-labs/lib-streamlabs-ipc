@@ -18,12 +18,19 @@
 #include "ipc-function.hpp"
 #include "ipc.hpp"
 
-IPC::Function::Function(std::string name, std::vector<Type> params) {
+
+IPC::Function::Function(std::string name, std::vector<Type> params, CallHandler_t ptr, void* data) {
 	this->m_name = name;
 	this->m_params = params;
+	this->m_callHandler.first = ptr;
+	this->m_callHandler.second = data;
 }
 
-IPC::Function::Function(std::string name) : Function(name, std::vector<Type>()) {}
+IPC::Function::Function(std::string name, CallHandler_t ptr, void* data) : Function(name, std::vector<Type>(), ptr, data) {}
+
+IPC::Function::Function(std::string name, std::vector<Type> params) : Function(name, params, nullptr, nullptr) {}
+
+IPC::Function::Function(std::string name) : Function(name, std::vector<Type>(), nullptr, nullptr) {}
 
 IPC::Function::~Function() {}
 
@@ -44,41 +51,12 @@ IPC::Type IPC::Function::GetParameterType(size_t index) {
 }
 
 void IPC::Function::SetCallHandler(CallHandler_t ptr, void* data) {
-
+	m_callHandler.first = ptr;
+	m_callHandler.second = data;
 }
 
-void IPC::Function::Call(std::shared_ptr<IPC::Base> caller, std::vector<IPC::Value> args) {
-
-}
-
-IPC::Value IPC::Function::CallWithValue(std::shared_ptr<Base> caller, std::vector<IPC::Value> args) {
+IPC::Value IPC::Function::Call(int64_t id, std::vector<IPC::Value> args) {
+	if (m_callHandler.first)
+		return m_callHandler.first(id, m_callHandler.second, args);
 	return IPC::Value();
 }
-
-IPC::Value IPC::Function::OnCall(std::vector<IPC::Value> args, std::shared_ptr<IPC::Base> caller) {
-	return IPC::Value();
-}
-//
-//void IPC::Function::ClearCallHandlers() {
-//	m_callHandlers.clear();
-//}
-//
-//bool IPC::Function::AddCallHandler(CallHandler_t ptr, void* data) {
-//	auto sp = std::make_pair(ptr, data);
-//	if (m_callHandlers.count(sp))
-//		return false;
-//	m_callHandlers.insert(sp);
-//	return true;
-//}
-//
-//bool IPC::Function::RemoveCallHandler(CallHandler_t ptr, void* data) {
-//	auto sp = std::make_pair(ptr, data);
-//	if (m_callHandlers.count(sp) == 0)
-//		return false;
-//	m_callHandlers.erase(sp);
-//	return true;
-//}
-//
-//Value IPC::Function::Call(std::vector<Value> args, std::shared_ptr<Base> caller) {
-//
-//}
