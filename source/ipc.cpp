@@ -23,36 +23,39 @@ std::string IPC::Base::MakeFunctionUniqueId(std::string name, std::vector<Type> 
 	//  same function, even when exported.
 	// This behavior might not be desired, but allows some amount of flexibility.
 
-	std::string uq = name + "_";
-	for (Type p : parameters) {
-		switch (p) {
-			case IPC::Type::Null:
-				uq += "N0";
-				break;
-			case IPC::Type::Float:
-				uq += "F4";
-				break;
-			case IPC::Type::Double:
-				uq += "F8";
-				break;
-			case IPC::Type::Int32:
-				uq += "I4";
-				break;
-			case IPC::Type::Int64:
-				uq += "I8";
-				break;
-			case IPC::Type::UInt32:
-				uq += "U4";
-				break;
-			case IPC::Type::UInt64:
-				uq += "U8";
-				break;
-			case IPC::Type::String:
-				uq += "PS";
-				break;
-			case IPC::Type::Binary:
-				uq += "PB";
-				break;
+	std::string uq = name;
+	if (parameters.size() > 0) {
+		uq += "_";
+		for (Type p : parameters) {
+			switch (p) {
+				case IPC::Type::Null:
+					uq += "N0";
+					break;
+				case IPC::Type::Float:
+					uq += "F4";
+					break;
+				case IPC::Type::Double:
+					uq += "F8";
+					break;
+				case IPC::Type::Int32:
+					uq += "I4";
+					break;
+				case IPC::Type::Int64:
+					uq += "I8";
+					break;
+				case IPC::Type::UInt32:
+					uq += "U4";
+					break;
+				case IPC::Type::UInt64:
+					uq += "U8";
+					break;
+				case IPC::Type::String:
+					uq += "PS";
+					break;
+				case IPC::Type::Binary:
+					uq += "PB";
+					break;
+			}
 		}
 	}
 	return uq;
