@@ -253,6 +253,9 @@ size_t OS::NamedSocketConnectionWindows::Read(char* buf, size_t length) {
 	ReadFile(m_handle, buf, length, &bytesRead, &ov);
 	DWORD res = GetLastError();
 	if (res == ERROR_SUCCESS) {
+		if (!GetOverlappedResult(m_handle, &ov, &bytesRead, false)) {
+			goto read_fail;
+		}
 		goto read_success;
 	} else if (res != ERROR_IO_PENDING) {
 		std::cout << "IO not pending!" << std::endl;
@@ -263,7 +266,13 @@ size_t OS::NamedSocketConnectionWindows::Read(char* buf, size_t length) {
 		m_parent->GetReceiveTimeOut()).count();
 	res = WaitForSingleObjectEx(m_handle, waitTime, false);
 	if (res == WAIT_TIMEOUT) {
-		goto read_fail;
+		if (!HasOverlappedIoCompleted(&ov)) {
+			goto read_fail;
+		} else {
+			if (!GetOverlappedResult(m_handle, &ov, &bytesRead, false)) {
+				goto read_fail;
+			}
+		}
 	} else if (res == WAIT_ABANDONED) {
 		goto read_fail;
 	} else if (res == WAIT_FAILED) {
