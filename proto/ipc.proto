@@ -27,17 +27,6 @@ message Value {
 	}
 }
 
-message Function {
-	string name = 1;
-	ValueType type = 2;
-	repeated ValueType parameters = 3;
-}
-
-message Class {
-	string name = 1;
-	repeated Function functions = 2;
-}
-
 message FunctionCall {	
 	sint64 timestamp = 1;
 	string className = 2;
@@ -45,12 +34,12 @@ message FunctionCall {
 	repeated Value arguments = 4;
 }
 
-message FunctionCallError {
-	sint64 timestamp = 1;
-	string error = 2;
-}
-
-message FunctionCallReply {
+message FunctionResult {
 	sint64 timestamp = 1;
 	Value value = 2;
+	string error = 3;
+}
+
+message Authenticate {
+	string password = 1;
 }
