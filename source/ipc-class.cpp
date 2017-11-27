@@ -43,11 +43,23 @@ bool IPC::Class::UnregisterFunction(std::shared_ptr<IPC::Function> func) {
 	return m_functions.erase(fnId) != 0;
 }
 
+bool IPC::Class::HasFunction(const std::string& name) {
+	return GetFunction(name) != nullptr;
+}
+
+bool IPC::Class::HasFunction(const std::string& name, const std::vector<IPC::Type>& params) {
+	return GetFunction(name, params) != nullptr;
+}
+
+bool IPC::Class::HasFunction(const std::string& name, const std::vector<IPC::Value>& params) {
+	return GetFunction(name, params) != nullptr;
+}
+
 size_t IPC::Class::CountFunctions() {
 	return m_functions.size();
 }
 
-std::shared_ptr<IPC::Function> IPC::Class::GetFunction(size_t idx) {
+std::shared_ptr<IPC::Function> IPC::Class::GetFunction(const size_t& idx) {
 	if (m_functions.size() <= idx)
 		return nullptr;
 
@@ -57,13 +69,22 @@ std::shared_ptr<IPC::Function> IPC::Class::GetFunction(size_t idx) {
 	return ptr->second;
 }
 
-std::shared_ptr<IPC::Function> IPC::Class::GetFunction(std::string name, std::vector<Type> params) {
+std::shared_ptr<IPC::Function> IPC::Class::GetFunction(const std::string& name, const std::vector<IPC::Type>& params) {
 	std::string fnId = IPC::Base::MakeFunctionUniqueId(name, params);
 	if (m_functions.count(fnId) == 0)
 		return nullptr;
 	return m_functions[fnId];
 }
 
-std::shared_ptr<IPC::Function> IPC::Class::GetFunction(std::string name) {
+std::shared_ptr<IPC::Function> IPC::Class::GetFunction(const std::string& name, const std::vector<IPC::Value>& params) {
+	std::vector<IPC::Type> argts;
+	argts.reserve(params.size());
+	for (const auto& v : params) {
+		argts.push_back(v.type);
+	}
+	return GetFunction(name, argts);
+}
+
+std::shared_ptr<IPC::Function> IPC::Class::GetFunction(const std::string& name) {
 	return GetFunction(name, std::vector<IPC::Type>());
 }

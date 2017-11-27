@@ -33,10 +33,13 @@ namespace IPC {
 		size_t CountFunctions();
 		bool RegisterFunction(std::shared_ptr<Function> func);
 		bool UnregisterFunction(std::shared_ptr<Function> func);
-		std::shared_ptr<Function> GetFunction(size_t idx);
-		std::shared_ptr<Function> GetFunction(std::string name);
-		std::shared_ptr<Function> GetFunction(std::string name, std::vector<Type> params);
-		Value CallFunction(std::string name, std::vector<Value> args, std::shared_ptr<Base> caller);
+		bool HasFunction(const std::string& name);
+		bool HasFunction(const std::string& name, const std::vector<IPC::Type>& params);
+		bool HasFunction(const std::string& name, const std::vector<IPC::Value>& params);
+		std::shared_ptr<Function> GetFunction(const size_t& idx);
+		std::shared_ptr<Function> GetFunction(const std::string& name);
+		std::shared_ptr<Function> GetFunction(const std::string& name, const std::vector<IPC::Type>& params);
+		std::shared_ptr<Function> GetFunction(const std::string& name, const std::vector<IPC::Value>& params);
 
 		private:
 		std::string m_name;
