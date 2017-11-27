@@ -45,9 +45,9 @@ IPC::ServerInstance::~ServerInstance() {
 }
 
 void IPC::ServerInstance::QueueMessage(std::vector<char> data) {
-	//std::unique_lock<std::mutex> ulock(m_writeLock);
-	//m_writeQueue.push(data);
-	//m_writeCV.notify_all();
+	std::unique_lock<std::mutex> ulock(m_writeWorker.lock);
+	m_writeWorker.queue.push(std::move(data));
+	m_writeWorker.cv.notify_all();
 }
 
 bool IPC::ServerInstance::IsAlive() {
@@ -61,59 +61,182 @@ bool IPC::ServerInstance::IsAlive() {
 }
 
 void IPC::ServerInstance::ReaderThread(ServerInstance* ptr) {
-	std::vector<char> buf(65535);
 	while (!ptr->m_stopWorkers) {
-		if (ptr->m_socket->Bad())
-			break;
-
 		if (ptr->m_socket->ReadAvail() == 0) {
 			std::this_thread::sleep_for(std::chrono::milliseconds(1));
 			continue;
 		}
 
+		if (ptr->m_socket->Bad())
+			break;
+
+		std::vector<char> buf(ptr->m_socket->ReadAvail());
 		size_t bytes = ptr->m_socket->Read(buf);
 		if ((bytes != 0) && (bytes != std::numeric_limits<size_t>::max())) {
-			std::unique_lock<std::mutex> ulock(ptr->m_executeWorker.lock);
-			ptr->m_executeWorker.queue.push(buf);
+			{
+				std::unique_lock<std::mutex> ulock(ptr->m_executeWorker.lock);
+				ptr->m_executeWorker.queue.push(buf);
+			}
 			ptr->m_executeWorker.cv.notify_all();
 		}
 	}
 }
 
 void IPC::ServerInstance::ExecuteThread(ServerInstance* ptr) {
+	std::vector<char> messageBuffer(4096);
+	IPC::Value rval;
+	std::string errMsg = "";
+
 	std::unique_lock<std::mutex> ulock(ptr->m_executeWorker.lock);
 	while (!ptr->m_stopWorkers) {
 		ptr->m_executeWorker.cv.wait(ulock, [ptr]() {
 			return (ptr->m_stopWorkers || (ptr->m_executeWorker.queue.size() > 0));
 		});
+		if (ptr->m_stopWorkers)
+			continue;
 
 		std::vector<char>& msg = ptr->m_executeWorker.queue.front();
-		ptr->m_parent->HandleMessage(ptr->m_clientId, msg);
+		if (!ptr->m_isAuthenticated) {
+			Authenticate msgAuthenticate;
+			bool suc = msgAuthenticate.ParsePartialFromArray(msg.data(), msg.size());
+			if (suc) {
+				ptr->m_isAuthenticated = true;
+
+				// Reply with classes?
+			}
+		} else {
+			FunctionCall msgCall;
+			if (msgCall.ParsePartialFromArray(msg.data(), msg.size())) {
+				// Convert FCall into proper arguments
+				std::vector<IPC::Value> args(msgCall.arguments_size());
+				for (size_t n = 0; n < args.size(); n++) {
+					IPC::Value val;
+					auto& v = msgCall.arguments(n);
+					switch (v.type()) {
+						case ValueType::Float:
+							val.type = Type::Float;
+							val.value.fp32 = v.val_float();
+							break;
+						case ValueType::Double:
+							val.type = Type::Double;
+							val.value.fp64 = v.val_double();
+							break;
+						case ValueType::Int32:
+							val.type = Type::Int32;
+							val.value.i32 = v.val_int32();
+							break;
+						case ValueType::Int64:
+							val.type = Type::Int64;
+							val.value.i64 = v.val_int64();
+							break;
+						case ValueType::UInt32:
+							val.type = Type::UInt32;
+							val.value.ui32 = v.val_uint32();
+							break;
+						case ValueType::UInt64:
+							val.type = Type::UInt64;
+							val.value.ui64 = v.val_uint64();
+							break;
+						case ValueType::String:
+							val.type = Type::String;
+							val.value_str = v.val_string();
+							break;
+						case ValueType::Binary:
+							val.type = Type::Binary;
+							val.value_bin.resize(v.val_binary().size());
+							memcpy(val.value_bin.data(), v.val_binary().data(), val.value_bin.size());
+							break;
+						case ValueType::Null:
+						default:
+							val.type = Type::Null;
+							break;
+					}
+					args[n] = std::move(val);
+				}
+
+				FunctionResult res;
+				res.set_timestamp(msgCall.timestamp());
+				if (!ptr->m_parent->ClientCallFunction(ptr->m_clientId, msgCall.classname(), msgCall.functionname(), args, errMsg, rval)) {
+					res.set_error(errMsg);
+				}
+				::Value* msgValue = res.mutable_value();
+				switch (rval.type) {
+					case Type::Float:
+						msgValue->set_type(ValueType::Float);
+						msgValue->set_val_float(rval.value.fp32);
+						break;
+					case Type::Double:
+						msgValue->set_type(ValueType::Double);
+						msgValue->set_val_double(rval.value.fp64);
+						break;
+					case Type::Int32:
+						msgValue->set_type(ValueType::Int32);
+						msgValue->set_val_int32(rval.value.i32);
+						break;
+					case Type::Int64:
+						msgValue->set_type(ValueType::Int64);
+						msgValue->set_val_int64(rval.value.i64);
+						break;
+					case Type::UInt32:
+						msgValue->set_type(ValueType::UInt32);
+						msgValue->set_val_uint32(rval.value.ui32);
+						break;
+					case Type::UInt64:
+						msgValue->set_type(ValueType::UInt64);
+						msgValue->set_val_uint64(rval.value.ui64);
+						break;
+					case Type::String:
+						msgValue->set_type(ValueType::String);
+						msgValue->set_val_string(rval.value_str);
+						break;
+					case Type::Binary:
+					{
+						msgValue->set_type(ValueType::Binary);
+						msgValue->set_val_binary(rval.value_bin.data(), rval.value_bin.size());
+						break;
+					}
+				}
+				messageBuffer.resize(res.ByteSizeLong());
+				if (res.SerializeToArray(messageBuffer.data(), messageBuffer.size() + 1)) {
+					ptr->QueueMessage(messageBuffer);
+				} else {
+					// Error Signalling? This is technically a crash.
+					abort();
+				}
+			}
+		}
 		ptr->m_executeWorker.queue.pop();
 	}
 }
 
 void IPC::ServerInstance::WriterThread(ServerInstance* ptr) {
 	std::unique_lock<std::mutex> ulock(ptr->m_writeWorker.lock);
-	while (!ptr->m_stopWorkers) {
-		if (ptr->m_socket->Bad())
-			break;
-
+	while (!ptr->m_stopWorkers && ptr->m_socket->Good()) {
 		ptr->m_writeWorker.cv.wait(ulock, [ptr]() {
 			return (ptr->m_stopWorkers || (ptr->m_writeWorker.queue.size() > 0));
 		});
+		
+		if (ptr->m_socket->Bad() || ptr->m_stopWorkers)
+			break;
 
-		auto& msg = ptr->m_writeWorker.queue.front();
+		auto msg = std::move(ptr->m_writeWorker.queue.front());
+		ptr->m_writeWorker.queue.pop();
 		if (msg.size() > 0) {
-			size_t written = ptr->m_socket->Write(msg);
-			if (written == msg.size()) {
-				ptr->m_writeWorker.queue.pop();
-			} else if (written == std::numeric_limits<size_t>::max()) {
-				// Notify parent of a write too large?
-				ptr->m_writeWorker.queue.pop();
+			ulock.unlock();
+			bool success = false;
+			for (size_t attempt = 0; attempt < 5; attempt++) {
+				size_t bytes = ptr->m_socket->Write(msg);
+				if (bytes == msg.size()) {
+					success = true;
+					break;
+				} else if (bytes == std::numeric_limits<size_t>::max()) {
+					abort(); // Critical error, recovering requires reconnecting or restarting.
+				}
 			}
-		} else {
-			ptr->m_writeWorker.queue.pop();
+			ulock.lock();
+			if (!success) {
+				ptr->m_writeWorker.queue.push(std::move(msg));
+			}
 		}
 	}
 }

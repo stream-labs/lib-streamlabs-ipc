@@ -58,8 +58,6 @@ namespace IPC {
 		private:
 		Server* m_parent = nullptr;
 		OS::ClientId_t m_clientId;
-
 		bool m_isAuthenticated = false;
-
 	};
 }
