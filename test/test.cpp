@@ -6,11 +6,8 @@
 #include <chrono>
 #include <ctime>
 #include <mutex>
-
-#ifdef _WIN32
-#include <windows.h>
-
-#endif
+#include <vector>
+#include <cstdarg>
 
 bool killswitch = false;
 std::string sockpath = "";
@@ -95,26 +92,33 @@ void serverOnDisconnect(void* data, OS::ClientId_t id) {
 	);
 }
 
-void serverOnMessage(void* data, OS::ClientId_t id, const std::vector<char>& msg) {
-	if (strcmp(msg.data(), longmessage) == 0) {
-		ClientData& cd = clientInfo.at(id);
-		uint64_t delta = duration_cast<nanoseconds>(high_resolution_clock::now() - cd.lastMessageTime).count();
-		cd.lastMessageTime = high_resolution_clock::now();
-		cd.messageCount++;
-		cd.messageTotalTime += delta;
-		
+IPC::Value callstuff(int64_t id, void* data, std::vector<IPC::Value> v) {
+	auto& cd = clientInfo.at(id);
 
-		if ((cd.messageCount % 1000) == 0) {
-			blog("Server: Messages by %lld so far: %lld, Time: %lld ns, Average: %lld ns",
-				id, cd.messageCount, cd.messageTotalTime, uint64_t(double_t(cd.messageTotalTime) / double_t(cd.messageCount)));
-			//cd.messageCount = cd.messageTotalTime = 0;
-		}
-	}
+	auto tp = std::chrono::high_resolution_clock::now();
+	cd.messageCount++;
+	cd.messageTotalTime += (tp - cd.lastMessageTime).count();
+	cd.lastMessageTime = tp;
+
+	cd.replyCount++;
+	IPC::Value val;
+	val.type = IPC::Type::UInt64;
+	val.value.ui64 = v.at(0).value.ui64;
+	auto tp2 = std::chrono::high_resolution_clock::now();
+	cd.replyTotalTime += (tp2 - tp).count();
+
+	return val;
 }
 
 int serverThread() {
 	IPC::Server server;
-	server.SetMessageHandler(serverOnMessage, nullptr);
+	IPC::Class cls("Hello");
+	std::vector<IPC::Type> args; args.push_back(IPC::Type::UInt64);
+	IPC::Function func("Ping", args);
+	func.SetCallHandler(callstuff, nullptr);
+	cls.RegisterFunction(std::make_shared<IPC::Function>(func));
+	server.RegisterClass(cls);
+	 
 	server.SetConnectHandler(serverOnConnect, nullptr);
 	server.SetDisconnectHandler(serverOnDisconnect, nullptr);
 	
@@ -132,6 +136,18 @@ int serverThread() {
 	return 0;
 }
 
+struct ClientOnly {
+	uint64_t counter = 0;
+	uint64_t timedelta = 0;
+};
+
+void incCtr(void* data, IPC::Value rval) {
+	auto tp = std::chrono::high_resolution_clock::now();
+	ClientOnly* co = (ClientOnly*)data;
+	co->counter++;
+	co->timedelta = (std::chrono::high_resolution_clock::now().time_since_epoch().count() - rval.value.ui64);
+}
+
 int clientThread() {
 	blog("Client: Starting...");
 	IPC::Client client = { sockpath };
@@ -139,26 +155,38 @@ int clientThread() {
 
 	std::vector<char> data(longmessage, longmessage+strlen(longmessage));
 	auto bg = std::chrono::high_resolution_clock::now();
-	client.RawWrite(data);
-	std::this_thread::sleep_for(std::chrono::milliseconds(1));
+	while (!client.Authenticate()) {
+		std::this_thread::sleep_for(std::chrono::milliseconds(500));
+		blog("Client: Failed to authenticate, retrying... (Ctrl-C to quit)");
+	}
 
 	const size_t maxmsg = 100000;
 	size_t idx = 0;
 	size_t failidx = 0;
+	ClientOnly co;
+	std::vector<IPC::Value> args;
+	args.push_back(IPC::Value(0ull));
 	while (idx < maxmsg) {
-		size_t wr = client.RawWrite(data);
-		if (wr == data.size())
+		args.at(0).value.ui64 = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+		if (client.Call("Hello", "Ping", args, incCtr, &co)) {
 			idx++;
-		else {
+		} else {
 			failidx++;
-			blog("Failed to send message %lld", idx);
+			if (failidx > 1000)
+				break;
 		}
-		if ((idx % 1000) == 0)
-			blog("Send! %lld", idx);
 	}
 	size_t ns = (std::chrono::high_resolution_clock::now() - bg).count();
-	blog("Client: Sent %lld in %lld ns, average %lld ns.", maxmsg, ns, uint64_t(ns / double_t(maxmsg)));
-	blog("Client: Failed sending %lld messages.", failidx);
+
+	while (co.counter < idx) {
+		blog("Client: Waiting for replies... (%lld out of %lld)", co.counter, idx);
+		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+	}
+
+	blog("Client: Sent %lld messages (%lld errors) in %lld ns, average %lld ns.",
+		maxmsg, failidx, ns, uint64_t(ns / double_t(maxmsg)));
+	blog("Client: Received %lld responses in %lld ns, average %lld ns.",
+		co.counter, co.timedelta, uint64_t(co.timedelta / double_t(co.counter)));
 	
 	blog("Client: Shutting down...");
 	std::cin.get();
@@ -181,37 +209,6 @@ int main(int argc, char** argv) {
 	std::thread worker;
 	if (isServer) {
 		worker = std::thread(serverThread);
-
-		std::cin.get();
-	#ifdef _WIN32
-		std::stringstream args;
-		args << '"' << argv[0] << '"' << " ";
-		args << "client"
-			<< " "
-			<< argv[2];
-		std::string farg = args.str();
-		std::vector<char> buf = std::vector<char>(farg.data(), farg.data() + farg.length() + 1);
-
-		blog("Starting Client...");
-
-		STARTUPINFO si; memset(&si, 0, sizeof(STARTUPINFO));
-		si.cb = sizeof(STARTUPINFO);
-
-		PROCESS_INFORMATION pi; memset(&pi, 0, sizeof(PROCESS_INFORMATION));
-		if (!CreateProcessA(
-			NULL,
-			buf.data(),
-			NULL,
-			NULL,
-			false,
-			CREATE_NEW_CONSOLE,
-			NULL,
-			NULL,
-			&si,
-			&pi)) {
-			blog("Starting Client failed.");
-		}
-	#endif
 		std::cin.get();
 		killswitch = true;
 	} else {
