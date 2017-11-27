@@ -63,31 +63,23 @@ bool IPC::Server::RegisterClass(IPC::Class cls) {
 	return true;
 }
 
-std::vector<char> IPC::Server::HandleMessage(OS::ClientId_t clientId, std::vector<char> message) {
-	if (m_handlerMessage.first)
-		m_handlerMessage.first(m_handlerMessage.second, clientId, message);
-
-	return std::vector<char>();
-
-	//FunctionCall fcall;
-	//if (fcall.ParseFromArray(message.data(), message.size())) {
-	//	int64_t ts = fcall.timestamp();
-	//	std::string className = fcall.classname();
-	//	std::string functionName = fcall.functionname();
-	//	if (m_classes.count(className) == 0)
-	//		return;
-	//	auto& icls = m_classes.at(className);
-	//	std::vector<IPC::Type> params;
-	//	//for (size_t n = 0; n < fcall.arguments_size(); n++) {
-	//	//	IPC::Type tp = Type::Binary;
-	//	//	auto& vl = fcall.arguments(n);
-	//	//	switch (fcall.arguments(n)) {
-	//	//		case ValueType::Null:
-	//	//		case ValueType::Float:
-	//	//	}
-	//	//		params.push_back(tp);
-	//	//}
-	//}
+bool IPC::Server::ClientCallFunction(OS::ClientId_t cid, std::string cname, std::string fname, std::vector<IPC::Value>& args, std::string& errormsg, IPC::Value& rval) {
+	if (m_classes.count(cname) == 0) {
+		errormsg = "Class '" + cname + "' is not registered.";
+		return false;
+	}
+	auto cls = m_classes.at(cname);
+	auto fnc = cls->GetFunction(fname, args);
+	if (!fnc) {
+		errormsg = "Function '" + fname + "' not found in class '" + cname + "'.";
+		return false;
+	}
+	rval = fnc->Call(cid, args);
+	if (rval.type == Type::Null && rval.value_str.length() != 0) {
+		errormsg = rval.value_str;
+		return false;
+	}
+	return true;
 }
 
 void IPC::Server::WorkerMain(Server* ptr) {

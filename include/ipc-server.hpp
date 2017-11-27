@@ -54,21 +54,20 @@ namespace IPC {
 		public: // Functionality
 		bool RegisterClass(IPC::Class cls);
 
-		protected: // Client -> Server Callback
-		std::vector<char> HandleMessage(OS::ClientId_t clientId, std::vector<char> message);
+		protected: // Client -> Server
+		bool ClientCallFunction(OS::ClientId_t cid, std::string cname, std::string fname, 
+			std::vector<IPC::Value>& args, std::string& errormsg, IPC::Value& rval);
 
 		private: // Threading
+		std::thread m_worker;
+		bool m_stopWorker = false;
+
 		static void WorkerMain(Server* ptr);
 		void WorkerLocal();
 
 		private:
-		void PropagateClassRegistration(std::string className);
-
-		private:
 		std::unique_ptr<OS::NamedSocket> m_socket;
 		bool m_isInitialized = false;
-		std::thread m_worker;
-		bool m_stopWorker = false;
 
 		// Client management.
 		std::mutex m_clientLock;
