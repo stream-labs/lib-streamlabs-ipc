@@ -30,10 +30,6 @@ SET(Protobuf_PROTOC_LIBRARY_DEBUG	"${PROJECT_SOURCE_DIR}/third-party/protobuf/bi
 SET(Protobuf_PROTOC_LIBRARY_RELEASE	"${PROJECT_SOURCE_DIR}/third-party/protobuf/bin/Release/libprotoc.lib")
 find_package(Protobuf REQUIRED)
 
-## Boost
-SET(Boost_USE_STATIC_LIBS ON)
-find_package(Boost REQUIRED system)
-
 # Only allow Debug or Release builds.
 SET(CMAKE_CONFIGURATION_TYPES			"Debug;Release")
 SET(CMAKE_CXX_FLAGS_RELEASE				"${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
@@ -162,6 +158,3 @@ TARGET_LINK_LIBRARIES(${PROJECT_NAME}
 	${Protobuf_LIBRARIES}
 	${Boost_LIBRARIES}
 )
-
-# TEsts
-add_subdirectory("test")
