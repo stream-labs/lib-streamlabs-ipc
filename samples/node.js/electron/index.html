@@ -1,92 +1,113 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="UTF-8">
-    <title>Hello World!</title>
-  </head>
-  <body>
-    
-  </body>
-  <script>	
-	let count = 1000;
-	let longMessage = "Varying Length is bad for testing, and ping pong tests are not good for our actual tests either.";
+	<head>
+		<meta charset="UTF-8">
+		<title>Hello World!</title>
+		<script>
+			process.stdout.write('renderer: process.stdout.write\n');
+			process.stderr.write('renderer: process.stderr.write\n');
 
-	const ipc_main = require('electron').remote.require("./streamlabs-ipc-node");
-	const ipc_here = require('./streamlabs-ipc-node');
+			let count = 100; let step = 10;
+			let longMessage = "Varying Length is bad for testing, and ping pong tests are not good for our actual tests either.";
 
-	var spn0 = document.createElement("div")
-	var txt0 = document.createTextNode("Beginning tests");
-	spn0.appendChild(txt0)
-	document.body.appendChild(spn0)
-	
-	function test1() {
-		console.log("Connecting and authenticating Main Process...");
-		if (false == ipc_main.Connect("longSamplePathStreamlabs")) {
-			console.log("Failed to connect main process.");
-			return;
-		}
-		if (false == ipc_main.Authenticate()) {
-			console.log("Failed to authenticate main process.");
-			return;
-		}
-		
-		console.log("Connecting and authenticating Renderer Process...");
-		if (false == ipc_here.Connect("longSamplePathStreamlabs")) {
-			console.log("Failed to connect renderer process.");
-			return;
-		}
-		if (false == ipc_here.Authenticate()) {
-			console.log("Failed to authenticate renderer process.");
-			return;
-		}
-		
-		let to = window.setTimeout(pongHere, 250);
-	}
-	
-	function pongHere() {
-		console.log("Testing v8 latency with native calls...");
-		var t2 = 0;
-		var t0 = performance.now();
-		for (let n = 0; n < count; n++) {
-			ipc_here.Pong(longMessage);
-		}
-		t2 += (performance.now() - t0);
-		console.log("Total: " + t2 + " ms");
-		console.log("Average: " + (t2 / count) + " ms.");
-		let to = window.setTimeout(pongRemote, 250);
-	}
-	
-	function pongRemote() {
-		console.log("Testing electron.remote latency with native calls...");
-		var t2 = 0;
-		var t0 = performance.now()
-		for (let n = 0; n < count; n++) {
-			ipc_main.Pong(longMessage);
-		}
-		t2 += (performance.now() - t0);
-		console.log("Total: " + t2 + " ms");
-		console.log("Average: " + (t2 / count) + " ms.");
-		let to = window.setTimeout(pingHere, 250);
-	}
-	
-	function pingHere() {
-		console.log("Testing ipc latency with native calls...");
-		var t2 = 0;
-		var t0 = performance.now();
-		for (let n = 0; n < count; n++) {
-			ipc_here.Ping(t0);
-		}
-		t2 += (performance.now() - t0);
-		console.log("Total: " + t2 + " ms");
-		console.log("Average: " + (t2 / count) + " ms.");
-		let to = window.setTimeout(test4, 250);		
-	}
-	
-	function test4() {
-		console.log("Complete");
-	}
-	
-	let to = window.setTimeout(test1, 250);	
-	//ipc_main.Shutdown();
-  </script>
+			const ipc_main = require('electron').remote.require("./streamlabs-ipc-node");
+			const ipc_here = require('./streamlabs-ipc-node');
+
+			let windowTO = 0; let windowTime = 50;
+			let pongLocalCnt = 0; let pongLocalTime = 0;
+			let pongRemoteCnt = 0; let pongRemoteTime = 0;
+			let pingLocalCnt = 0; let pingLocalTime = 0;
+			
+			function init() {
+				pongLocalCnt = 0; pongLocalTime = 0;
+				pongRemoteCnt = 0; pongRemoteTime = 0;
+				pingLocalCnt = 0; pingLocalTime = 0;
+				
+				console.log("Connecting and authenticating Main Process...");
+				if (false == ipc_main.Connect("longSamplePathStreamlabs")) {
+					console.log("Failed to connect main process.");
+					return;
+				}
+				if (false == ipc_main.Authenticate()) {
+					console.log("Failed to authenticate main process.");
+					return;
+				}
+
+				console.log("Connecting and authenticating Renderer Process...");
+				if (false == ipc_here.Connect("longSamplePathStreamlabs")) {
+					console.log("Failed to connect renderer process.");
+					return;
+				}
+				if (false == ipc_here.Authenticate()) {
+					console.log("Failed to authenticate renderer process.");
+					return;
+				}
+
+				windowTO = window.setTimeout(pongLocal, windowTime);
+			}
+			//windowTO = window.setTimeout(init, windowTime);
+
+			function pongLocal() {
+				let rem = Math.min(count - pongLocalCnt, step);
+				var time_start = performance.now();
+				for (let n = 0; n < rem; n++) {
+					ipc_here.Pong(longMessage);
+				}
+				pongLocalTime += (performance.now() - time_start);
+				pongLocalCnt += rem;
+				
+				console.log("Local Pong Test (" + pongLocalCnt + "/" + count + "): " + pongLocalTime + " ms, " + (pongLocalTime / pongLocalCnt) + " ms.");
+				
+				if (pongLocalCnt == count) {			
+					windowTo = window.setTimeout(pongRemote, windowTime);
+				} else {
+					windowTO = window.setTimeout(pongLocal, windowTime);
+				}
+			}
+
+			function pongRemote() {
+				let rem = Math.min(count - pongRemoteCnt, step);
+				var time_start = performance.now();
+				for (let n = 0; n < rem; n++) {
+					ipc_main.Pong(longMessage);
+				}
+				pongRemoteTime += (performance.now() - time_start);
+				pongRemoteCnt += rem;
+				
+				console.log("Remote Pong Test (" + pongRemoteCnt + "/" + count + "): " + pongRemoteTime + " ms, " + (pongRemoteTime / pongRemoteCnt) + " ms.");
+				
+				if (pongRemoteCnt == count) {			
+					windowTo = window.setTimeout(pingLocal, windowTime);
+				} else {
+					windowTO = window.setTimeout(pongRemote, windowTime);
+				}
+			}
+
+			function pingLocal() {
+				let rem = Math.min(count - pingLocalCnt, step);
+				var time_start = performance.now();
+				for (let n = 0; n < rem; n++) {
+					ipc_here.Ping(longMessage);
+				}
+				pingLocalTime += (performance.now() - time_start);
+				pingLocalCnt += rem;
+				
+				console.log("Local IPC Test (" + pingLocalCnt + "/" + count + "): " + pingLocalTime + " ms, " + (pingLocalTime / pingLocalCnt) + " ms.");
+				
+				if (pingLocalCnt == count) {			
+					windowTo = window.setTimeout(test4, windowTime);
+				} else {
+					windowTO = window.setTimeout(pingLocal, windowTime);
+				}
+			}
+
+			function test4() {
+				console.log("Complete");
+			}
+			//ipc_main.Shutdown();
+		</script>
+	</head>
+	<body>
+		<button onclick="javascript:init()">This is a Button</button>
+	</body>	
 </html>

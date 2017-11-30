@@ -19,40 +19,94 @@
 #include "ipc-class.hpp"
 #include "ipc-function.hpp"
 #include <iostream>
+#include <chrono>
+#include <stdio.h>
+#include <stdarg.h>
 
 #ifdef _WIN32
-#pragma push
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #undef RegisterClass
-#pragma pop
 #include <timeapi.h>
 #endif
 
+
+std::chrono::high_resolution_clock g_hrc;
+std::chrono::high_resolution_clock::time_point g_loadTime = std::chrono::high_resolution_clock::now();
+
+static std::vector<char> varlog(std::string format, va_list args) {
+	std::vector<char> buffer(65535, '\0');
+	buffer.resize(vsprintf_s(buffer.data(), buffer.size(), format.c_str(), args));
+	return buffer;
+}
+
+static void blog(std::string format, ...) {
+	auto duration = (std::chrono::high_resolution_clock::now() - g_loadTime);
+
+	auto hours = std::chrono::duration_cast<std::chrono::hours>(duration);
+	duration -= hours;
+	auto minutes = std::chrono::duration_cast<std::chrono::minutes>(duration);
+	duration -= minutes;
+	auto seconds = std::chrono::duration_cast<std::chrono::seconds>(duration);
+	duration -= seconds;
+	auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
+	duration -= milliseconds;
+	auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(duration);
+	duration -= microseconds;
+	auto nanoseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(duration);
+
+	std::chrono::high_resolution_clock::now();
+
+	va_list argptr;
+	va_start(argptr, format);
+	std::vector<char> formatted = varlog(format, argptr);
+	va_end(argptr);
+
+	std::vector<char> buf(65535, '\0');
+	std::string timeformat = "%.2d:%.2d:%.2d.%.3d.%.3d.%.3d:  %*s\n";// "%*s";
+	size_t formattedsize = formatted.size();
+	sprintf_s(
+		buf.data(),
+		buf.size(),
+		timeformat.c_str(),
+		hours.count(),
+		minutes.count(),
+		seconds.count(),
+		milliseconds.count(),
+		microseconds.count(),
+		nanoseconds.count(),
+		formattedsize, formatted.data());
+	std::cout << buf.data();
+}
+
+
 IPC::Value ipcShutdown(int64_t, void* shutdown, std::vector<IPC::Value> vals) {
+	blog("Shutdown");
 	bool* ptrShutdown = (bool*)shutdown;
 	*ptrShutdown = true;
 	return IPC::Value();
 }
 
 IPC::Value ipcPing(int64_t id, void*, std::vector<IPC::Value> vals) {
+	//blog("Ping");
 	//std::cout << "Ping from " << id << std::endl;
-	return vals.at(0);
+	return IPC::Value(0ull);//vals.at(0);
 }
 
 IPC::Value ipcPingS(int64_t id, void*, std::vector<IPC::Value> vals) {
+	//blog("PingS");
 	//std::cout << "Ping from " << id << std::endl;
 	std::this_thread::sleep_for(std::chrono::milliseconds(10));
-	return vals.at(0);
+	return IPC::Value(0ull);
 }
 
 bool OnConnect(void*, OS::ClientId_t id) {
-	std::cout << "Connect from " << id << std::endl;
+	blog("Connect from %lld", id);
 	return true;
 }
 
 void OnDisconnect(void*, OS::ClientId_t id) {
-	std::cout << "Disconnect by " << id << std::endl;
+	blog("Disconnect by %lld", id);
 }
 
 int main(int argc, char** argv) {
@@ -77,7 +131,7 @@ int main(int argc, char** argv) {
 	std::cout << argv[1] << std::endl;
 
 	while (!shutdown) {
-		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	}
 
 #ifdef _WIN32

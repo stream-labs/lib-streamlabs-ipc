@@ -18,4 +18,4 @@
 #pragma once
 #include <node.h>
 
-#define MODULE_NAME streamlabs_ipc
+#define MODULE_NAME streamlabs_ipc_node

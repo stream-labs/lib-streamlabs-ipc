@@ -18,6 +18,10 @@
 #include "module.hpp"
 #include "ipc-client.hpp"
 #include <sstream>
+#include <chrono>
+#include <stdio.h>
+#include <stdarg.h>
+#include <iostream>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -29,7 +33,56 @@ PROCESS_INFORMATION pi;
 
 std::unique_ptr<IPC::Client> cl;
 
+std::chrono::high_resolution_clock g_hrc;
+std::chrono::high_resolution_clock::time_point g_loadTime = std::chrono::high_resolution_clock::now();
+
+static std::vector<char> varlog(std::string format, va_list args) {
+	std::vector<char> buffer(65535, '\0');
+	buffer.resize(vsprintf_s(buffer.data(), buffer.size(), format.c_str(), args));
+	return buffer;
+}
+
+static void blog(std::string format, ...) {
+	auto duration = (std::chrono::high_resolution_clock::now() - g_loadTime);
+
+	auto hours = std::chrono::duration_cast<std::chrono::hours>(duration);
+	duration -= hours;
+	auto minutes = std::chrono::duration_cast<std::chrono::minutes>(duration);
+	duration -= minutes;
+	auto seconds = std::chrono::duration_cast<std::chrono::seconds>(duration);
+	duration -= seconds;
+	auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
+	duration -= milliseconds;
+	auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(duration);
+	duration -= microseconds;
+	auto nanoseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(duration);
+
+	std::chrono::high_resolution_clock::now();
+
+	va_list argptr;
+	va_start(argptr, format);
+	std::vector<char> formatted = varlog(format, argptr);
+	va_end(argptr);
+
+	std::vector<char> buf(65535, '\0');
+	std::string timeformat = "%.2d:%.2d:%.2d.%.3d.%.3d.%.3d:  %*s\n";// "%*s";
+	size_t formattedsize = formatted.size();
+	sprintf_s(
+		buf.data(),
+		buf.size(),
+		timeformat.c_str(),
+		hours.count(),
+		minutes.count(),
+		seconds.count(),
+		milliseconds.count(),
+		microseconds.count(),
+		nanoseconds.count(),
+		formattedsize, formatted.data());
+	std::cout << buf.data();
+}
+
 void JSInitialize(const v8::FunctionCallbackInfo<v8::Value>& args) {
+	blog("JSInitialize");
 	// This function only spawns a server process.
 	if (args.Length() != 2) {
 		args.GetIsolate()->ThrowException(v8::Exception::SyntaxError(
@@ -47,7 +100,7 @@ void JSInitialize(const v8::FunctionCallbackInfo<v8::Value>& args) {
 	sstr << *v8::String::Utf8Value(args[1]->ToString());
 	std::string dstr = sstr.str();
 	const char* cstr = dstr.c_str();
-	
+
 #ifdef _WIN32
 
 	STARTUPINFO sia; memset(&sia, 0, sizeof(STARTUPINFO));
@@ -96,12 +149,14 @@ void JSInitialize(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 void JSFinalize(const v8::FunctionCallbackInfo<v8::Value>& args) {
+	blog("JSFinalize");
 #ifdef _WIN32
 	TerminateProcess(pi.hProcess, 0);
 #endif
 }
 
 void JSConnect(const v8::FunctionCallbackInfo<v8::Value>& args) {
+	blog("JSConnect");
 	if (args.Length() != 1) {
 		args.GetIsolate()->ThrowException(v8::Exception::SyntaxError(
 			v8::String::NewFromUtf8(args.GetIsolate(),
@@ -124,6 +179,7 @@ void JSConnect(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 void JSAuthenticate(const v8::FunctionCallbackInfo<v8::Value>& args) {
+	blog("JSAuthenticate");
 	if (!cl->Authenticate()) {
 		args.GetIsolate()->ThrowException(v8::Exception::Error(
 			v8::String::NewFromUtf8(args.GetIsolate(),
@@ -137,56 +193,50 @@ void JSAuthenticate(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 std::mutex PingMutex;
 std::condition_variable PingCV;
-bool pingResult = false;
 
 void JSPingResponse(void* data, IPC::Value rval) {
-	uint32_t* rv = (uint32_t*)data;
-	*rv = rval.value.ui64;
-	pingResult = true;
+	*((bool*)data) = true;
 }
 
 void JSPing(const v8::FunctionCallbackInfo<v8::Value>& args) {
-	uint32_t r = 0;
-	std::vector<IPC::Value> pars;
-	pars.push_back(uint64_t(args[0]->Int32Value()));
-
-	if (!cl->Call("Control", "Ping", pars, JSPingResponse, &r)) {
-		args.GetReturnValue().Set(false);
+	bool pingResult = false;
+	if (!cl->Call("Control", "Ping", { 0ull }, JSPingResponse, &pingResult)) {
+		args.GetIsolate()->ThrowException(
+			v8::Exception::Error(
+				v8::String::NewFromUtf8(args.GetIsolate(),
+					"Unable to send message."
+			)));
 		return;
 	}
-	std::unique_lock<std::mutex> ulock(PingMutex);
-	PingCV.wait(ulock, [&r] {
-		return r != 0;
-	});
+	while (pingResult == false) {
 
-	args.GetReturnValue().Set(uint32_t(r));
+	}
+	//args.GetReturnValue().Set(args[0]);
 }
 
 void JSPingS(const v8::FunctionCallbackInfo<v8::Value>& args) {
-	uint32_t r = 0;
-	std::vector<IPC::Value> pars;
-	pars.push_back(uint64_t(args[0]->Int32Value()));
-
-	pingResult = false;
-	if (!cl->Call("Control", "PingS", pars, JSPingResponse, &r)) {
+	bool pingResult = false;
+	if (!cl->Call("Control", "PingS", { 0ull }, JSPingResponse, &pingResult)) {
 		args.GetReturnValue().Set(false);
 		return;
 	}
-	while (!pingResult) {}
-
-	args.GetReturnValue().Set(uint32_t(r));
+	while (!pingResult) {
+	}
 }
 
 void JSPong(const v8::FunctionCallbackInfo<v8::Value>& args) {
+	//blog("JSPong");
 	args.GetReturnValue().Set(args[0]);
 }
 
 void JSPongS(const v8::FunctionCallbackInfo<v8::Value>& args) {
+	//blog("JSPongS");
 	std::this_thread::sleep_for(std::chrono::milliseconds(10));
 	args.GetReturnValue().Set(args[0]);
 }
 
 void Init(v8::Local<v8::Object> exports) {
+	blog("Node Init");
 	NODE_SET_METHOD(exports, "Initialize", JSInitialize);
 	NODE_SET_METHOD(exports, "Finalize", JSFinalize);
 
