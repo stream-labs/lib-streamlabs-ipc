@@ -1,0 +1,19 @@
+{
+  "name": "streamlabs-ipc-node",
+  "version": "0.0.1",
+  "description": "",
+  "private": true,
+  "authors": [],
+  "licenses": [ "GPLv3" ],
+  "main": "index.js",
+  "scripts": {
+    "configure": "cmake-js configure",
+    "build": "cmake-js compile"
+  },
+  "devDependencies": {
+    "cmake-js": "^3.4.0"
+  },
+  "dependencies": {
+    "nan": "^2.6.2"
+  }
+}

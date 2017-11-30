@@ -1,0 +1,3 @@
+[submodule "lib-streamlabs-ipc"]
+	path = lib-streamlabs-ipc
+	url = https://github.com/stream-labs/lib-streamlabs-ipc.git
