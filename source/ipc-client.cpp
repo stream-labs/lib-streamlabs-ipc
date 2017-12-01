@@ -139,22 +139,33 @@ bool IPC::Client::Call(std::string cname, std::string fname, std::vector<IPC::Va
 void IPC::Client::WorkerThread(Client* ptr) {
 	auto sock = ptr->m_socket->GetConnection();
 	std::vector<char> buf;
+	::FunctionResult fres;
+	IPC::Value val;
+	size_t readAttempt = 0;
 	while (!ptr->m_stopWorkers) {
-		if (sock->Bad())
-			break;
-
 		if (sock->ReadAvail() == 0) {
-			std::this_thread::sleep_for(std::chrono::milliseconds(1));
-			continue;
+			readAttempt++;
+			if (readAttempt > 100) {
+				std::this_thread::sleep_for(std::chrono::milliseconds(1));
+			} else {
+				std::this_thread::sleep_for(std::chrono::milliseconds(0));
+			}
+
+			if (sock->Good())
+				continue;
+
+			break;
 		}
 		
 		buf.resize(sock->ReadAvail());
-		size_t bytes = sock->Read(buf);
-		if (bytes == 0)
+		size_t length = sock->Read(buf);
+		if (length == 0)
 			continue;
 
+		readAttempt = 0;
+
 		// Decode Result
-		::FunctionResult fres;
+		//fres.Clear();
 		if (!fres.ParsePartialFromArray(buf.data(), buf.size()))
 			continue;
 		if (ptr->m_cb.count(fres.timestamp()) == 0)
@@ -167,7 +178,6 @@ void IPC::Client::WorkerThread(Client* ptr) {
 		}
 
 		/// Value
-		IPC::Value val;
 		if (fres.has_value()) {
 			auto v = fres.value();
 			switch (v.type()) {
