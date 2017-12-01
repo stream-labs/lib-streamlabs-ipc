@@ -36,21 +36,16 @@ namespace IPC {
 		ServerInstance(Server* owner, std::shared_ptr<OS::NamedSocketConnection> conn);
 		~ServerInstance();
 		
-		void QueueMessage(std::vector<char> data);
 		bool IsAlive();
 
 		private: // Threading
 		bool m_stopWorkers = false;
-		struct {
-			std::thread worker;
-			std::mutex lock;
-			std::condition_variable cv;
-			std::queue<std::vector<char>> queue;
-		} m_readWorker, m_executeWorker, m_writeWorker;
+		std::thread m_worker;
 
-		static void ReaderThread(ServerInstance* ptr);
-		static void ExecuteThread(ServerInstance* ptr);
-		static void WriterThread(ServerInstance* ptr);
+		void Worker();
+		static void WorkerThread(ServerInstance* ptr) {
+			ptr->Worker();
+		};
 		
 		protected:
 		std::shared_ptr<OS::NamedSocketConnection> m_socket;
