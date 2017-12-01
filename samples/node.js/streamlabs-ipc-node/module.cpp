@@ -199,8 +199,8 @@ void JSPingResponse(void* data, IPC::Value rval) {
 }
 
 void JSPing(const v8::FunctionCallbackInfo<v8::Value>& args) {
-	bool pingResult = false;
-	if (!cl->Call("Control", "Ping", { 0ull }, JSPingResponse, &pingResult)) {
+	volatile bool pingResult = false;
+	if (!cl->Call("Control", "Ping", { 0ull }, JSPingResponse, (bool*)(&pingResult))) {
 		args.GetIsolate()->ThrowException(
 			v8::Exception::Error(
 				v8::String::NewFromUtf8(args.GetIsolate(),
