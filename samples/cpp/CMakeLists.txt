@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.5)
 project(ipc-test)
 
-ADD_SUBDIRECTORY("../../" "$(PROJECT_BUILD_DIR)lib-streamlabs-ipc")
+ADD_SUBDIRECTORY("../../" "lib-streamlabs-ipc")
 
 ################################################################################
 # System & Utilities

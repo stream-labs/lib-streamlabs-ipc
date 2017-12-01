@@ -137,13 +137,14 @@ int serverThread() {
 }
 
 struct ClientOnly {
-	uint64_t counter = 0;
+	volatile uint64_t counter = 0;
 	uint64_t timedelta = 0;
 };
 
 void incCtr(void* data, IPC::Value rval) {
 	ClientOnly* co = (ClientOnly*)data;
 	co->counter++;
+	co->timedelta = (std::chrono::high_resolution_clock::now().time_since_epoch().count() - rval.value.ui64);
 }
 
 int clientThread() {
@@ -158,30 +159,34 @@ int clientThread() {
 		blog("Client: Failed to authenticate, retrying... (Ctrl-C to quit)");
 	}
 
-	const size_t maxmsg = 10000;
+	const size_t maxmsg = 100000;
 	size_t idx = 0;
 	size_t failidx = 0;
 	ClientOnly co;
 	std::vector<IPC::Value> args;
 	args.push_back(IPC::Value(0ull));
+	size_t tmp = 0;
 	while (idx < maxmsg) {
-		uint64_t counter_last = co.counter;
+		tmp = co.counter;
 		args.at(0).value.ui64 = std::chrono::high_resolution_clock::now().time_since_epoch().count();
-		if (client.Call("Hello", "Ping", args, incCtr, &co)) {
-			while (counter_last == co.counter) {}
-			co.timedelta = (std::chrono::high_resolution_clock::now().time_since_epoch().count() - args.at(0).value.ui64);
-			idx++;
-		} else {
+		if (!client.Call("Hello", "Ping", args, incCtr, &co)) {
 			failidx++;
 			if (failidx > 1000)
 				break;
+			continue;
+		}
+
+		while (tmp == co.counter) {}
+		idx++;
+		if (idx % 1000 == 0) {
+			blog("Client: Sent %lld messages.", idx);
 		}
 	}
 	size_t ns = (std::chrono::high_resolution_clock::now() - bg).count();
 
 	while (co.counter < idx) {
 		blog("Client: Waiting for replies... (%lld out of %lld)", co.counter, idx);
-		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 	}
 
 	blog("Client: Sent %lld messages (%lld errors) in %lld ns, average %lld ns.",
