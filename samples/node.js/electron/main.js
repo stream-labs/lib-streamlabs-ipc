@@ -6,6 +6,14 @@ const url = require('url')
 // be closed automatically when the JavaScript object is garbage collected.
 let win
 
+function keepBusy() {
+	var j = 0;
+	let cnt = 1000 * 1000 * 500;
+	for (var i = 0; i < cnt; i++) {
+		j += i * i;
+	}
+}
+
 function createWindow () {
   // Create the browser window.
   win = new BrowserWindow({width: 800, height: 600})
@@ -27,6 +35,8 @@ function createWindow () {
     // when you should delete the corresponding element.
     win = null
   })
+  
+	setInterval(keepBusy, 1);
 }
 
 // This method will be called when Electron has finished
