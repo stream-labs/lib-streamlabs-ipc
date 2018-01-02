@@ -18,7 +18,6 @@
 #pragma once
 #include "ipc.hpp"
 #include "ipc-class.hpp"
-#include "ipc-message.hpp"
 #include "ipc-server-instance.hpp"
 #include "os-namedsocket.hpp"
 #include <list>

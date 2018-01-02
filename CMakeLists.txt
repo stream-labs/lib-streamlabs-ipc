@@ -58,7 +58,6 @@ SET(Protobuf_IMPORT_DIRS
 	"${PROJECT_SOURCE_DIR}/proto"
 )
 SET(lib-streamlabs-ipc_PROTOBUF
-	"${PROJECT_SOURCE_DIR}/proto/example.proto"
 	"${PROJECT_SOURCE_DIR}/proto/ipc.proto"
 )
 SET(lib-streamlabs-ipc_DATA
