@@ -1,19 +1,6 @@
 syntax = "proto3";
 
-enum ValueType {
-	Null = 0;
-	Float = 1;
-	Double = 2;
-	Int32 = 3;
-	Int64 = 4;
-	UInt32 = 5;
-	UInt64 = 6;
-	String = 7;
-	Binary = 8;
-}
-
 message Value {
-	ValueType type = 2;
 	oneof value {
 		bool   val_bool   = 3;
 		float  val_float  = 4;
@@ -36,10 +23,11 @@ message FunctionCall {
 
 message FunctionResult {
 	sint64 timestamp = 1;
-	Value value = 2;
+	repeated Value value = 2;
 	string error = 3;
 }
 
 message Authenticate {
 	string password = 1;
+	string name = 2;
 }
