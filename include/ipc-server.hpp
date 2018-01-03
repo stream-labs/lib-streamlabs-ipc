@@ -55,7 +55,7 @@ namespace IPC {
 
 		protected: // Client -> Server
 		bool ClientCallFunction(OS::ClientId_t cid, std::string cname, std::string fname, 
-			std::vector<IPC::Value>& args, std::string& errormsg, IPC::Value& rval);
+			std::vector<IPC::Value>& args, std::vector<IPC::Value>& rval, std::string& errormsg);
 
 		private: // Threading
 		std::thread m_worker;

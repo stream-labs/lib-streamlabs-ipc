@@ -63,22 +63,21 @@ bool IPC::Server::RegisterClass(IPC::Class cls) {
 	return true;
 }
 
-bool IPC::Server::ClientCallFunction(OS::ClientId_t cid, std::string cname, std::string fname, std::vector<IPC::Value>& args, std::string& errormsg, IPC::Value& rval) {
+bool IPC::Server::ClientCallFunction(OS::ClientId_t cid, std::string cname, std::string fname, std::vector<IPC::Value>& args, std::vector<IPC::Value>& rval, std::string& errormsg) {
 	if (m_classes.count(cname) == 0) {
 		errormsg = "Class '" + cname + "' is not registered.";
 		return false;
 	}
 	auto cls = m_classes.at(cname);
+	
 	auto fnc = cls->GetFunction(fname, args);
 	if (!fnc) {
 		errormsg = "Function '" + fname + "' not found in class '" + cname + "'.";
 		return false;
 	}
-	rval = fnc->Call(cid, args);
-	if (rval.type == Type::Null && rval.value_str.length() != 0) {
-		errormsg = rval.value_str;
-		return false;
-	}
+
+	fnc->Call(cid, args, rval);
+
 	return true;
 }
 
