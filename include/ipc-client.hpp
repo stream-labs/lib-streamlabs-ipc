@@ -27,7 +27,7 @@
 #include <vector>
 
 namespace IPC {
-	typedef void(*CallReturn_t)(void* data, IPC::Value rval);
+	typedef void(*CallReturn_t)(const void* data, const std::vector<IPC::Value>& rval);
 
 	class Client {
 		public:
