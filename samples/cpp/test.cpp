@@ -76,7 +76,7 @@ bool serverOnConnect(void* data, OS::ClientId_t id) {
 	cd.connectTime = std::chrono::high_resolution_clock::now();
 	cd.lastMessageTime = cd.connectTime;
 	cd.messageCount = cd.messageTotalTime = 0;
-	cd.replyCount = cd.replyTotalTime = 1;
+	cd.replyCount = cd.replyTotalTime = 0;
 	clientInfo.insert(std::make_pair(id, cd));
 	blog(std::string("Server: Connect from %lld."), id);
 	return true;
@@ -92,7 +92,7 @@ void serverOnDisconnect(void* data, OS::ClientId_t id) {
 	);
 }
 
-IPC::Value callstuff(int64_t id, void* data, std::vector<IPC::Value> v) {
+void callstuff(void* data, const int64_t id, const std::vector<IPC::Value>& args, std::vector<IPC::Value>& rval) {
 	auto& cd = clientInfo.at(id);
 
 	auto tp = std::chrono::high_resolution_clock::now();
@@ -103,11 +103,11 @@ IPC::Value callstuff(int64_t id, void* data, std::vector<IPC::Value> v) {
 	cd.replyCount++;
 	IPC::Value val;
 	val.type = IPC::Type::UInt64;
-	val.value.ui64 = v.at(0).value.ui64;
+	val.value.ui64 = args.at(0).value.ui64;
 	auto tp2 = std::chrono::high_resolution_clock::now();
 	cd.replyTotalTime += (tp2 - tp).count();
 
-	return val;
+	rval.push_back(val);
 }
 
 int serverThread() {
@@ -141,10 +141,10 @@ struct ClientOnly {
 	uint64_t timedelta = 0;
 };
 
-void incCtr(void* data, IPC::Value rval) {
+void incCtr(const void* data, const std::vector<IPC::Value>& rval) {
 	ClientOnly* co = (ClientOnly*)data;
 	co->counter++;
-	co->timedelta = (std::chrono::high_resolution_clock::now().time_since_epoch().count() - rval.value.ui64);
+	co->timedelta = (std::chrono::high_resolution_clock::now().time_since_epoch().count() - rval.at(0).value.ui64);
 }
 
 int clientThread() {
@@ -159,7 +159,7 @@ int clientThread() {
 		blog("Client: Failed to authenticate, retrying... (Ctrl-C to quit)");
 	}
 
-	const size_t maxmsg = 100000;
+	const size_t maxmsg = 10000;
 	size_t idx = 0;
 	size_t failidx = 0;
 	ClientOnly co;
