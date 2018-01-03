@@ -19,18 +19,34 @@
 #include "ipc.hpp"
 
 
-IPC::Function::Function(std::string name, std::vector<Type> params, CallHandler_t ptr, void* data) {
+IPC::Function::Function(std::string name, std::vector<IPC::Type> params, CallHandler_t ptr, void* data) {
 	this->m_name = name;
+	this->m_nameUnique = IPC::Base::MakeFunctionUniqueId(m_name, m_params);
 	this->m_params = params;
 	this->m_callHandler.first = ptr;
 	this->m_callHandler.second = data;
 }
 
-IPC::Function::Function(std::string name, CallHandler_t ptr, void* data) : Function(name, std::vector<Type>(), ptr, data) {}
+IPC::Function::Function(std::string name, std::vector<IPC::Type> params, CallHandler_t ptr)
+	: Function(name, params, ptr, nullptr) {}
 
-IPC::Function::Function(std::string name, std::vector<Type> params) : Function(name, params, nullptr, nullptr) {}
+IPC::Function::Function(std::string name, std::vector<IPC::Type> params, void* data)
+	: Function(name, params, nullptr, data) {}
 
-IPC::Function::Function(std::string name) : Function(name, std::vector<Type>(), nullptr, nullptr) {}
+IPC::Function::Function(std::string name, std::vector<IPC::Type> params)
+	: Function(name, params, nullptr, nullptr) {}
+
+IPC::Function::Function(std::string name, CallHandler_t ptr, void* data)
+	: Function(name, std::vector<IPC::Type>(), ptr, data) {}
+
+IPC::Function::Function(std::string name, CallHandler_t ptr)
+	: Function(name, std::vector<IPC::Type>(), ptr, nullptr) {}
+
+IPC::Function::Function(std::string name, void* data)
+	: Function(name, std::vector<IPC::Type>(), nullptr, data) {}
+
+IPC::Function::Function(std::string name)
+	: Function(name, std::vector<IPC::Type>(), nullptr, nullptr) {}
 
 IPC::Function::~Function() {}
 
@@ -39,7 +55,7 @@ std::string IPC::Function::GetName() {
 }
 
 std::string IPC::Function::GetUniqueName() {
-	return IPC::Base::MakeFunctionUniqueId(m_name, m_params);
+	return m_nameUnique;
 }
 
 size_t IPC::Function::CountParameters() {
@@ -47,6 +63,8 @@ size_t IPC::Function::CountParameters() {
 }
 
 IPC::Type IPC::Function::GetParameterType(size_t index) {
+	if (index > m_params.size())
+		throw std::out_of_range("index is out of range");
 	return m_params.at(index);
 }
 
@@ -55,8 +73,8 @@ void IPC::Function::SetCallHandler(CallHandler_t ptr, void* data) {
 	m_callHandler.second = data;
 }
 
-IPC::Value IPC::Function::Call(int64_t id, std::vector<IPC::Value> args) {
-	if (m_callHandler.first)
-		return m_callHandler.first(id, m_callHandler.second, args);
-	return IPC::Value();
+void IPC::Function::Call(const int64_t id, const std::vector<IPC::Value>& args, std::vector<IPC::Value>& rval) {
+	if (m_callHandler.first) {
+		return m_callHandler.first(m_callHandler.second, id, args, rval);
+	}
 }

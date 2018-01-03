@@ -21,18 +21,26 @@
 #include <memory>
 
 namespace IPC {
-	typedef Value(*CallHandler_t)(int64_t id, void* data, std::vector<Value>);
+	typedef void(*CallHandler_t)(void* data, const int64_t id, const std::vector<IPC::Value>& args, std::vector<IPC::Value>& rval);
 
 	class Function {
 		public:
-		Function(std::string name);
-		Function(std::string name, std::vector<Type> params);
+		Function(std::string name, std::vector<IPC::Type> params, CallHandler_t ptr, void* data);
+		Function(std::string name, std::vector<IPC::Type> params, CallHandler_t ptr);
+		Function(std::string name, std::vector<IPC::Type> params, void* data);
+		Function(std::string name, std::vector<IPC::Type> params);
 		Function(std::string name, CallHandler_t ptr, void* data);
-		Function(std::string name, std::vector<Type> params, CallHandler_t ptr, void* data);
+		Function(std::string name, CallHandler_t ptr);
+		Function(std::string name, void* data);
+		Function(std::string name);
 		virtual ~Function();
 
-		/** Retrieve the original name of this function.
+		/** Get the proper name for this function.
 		 * 
+		 * Retrieves the actual name of the function used during creation,
+		 * useful for overloading functions.
+		 * 
+		 * @return A std::string containing the name of the function.
 		 */
 		std::string GetName();
 
@@ -40,29 +48,40 @@ namespace IPC {
 		 * 
 		 * This produces a similar result to what native compilers do to allow
 		 * overloading of the same name but with different functions.
+		 * 
+		 * @return A std::string containing the unique name of the function.
 		 */
 		std::string GetUniqueName();
 
-		/** Count the number of parameters.
+		/** Amount of Parameters for this function.
 		 * 
+		 * Returns the number of parameters that this function has for use with GetParameterType().
+		 * 
+		 * @return Amount of parameters as size_t.
 		 */
 		size_t CountParameters();
 
 		/** Retrieve parameter by index.
-		 *
+		 * 
+		 * 
+		 * 
+		 * @return IPC::Type that this parameter has.
 		 */
-		Type GetParameterType(size_t index);
+		IPC::Type GetParameterType(size_t index);
 
-		/** Call handling
+		/** Assign Call Handler
 		 * 
 		 */
 		void SetCallHandler(CallHandler_t ptr, void* data);
-		
-		Value Call(int64_t id, std::vector<Value> args);
+
+		/** Call this function
+		*
+		*/
+		void Call(const int64_t id, const std::vector<IPC::Value>& args, std::vector<IPC::Value>& rval);
 		
 		private:
-		std::string m_name;
-		std::vector<Type> m_params;
+		std::string m_name, m_nameUnique;
+		std::vector<IPC::Type> m_params;
 
 		std::pair<CallHandler_t, void*> m_callHandler;
 	};
