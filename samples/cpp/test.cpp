@@ -113,10 +113,8 @@ void callstuff(void* data, const int64_t id, const std::vector<IPC::Value>& args
 int serverThread() {
 	IPC::Server server;
 	IPC::Class cls("Hello");
-	std::vector<IPC::Type> args; args.push_back(IPC::Type::UInt64);
-	IPC::Function func("Ping", args);
-	func.SetCallHandler(callstuff, nullptr);
-	cls.RegisterFunction(std::make_shared<IPC::Function>(func));
+	std::shared_ptr<IPC::Function> func = std::make_shared<IPC::Function>("Ping", std::vector<IPC::Type>{IPC::Type::UInt64}, callstuff, nullptr);
+	cls.RegisterFunction(func);
 	server.RegisterClass(cls);
 	 
 	server.SetConnectHandler(serverOnConnect, nullptr);
