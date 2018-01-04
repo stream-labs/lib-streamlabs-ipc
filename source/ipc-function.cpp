@@ -21,7 +21,7 @@
 
 IPC::Function::Function(std::string name, std::vector<IPC::Type> params, CallHandler_t ptr, void* data) {
 	this->m_name = name;
-	this->m_nameUnique = IPC::Base::MakeFunctionUniqueId(m_name, m_params);
+	this->m_nameUnique = IPC::Base::MakeFunctionUniqueId(m_name, params);
 	this->m_params = params;
 	this->m_callHandler.first = ptr;
 	this->m_callHandler.second = data;
