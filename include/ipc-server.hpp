@@ -52,6 +52,7 @@ namespace IPC {
 
 		public: // Functionality
 		bool RegisterClass(IPC::Class cls);
+		bool RegisterClass(std::shared_ptr<IPC::Class> cls);
 
 		protected: // Client -> Server
 		bool ClientCallFunction(OS::ClientId_t cid, std::string cname, std::string fname, 

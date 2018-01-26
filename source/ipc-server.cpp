@@ -56,10 +56,14 @@ void IPC::Server::SetMessageHandler(ServerMessageHandler_t handler, void* data) 
 }
 
 bool IPC::Server::RegisterClass(IPC::Class cls) {
-	if (m_classes.count(cls.GetName()) > 0)
+	return RegisterClass(std::make_shared<IPC::Class>(cls));
+}
+
+bool IPC::Server::RegisterClass(std::shared_ptr<IPC::Class> cls) {
+	if (m_classes.count(cls->GetName()) > 0)
 		return false;
 
-	m_classes.insert(std::make_pair(cls.GetName(), std::make_shared<IPC::Class>(cls)));
+	m_classes.insert(std::make_pair(cls->GetName(), cls));
 	return true;
 }
 
