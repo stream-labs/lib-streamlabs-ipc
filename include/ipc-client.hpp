@@ -26,26 +26,26 @@
 #include <thread>
 #include <vector>
 
-namespace IPC {
-	typedef void(*CallReturn_t)(const void* data, const std::vector<IPC::Value>& rval);
+namespace ipc {
+	typedef void(*call_return_t)(const void* data, const std::vector<ipc::value>& rval);
 
-	class Client {
+	class client {
 		public:
-		Client(std::string socketPath);
-		virtual ~Client();
+		client(std::string socketPath);
+		virtual ~client();
 
-		bool Authenticate();
-		bool Call(std::string cname, std::string fname, std::vector<IPC::Value> args, CallReturn_t fn, void* data);
+		bool authenticate();
+		bool call(std::string cname, std::string fname, std::vector<ipc::value> args, call_return_t fn, void* data);
 		
 		private:
-		std::unique_ptr<OS::NamedSocket> m_socket;
+		std::unique_ptr<os::named_socket> m_socket;
 		bool m_authenticated = false;
-		std::map<int64_t, std::pair<CallReturn_t, void*>> m_cb;
+		std::map<int64_t, std::pair<call_return_t, void*>> m_cb;
 
 		private: // Threading
 		bool m_stopWorkers = false;
 		std::thread m_worker;
 		std::mutex m_lock;
-		static void WorkerThread(Client* ptr);
+		static void worker_thread(client* ptr);
 	};
 }

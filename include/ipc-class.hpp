@@ -22,69 +22,69 @@
 #include <map>
 #include <memory>
 
-namespace IPC {
-	class Class {
+namespace ipc {
+	class collection {
 		public:
-		Class(std::string name);
-		virtual ~Class();
+		collection(std::string name);
+		virtual ~collection();
 
 		/** 
 		 * 
 		 */
-		std::string GetName();
+		std::string get_name();
 
 		/**
 		*
 		*/
-		size_t CountFunctions();
+		size_t count_functions();
 
 		/**
 		*
 		*/
-		bool RegisterFunction(std::shared_ptr<Function> func);
+		bool register_function(std::shared_ptr<function> func);
 
 		/**
 		*
 		*/
-		bool UnregisterFunction(std::shared_ptr<Function> func);
+		bool unregister_function(std::shared_ptr<function> func);
 
 		/**
 		*
 		*/
-		bool HasFunction(const std::string& name);
+		bool has_function(const std::string& name);
 
 		/**
 		*
 		*/
-		bool HasFunction(const std::string& name, const std::vector<IPC::Type>& params);
+		bool has_function(const std::string& name, const std::vector<ipc::type>& params);
 
 		/**
 		*
 		*/
-		bool HasFunction(const std::string& name, const std::vector<IPC::Value>& params);
+		bool has_function(const std::string& name, const std::vector<ipc::value>& params);
 
 		/**
 		*
 		*/
-		std::shared_ptr<Function> GetFunction(const size_t& idx);
+		std::shared_ptr<function> get_function(const size_t& idx);
 
 		/**
 		*
 		*/
-		std::shared_ptr<Function> GetFunction(const std::string& name);
+		std::shared_ptr<function> get_function(const std::string& name);
 
 		/**
 		*
 		*/
-		std::shared_ptr<Function> GetFunction(const std::string& name, const std::vector<IPC::Type>& params);
+		std::shared_ptr<function> get_function(const std::string& name, const std::vector<ipc::type>& params);
 
 		/**
 		*
 		*/
-		std::shared_ptr<Function> GetFunction(const std::string& name, const std::vector<IPC::Value>& params);
+		std::shared_ptr<function> get_function(const std::string& name, const std::vector<ipc::value>& params);
 
 		private:
 		std::string m_name;
-		std::map<std::string, std::shared_ptr<Function>> m_functions;
+		std::map<std::string, std::shared_ptr<function>> m_functions;
 	};
 }

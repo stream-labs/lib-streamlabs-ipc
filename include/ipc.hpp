@@ -20,10 +20,10 @@
 #include <string>
 #include <vector>
 
-namespace IPC {
-	class Base {
+namespace ipc {
+	class base {
 		public:
-		static std::string MakeFunctionUniqueId(std::string name, std::vector<Type> parameters);
+		static std::string make_unique_id(std::string name, std::vector<type> parameters);
 		
 	};
 }

@@ -27,56 +27,56 @@
 #include <string>
 #include <thread>
 
-namespace IPC {
-	class ServerInstance;
+namespace ipc {
+	class server_instance;
 
-	typedef bool(*ServerConnectHandler_t)(void*, OS::ClientId_t);
-	typedef void(*ServerDisconnectHandler_t)(void*, OS::ClientId_t);
-	typedef void(*ServerMessageHandler_t)(void*, OS::ClientId_t, const std::vector<char>&);
+	typedef bool(*server_connect_handler_t)(void*, os::ClientId_t);
+	typedef void(*server_disconnect_handler_t)(void*, os::ClientId_t);
+	typedef void(*server_message_handler_t)(void*, os::ClientId_t, const std::vector<char>&);
 
-	class Server {
-		friend class ServerInstance;
+	class server {
+		friend class server_instance;
 
 		public:
-		Server();
-		~Server();
+		server();
+		~server();
 
 		public: // Status
-		void Initialize(std::string socketPath);
-		void Finalize();
+		void initialize(std::string socketPath);
+		void finalize();
 
 		public: // Events
-		void SetConnectHandler(ServerConnectHandler_t handler, void* data);
-		void SetDisconnectHandler(ServerDisconnectHandler_t handler, void* data);
-		void SetMessageHandler(ServerMessageHandler_t handler, void* data);
+		void set_connect_handler(server_connect_handler_t handler, void* data);
+		void set_disconnect_handler(server_disconnect_handler_t handler, void* data);
+		void set_message_handler(server_message_handler_t handler, void* data);
 
 		public: // Functionality
-		bool RegisterClass(IPC::Class cls);
-		bool RegisterClass(std::shared_ptr<IPC::Class> cls);
+		bool register_collection(ipc::collection cls);
+		bool register_collection(std::shared_ptr<ipc::collection> cls);
 
 		protected: // Client -> Server
-		bool ClientCallFunction(OS::ClientId_t cid, std::string cname, std::string fname, 
-			std::vector<IPC::Value>& args, std::vector<IPC::Value>& rval, std::string& errormsg);
+		bool client_call_function(os::ClientId_t cid, std::string cname, std::string fname, 
+			std::vector<ipc::value>& args, std::vector<ipc::value>& rval, std::string& errormsg);
 
 		private: // Threading
 		std::thread m_worker;
 		bool m_stopWorker = false;
 
-		static void WorkerMain(Server* ptr);
-		void WorkerLocal();
+		static void worker_main(server* ptr);
+		void worker_local();
 
 		private:
-		std::unique_ptr<OS::NamedSocket> m_socket;
+		std::unique_ptr<os::named_socket> m_socket;
 		bool m_isInitialized = false;
 
 		// Client management.
 		std::mutex m_clientLock;
-		std::map<OS::ClientId_t, std::shared_ptr<ServerInstance>> m_clients;
-		std::map<std::string, std::shared_ptr<IPC::Class>> m_classes;
+		std::map<os::ClientId_t, std::shared_ptr<server_instance>> m_clients;
+		std::map<std::string, std::shared_ptr<ipc::collection>> m_classes;
 
 		// Event Handlers
-		std::pair<ServerConnectHandler_t, void*> m_handlerConnect;
-		std::pair<ServerDisconnectHandler_t, void*> m_handlerDisconnect;
-		std::pair<ServerMessageHandler_t, void*> m_handlerMessage;
+		std::pair<server_connect_handler_t, void*> m_handlerConnect;
+		std::pair<server_disconnect_handler_t, void*> m_handlerDisconnect;
+		std::pair<server_message_handler_t, void*> m_handlerMessage;
 	};
 }

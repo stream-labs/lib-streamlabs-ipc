@@ -25,34 +25,34 @@
 #include <thread>
 #include <vector>
 
-namespace IPC {
-	class Server;
+namespace ipc {
+	class server;
 
-	class ServerInstance {
-		friend class Server;
+	class server_instance {
+		friend class server;
 
 		public:
-		ServerInstance();
-		ServerInstance(Server* owner, std::shared_ptr<OS::NamedSocketConnection> conn);
-		~ServerInstance();
+		server_instance();
+		server_instance(server* owner, std::shared_ptr<os::named_socket_connection> conn);
+		~server_instance();
 		
-		bool IsAlive();
+		bool is_alive();
 
 		private: // Threading
 		bool m_stopWorkers = false;
 		std::thread m_worker;
 
-		void Worker();
-		static void WorkerThread(ServerInstance* ptr) {
-			ptr->Worker();
+		void worker();
+		static void worker_main(server_instance* ptr) {
+			ptr->worker();
 		};
 		
 		protected:
-		std::shared_ptr<OS::NamedSocketConnection> m_socket;
+		std::shared_ptr<os::named_socket_connection> m_socket;
 
 		private:
-		Server* m_parent = nullptr;
-		OS::ClientId_t m_clientId;
+		server* m_parent = nullptr;
+		os::ClientId_t m_clientId;
 		bool m_isAuthenticated = false;
 	};
 }

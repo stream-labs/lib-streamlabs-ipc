@@ -23,39 +23,39 @@
 #include <vector>
 #include <list>
 
-namespace OS {
+namespace os {
 	typedef int64_t ClientId_t;
 
-	class NamedSocketConnection;
-	class NamedSocket {
+	class named_socket_connection;
+	class named_socket {
 		public:
-		static std::unique_ptr<OS::NamedSocket> Create();
-		typedef void(*ConnectHandler_t)(std::shared_ptr<OS::NamedSocketConnection> conn);
-		typedef void(*DisconnectHandler_t)(std::shared_ptr<OS::NamedSocketConnection> conn);
+		static std::unique_ptr<os::named_socket> create();
+		typedef void(*connect_handler_t)(std::shared_ptr<os::named_socket_connection> conn);
+		typedef void(*disconnect_handler_t)(std::shared_ptr<os::named_socket_connection> conn);
 
-		NamedSocket();
-		virtual ~NamedSocket();
+		named_socket();
+		virtual ~named_socket();
 
 	#pragma region Options
 		/// Adjust the incoming(receive) buffer size.
-		bool SetReceiveBufferSize(size_t size);
-		size_t GetReceiveBufferSize();
+		bool set_receive_buffer_size(size_t size);
+		size_t get_receive_buffer_size();
 
 		/// Adjust the outgoing(send) buffer size.
-		bool SetSendBufferSize(size_t size);
-		size_t GetSendBufferSize();
+		bool set_send_buffer_size(size_t size);
+		size_t get_send_buffer_size();
 		
 		/// Adjust the timeout for waiting.
-		bool SetWaitTimeOut(std::chrono::nanoseconds time);
-		std::chrono::nanoseconds GetWaitTimeOut();
+		bool set_wait_timeout(std::chrono::nanoseconds time);
+		std::chrono::nanoseconds get_wait_timeout();
 
 		/// Adjust the timeout for receiving data.
-		bool SetReceiveTimeOut(std::chrono::nanoseconds time);
-		std::chrono::nanoseconds GetReceiveTimeOut();
+		bool set_receive_timeout(std::chrono::nanoseconds time);
+		std::chrono::nanoseconds get_receive_timeout();
 
 		/// Adjust the timeout for sending data.
-		bool SetSendTimeOut(std::chrono::nanoseconds time);
-		std::chrono::nanoseconds GetSendTimeOut();
+		bool set_send_timeout(std::chrono::nanoseconds time);
+		std::chrono::nanoseconds get_send_timeout();
 	#pragma endregion Options
 
 	#pragma region Listen/Connect/Close
@@ -65,31 +65,31 @@ namespace OS {
 		/// It will also attempt to keep a set amount of connections waiting for more clients, also
 		///  known as the backlog. A larger backlog can negatively impact performance while a lower
 		///  one means that less clients can connect simultaneously, resulting in delays.
-		bool Listen(std::string path, size_t backlog);
+		bool listen(std::string path, size_t backlog);
 
 		// Connect to a Named Socket.
 		/// Connects to an existing named socket (if possible), otherwise immediately returns false.
-		bool Connect(std::string path);
+		bool connect(std::string path);
 
 		// Close the Named Socket.
 		/// Different behavior depending on Initialized mode:
 		/// - Create disconnects all clients and closes the socket.
 		/// - Connect just disconnects from the socket and closes it.
-		bool Close();
+		bool close();
 	#pragma endregion Listen/Connect/Close
 
 	#pragma region Server & Client
-		bool IsInitialized();
-		bool IsServer();
-		bool IsClient();
+		bool is_initialized();
+		bool is_server();
+		bool is_client();
 	#pragma endregion Server & Client
 
 	#pragma region Server Only
-		std::weak_ptr<OS::NamedSocketConnection> Accept();
+		std::weak_ptr<os::named_socket_connection> accept();
 	#pragma endregion Server Only
 
 	#pragma region Client Only
-		std::shared_ptr<OS::NamedSocketConnection> GetConnection();
+		std::shared_ptr<os::named_socket_connection> get_connection();
 	#pragma endregion Client Only
 
 		protected:
@@ -113,32 +113,32 @@ namespace OS {
 
 		// IO
 		protected:
-		std::list<std::shared_ptr<NamedSocketConnection>> m_connections;
+		std::list<std::shared_ptr<named_socket_connection>> m_connections;
 	};
 
-	class NamedSocketConnection {
+	class named_socket_connection {
 		public:
 		
 		// Status
-		virtual bool IsWaiting() = 0;
-		virtual bool IsConnected() = 0;
-		virtual bool Connect() = 0;
-		virtual bool Disconnect() = 0;
-		virtual bool EoF() = 0;
-		virtual bool Good() = 0;
-		virtual bool Bad();
+		virtual bool is_waiting() = 0;
+		virtual bool is_connected() = 0;
+		virtual bool connect() = 0;
+		virtual bool disconnect() = 0;
+		virtual bool eof() = 0;
+		virtual bool good() = 0;
+		virtual bool bad();
 
 		// Reading
-		virtual size_t ReadAvail() = 0;
-		virtual size_t Read(char* buf, size_t length) = 0;
-		virtual size_t Read(std::vector<char>& out) = 0;
-		virtual std::vector<char> Read() = 0;
+		virtual size_t read_avail() = 0;
+		virtual size_t read(char* buf, size_t length) = 0;
+		virtual size_t read(std::vector<char>& out) = 0;
+		virtual std::vector<char> read() = 0;
 
 		// Writing
-		virtual size_t Write(const char* buf, const size_t length) = 0;
-		virtual size_t Write(const std::vector<char>& buf) = 0;
+		virtual size_t write(const char* buf, const size_t length) = 0;
+		virtual size_t write(const std::vector<char>& buf) = 0;
 
 		// Info
-		virtual ClientId_t GetClientId() = 0;
+		virtual ClientId_t get_client_id() = 0;
 	};
 }

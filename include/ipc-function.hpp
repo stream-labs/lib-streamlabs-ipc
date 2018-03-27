@@ -20,20 +20,20 @@
 #include "ipc-value.hpp"
 #include <memory>
 
-namespace IPC {
-	typedef void(*CallHandler_t)(void* data, const int64_t id, const std::vector<IPC::Value>& args, std::vector<IPC::Value>& rval);
+namespace ipc {
+	typedef void(*call_handler_t)(void* data, const int64_t id, const std::vector<ipc::value>& args, std::vector<ipc::value>& rval);
 
-	class Function {
+	class function {
 		public:
-		Function(std::string name, std::vector<IPC::Type> params, CallHandler_t ptr, void* data);
-		Function(std::string name, std::vector<IPC::Type> params, CallHandler_t ptr);
-		Function(std::string name, std::vector<IPC::Type> params, void* data);
-		Function(std::string name, std::vector<IPC::Type> params);
-		Function(std::string name, CallHandler_t ptr, void* data);
-		Function(std::string name, CallHandler_t ptr);
-		Function(std::string name, void* data);
-		Function(std::string name);
-		virtual ~Function();
+		function(std::string name, std::vector<ipc::type> params, call_handler_t ptr, void* data);
+		function(std::string name, std::vector<ipc::type> params, call_handler_t ptr);
+		function(std::string name, std::vector<ipc::type> params, void* data);
+		function(std::string name, std::vector<ipc::type> params);
+		function(std::string name, call_handler_t ptr, void* data);
+		function(std::string name, call_handler_t ptr);
+		function(std::string name, void* data);
+		function(std::string name);
+		virtual ~function();
 
 		/** Get the proper name for this function.
 		 * 
@@ -42,7 +42,7 @@ namespace IPC {
 		 * 
 		 * @return A std::string containing the name of the function.
 		 */
-		std::string GetName();
+		std::string get_name();
 
 		/** Get the unique name for this function used to identify it.
 		 * 
@@ -51,7 +51,7 @@ namespace IPC {
 		 * 
 		 * @return A std::string containing the unique name of the function.
 		 */
-		std::string GetUniqueName();
+		std::string get_unique_name();
 
 		/** Amount of Parameters for this function.
 		 * 
@@ -59,7 +59,7 @@ namespace IPC {
 		 * 
 		 * @return Amount of parameters as size_t.
 		 */
-		size_t CountParameters();
+		size_t count_parameters();
 
 		/** Retrieve parameter by index.
 		 * 
@@ -67,22 +67,22 @@ namespace IPC {
 		 * 
 		 * @return IPC::Type that this parameter has.
 		 */
-		IPC::Type GetParameterType(size_t index);
+		ipc::type get_parameter_type(size_t index);
 
 		/** Assign Call Handler
 		 * 
 		 */
-		void SetCallHandler(CallHandler_t ptr, void* data);
+		void set_call_handler(call_handler_t ptr, void* data);
 
 		/** Call this function
 		*
 		*/
-		void Call(const int64_t id, const std::vector<IPC::Value>& args, std::vector<IPC::Value>& rval);
+		void call(const int64_t id, const std::vector<ipc::value>& args, std::vector<ipc::value>& rval);
 		
 		private:
 		std::string m_name, m_nameUnique;
-		std::vector<IPC::Type> m_params;
+		std::vector<ipc::type> m_params;
 
-		std::pair<CallHandler_t, void*> m_callHandler;
+		std::pair<call_handler_t, void*> m_callHandler;
 	};
 }

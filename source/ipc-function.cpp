@@ -19,61 +19,61 @@
 #include "ipc.hpp"
 
 
-IPC::Function::Function(std::string name, std::vector<IPC::Type> params, CallHandler_t ptr, void* data) {
+ipc::function::function(std::string name, std::vector<ipc::type> params, call_handler_t ptr, void* data) {
 	this->m_name = name;
-	this->m_nameUnique = IPC::Base::MakeFunctionUniqueId(m_name, params);
+	this->m_nameUnique = ipc::base::make_unique_id(m_name, params);
 	this->m_params = params;
 	this->m_callHandler.first = ptr;
 	this->m_callHandler.second = data;
 }
 
-IPC::Function::Function(std::string name, std::vector<IPC::Type> params, CallHandler_t ptr)
-	: Function(name, params, ptr, nullptr) {}
+ipc::function::function(std::string name, std::vector<ipc::type> params, call_handler_t ptr)
+	: function(name, params, ptr, nullptr) {}
 
-IPC::Function::Function(std::string name, std::vector<IPC::Type> params, void* data)
-	: Function(name, params, nullptr, data) {}
+ipc::function::function(std::string name, std::vector<ipc::type> params, void* data)
+	: function(name, params, nullptr, data) {}
 
-IPC::Function::Function(std::string name, std::vector<IPC::Type> params)
-	: Function(name, params, nullptr, nullptr) {}
+ipc::function::function(std::string name, std::vector<ipc::type> params)
+	: function(name, params, nullptr, nullptr) {}
 
-IPC::Function::Function(std::string name, CallHandler_t ptr, void* data)
-	: Function(name, std::vector<IPC::Type>(), ptr, data) {}
+ipc::function::function(std::string name, call_handler_t ptr, void* data)
+	: function(name, std::vector<ipc::type>(), ptr, data) {}
 
-IPC::Function::Function(std::string name, CallHandler_t ptr)
-	: Function(name, std::vector<IPC::Type>(), ptr, nullptr) {}
+ipc::function::function(std::string name, call_handler_t ptr)
+	: function(name, std::vector<ipc::type>(), ptr, nullptr) {}
 
-IPC::Function::Function(std::string name, void* data)
-	: Function(name, std::vector<IPC::Type>(), nullptr, data) {}
+ipc::function::function(std::string name, void* data)
+	: function(name, std::vector<ipc::type>(), nullptr, data) {}
 
-IPC::Function::Function(std::string name)
-	: Function(name, std::vector<IPC::Type>(), nullptr, nullptr) {}
+ipc::function::function(std::string name)
+	: function(name, std::vector<ipc::type>(), nullptr, nullptr) {}
 
-IPC::Function::~Function() {}
+ipc::function::~function() {}
 
-std::string IPC::Function::GetName() {
+std::string ipc::function::get_name() {
 	return m_name;
 }
 
-std::string IPC::Function::GetUniqueName() {
+std::string ipc::function::get_unique_name() {
 	return m_nameUnique;
 }
 
-size_t IPC::Function::CountParameters() {
+size_t ipc::function::count_parameters() {
 	return m_params.size();
 }
 
-IPC::Type IPC::Function::GetParameterType(size_t index) {
+ipc::type ipc::function::get_parameter_type(size_t index) {
 	if (index > m_params.size())
 		throw std::out_of_range("index is out of range");
 	return m_params.at(index);
 }
 
-void IPC::Function::SetCallHandler(CallHandler_t ptr, void* data) {
+void ipc::function::set_call_handler(call_handler_t ptr, void* data) {
 	m_callHandler.first = ptr;
 	m_callHandler.second = data;
 }
 
-void IPC::Function::Call(const int64_t id, const std::vector<IPC::Value>& args, std::vector<IPC::Value>& rval) {
+void ipc::function::call(const int64_t id, const std::vector<ipc::value>& args, std::vector<ipc::value>& rval) {
 	if (m_callHandler.first) {
 		return m_callHandler.first(m_callHandler.second, id, args, rval);
 	}

@@ -20,8 +20,8 @@
 #include <string>
 #include <vector>
 
-namespace IPC {
-	enum class Type {
+namespace ipc {
+	enum class type {
 		Null,
 		Float,
 		Double,
@@ -33,8 +33,8 @@ namespace IPC {
 		Binary,
 	};
 
-	struct Value {
-		Type type;
+	struct value {
+		type type;
 		union {
 			float fp32;
 			double fp64;
@@ -42,18 +42,18 @@ namespace IPC {
 			int64_t i64;
 			uint32_t ui32;
 			uint64_t ui64;
-		} value;
+		} value_union;
 		std::string value_str;
 		std::vector<char> value_bin;
 
-		Value();
-		Value(float);
-		Value(double);
-		Value(int32_t);
-		Value(int64_t);
-		Value(uint32_t);
-		Value(uint64_t);
-		Value(std::string);
-		Value(std::vector<char>);
+		value();
+		value(float);
+		value(double);
+		value(int32_t);
+		value(int64_t);
+		value(uint32_t);
+		value(uint64_t);
+		value(std::string);
+		value(std::vector<char>);
 	};
 }

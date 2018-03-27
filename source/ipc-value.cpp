@@ -17,46 +17,46 @@
 
 #include "ipc-value.hpp"
 
-IPC::Value::Value() {
-	this->type = Type::Null;
+ipc::value::value() {
+	this->type = type::Null;
 }
 
-IPC::Value::Value(std::vector<char> p_value) {
-	this->type = Type::Binary;
+ipc::value::value(std::vector<char> p_value) {
+	this->type = type::Binary;
 	this->value_bin = p_value;
 }
 
-IPC::Value::Value(std::string p_value) {
-	this->type = Type::String;
+ipc::value::value(std::string p_value) {
+	this->type = type::String;
 	this->value_str = p_value;
 }
 
-IPC::Value::Value(uint64_t p_value) {
-	this->type = Type::UInt64;
-	this->value.ui64 = p_value;
+ipc::value::value(uint64_t p_value) {
+	this->type = type::UInt64;
+	this->value_union.ui64 = p_value;
 }
 
-IPC::Value::Value(uint32_t p_value) {
-	this->type = Type::UInt32;
-	this->value.ui32 = p_value;
+ipc::value::value(uint32_t p_value) {
+	this->type = type::UInt32;
+	this->value_union.ui32 = p_value;
 }
 
-IPC::Value::Value(int64_t p_value) {
-	this->type = Type::Int64;
-	this->value.i64 = p_value;
+ipc::value::value(int64_t p_value) {
+	this->type = type::Int64;
+	this->value_union.i64 = p_value;
 }
 
-IPC::Value::Value(int32_t p_value) {
-	this->type = Type::Int32;
-	this->value.i32 = p_value;
+ipc::value::value(int32_t p_value) {
+	this->type = type::Int32;
+	this->value_union.i32 = p_value;
 }
 
-IPC::Value::Value(double p_value) {
-	this->type = Type::Double;
-	this->value.fp64 = p_value;
+ipc::value::value(double p_value) {
+	this->type = type::Double;
+	this->value_union.fp64 = p_value;
 }
 
-IPC::Value::Value(float p_value) {
-	this->type = Type::Float;
-	this->value.fp32 = p_value;
+ipc::value::value(float p_value) {
+	this->type = type::Float;
+	this->value_union.fp32 = p_value;
 }

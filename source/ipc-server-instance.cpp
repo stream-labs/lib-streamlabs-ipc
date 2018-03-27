@@ -23,25 +23,25 @@
 #include <windows.h>
 #endif
 
-IPC::ServerInstance::ServerInstance() {}
+ipc::server_instance::server_instance() {}
 
-IPC::ServerInstance::ServerInstance(IPC::Server* owner, std::shared_ptr<OS::NamedSocketConnection> conn) {
+ipc::server_instance::server_instance(ipc::server* owner, std::shared_ptr<os::named_socket_connection> conn) {
 	m_parent = owner;
 	m_socket = conn;
-	m_clientId = m_socket->GetClientId();
+	m_clientId = m_socket->get_client_id();
 	m_stopWorkers = false;
-	m_worker = std::thread(WorkerThread, this);
+	m_worker = std::thread(worker_main, this);
 }
 
-IPC::ServerInstance::~ServerInstance() {
+ipc::server_instance::~server_instance() {
 	// Threading
 	m_stopWorkers = true;
 	if (m_worker.joinable())
 		m_worker.join();
 }
 
-bool IPC::ServerInstance::IsAlive() {
-	if (m_socket->Bad())
+bool ipc::server_instance::is_alive() {
+	if (m_socket->bad())
 		return false;
 
 	if (m_stopWorkers)
@@ -50,99 +50,99 @@ bool IPC::ServerInstance::IsAlive() {
 	return true;
 }
 
-void DecodeProtobufToIPC(const ::Value& v, IPC::Value& val) {
+void DecodeProtobufToIPC(const ::Value& v, ipc::value& val) {
 	switch (v.value_case()) {
 		case Value::ValueCase::kValBool:
-			val.type = IPC::Type::Int32; // ToDo: Add Bool type
-			val.value.i32 = v.val_bool() ? 1 : 0;
+			val.type = ipc::type::Int32; // ToDo: Add Bool type
+			val.value_union.i32 = v.val_bool() ? 1 : 0;
 			break;
 		case Value::ValueCase::kValFloat:
-			val.type = IPC::Type::Float;
-			val.value.fp32 = v.val_float();
+			val.type = ipc::type::Float;
+			val.value_union.fp32 = v.val_float();
 			break;
 		case Value::ValueCase::kValDouble:
-			val.type = IPC::Type::Double;
-			val.value.fp64 = v.val_double();
+			val.type = ipc::type::Double;
+			val.value_union.fp64 = v.val_double();
 			break;
 		case Value::ValueCase::kValInt32:
-			val.type = IPC::Type::Int32;
-			val.value.i32 = v.val_int32();
+			val.type = ipc::type::Int32;
+			val.value_union.i32 = v.val_int32();
 			break;
 		case Value::ValueCase::kValInt64:
-			val.type = IPC::Type::Int64;
-			val.value.i64 = v.val_int64();
+			val.type = ipc::type::Int64;
+			val.value_union.i64 = v.val_int64();
 			break;
 		case Value::ValueCase::kValUint32:
-			val.type = IPC::Type::UInt32;
-			val.value.ui32 = v.val_uint32();
+			val.type = ipc::type::UInt32;
+			val.value_union.ui32 = v.val_uint32();
 			break;
 		case Value::ValueCase::kValUint64:
-			val.type = IPC::Type::UInt64;
-			val.value.ui64 = v.val_uint64();
+			val.type = ipc::type::UInt64;
+			val.value_union.ui64 = v.val_uint64();
 			break;
 		case Value::ValueCase::kValString:
-			val.type = IPC::Type::String;
+			val.type = ipc::type::String;
 			val.value_str = v.val_string();
 			break;
 		case Value::ValueCase::kValBinary:
-			val.type = IPC::Type::Binary;
+			val.type = ipc::type::Binary;
 			val.value_bin.resize(v.val_binary().size());
 			memcpy(val.value_bin.data(), v.val_binary().data(), val.value_bin.size());
 			break;
 		default:
-			val.type = IPC::Type::Null;
+			val.type = ipc::type::Null;
 			break;
 	}
 }
-void EncodeIPCToProtobuf(const IPC::Value& v, ::Value* val) {
+void EncodeIPCToProtobuf(const ipc::value& v, ::Value* val) {
 	switch (v.type) {
-		case IPC::Type::Float:
-			val->set_val_float(v.value.fp32);
+		case ipc::type::Float:
+			val->set_val_float(v.value_union.fp32);
 			break;
-		case IPC::Type::Double:
-			val->set_val_double(v.value.fp64);
+		case ipc::type::Double:
+			val->set_val_double(v.value_union.fp64);
 			break;
-		case IPC::Type::Int32:
-			val->set_val_int32(v.value.i32);
+		case ipc::type::Int32:
+			val->set_val_int32(v.value_union.i32);
 			break;
-		case IPC::Type::Int64:
-			val->set_val_int64(v.value.i64);
+		case ipc::type::Int64:
+			val->set_val_int64(v.value_union.i64);
 			break;
-		case IPC::Type::UInt32:
-			val->set_val_uint32(v.value.ui32);
+		case ipc::type::UInt32:
+			val->set_val_uint32(v.value_union.ui32);
 			break;
-		case IPC::Type::UInt64:
-			val->set_val_uint64(v.value.ui64);
+		case ipc::type::UInt64:
+			val->set_val_uint64(v.value_union.ui64);
 			break;
-		case IPC::Type::String:
+		case ipc::type::String:
 			val->set_val_string(v.value_str);
 			break;
-		case IPC::Type::Binary:
+		case ipc::type::Binary:
 			val->set_val_binary(v.value_bin.data(), v.value_bin.size());
 			break;
-		case IPC::Type::Null:
+		case ipc::type::Null:
 		default:
 			break;
 	}
 }
 
-void IPC::ServerInstance::Worker() {
+void ipc::server_instance::worker() {
 	Authenticate msgAuthenticate;
 	FunctionCall msgCall;
 	FunctionResult msgResult;
-	std::vector<IPC::Value> args(64);
-	std::vector<IPC::Value> rval;
-	IPC::Value val;
+	std::vector<ipc::value> args(64);
+	std::vector<ipc::value> rval;
+	ipc::value val;
 	std::string errMsg = "";
 	
 	// Message
-	size_t messageSize = this->m_parent->m_socket->GetReceiveBufferSize() > this->m_parent->m_socket->GetSendBufferSize() ? this->m_parent->m_socket->GetReceiveBufferSize() : this->m_parent->m_socket->GetSendBufferSize();
+	size_t messageSize = this->m_parent->m_socket->get_receive_buffer_size() > this->m_parent->m_socket->get_send_buffer_size() ? this->m_parent->m_socket->get_receive_buffer_size() : this->m_parent->m_socket->get_send_buffer_size();
 	std::vector<char> messageBuffer(messageSize);
 
 	// Loop
 	while (!m_stopWorkers) {
 		// Attempt to read a message (respects timeout values).
-		if ((messageSize = m_socket->Read(messageBuffer)) > 0) {
+		if ((messageSize = m_socket->read(messageBuffer)) > 0) {
 			if (!m_isAuthenticated) {
 				bool suc = msgAuthenticate.ParsePartialFromArray(messageBuffer.data(), messageSize);
 				if (suc)
@@ -162,7 +162,7 @@ void IPC::ServerInstance::Worker() {
 				msgResult.Clear();
 				msgResult.set_timestamp(msgCall.timestamp());
 				rval.clear();
-				if (!m_parent->ClientCallFunction(m_clientId, msgCall.classname(), msgCall.functionname(), args, rval, errMsg)) {
+				if (!m_parent->client_call_function(m_clientId, msgCall.classname(), msgCall.functionname(), args, rval, errMsg)) {
 					msgResult.set_error(errMsg);
 				} else {
 					for (size_t n = 0; n < rval.size(); n++) {
@@ -179,7 +179,7 @@ void IPC::ServerInstance::Worker() {
 				// Write
 				if (messageSize > 0) {
 					for (size_t attempt = 0; attempt < 5; attempt++) {
-						size_t bytes = m_socket->Write(messageBuffer.data(), messageSize);
+						size_t bytes = m_socket->write(messageBuffer.data(), messageSize);
 						if (bytes == messageSize) {
 							break;
 						}

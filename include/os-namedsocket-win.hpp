@@ -27,11 +27,11 @@ extern "C" { // clang++ compatible
 #include <windows.h>
 }
 
-namespace OS {
-	class NamedSocketWindows : public NamedSocket {
+namespace os {
+	class name_socket_win : public named_socket {
 		public:
-		NamedSocketWindows();
-		virtual ~NamedSocketWindows();
+		name_socket_win();
+		virtual ~name_socket_win();
 
 		protected:
 	#pragma region Listen/Connect/Close
@@ -47,41 +47,41 @@ namespace OS {
 		DWORD m_pipeMode;
 	};
 
-	class NamedSocketConnectionWindows : public NamedSocketConnection {
+	class named_scoket_connection_win : public named_socket_connection {
 		public:
-		NamedSocketConnectionWindows(OS::NamedSocket* parent, std::string path, DWORD openFlags, DWORD pipeFlags);
-		NamedSocketConnectionWindows(OS::NamedSocket* parent, std::string path);
-		virtual ~NamedSocketConnectionWindows();
+		named_scoket_connection_win(os::named_socket* parent, std::string path, DWORD openFlags, DWORD pipeFlags);
+		named_scoket_connection_win(os::named_socket* parent, std::string path);
+		virtual ~named_scoket_connection_win();
 		
 		// Status
-		virtual bool IsWaiting() override;
-		virtual bool IsConnected() override;
-		virtual bool Connect() override;
-		virtual bool Disconnect() override;
-		virtual bool EoF() override;
-		virtual bool Good() override;
+		virtual bool is_waiting() override;
+		virtual bool is_connected() override;
+		virtual bool connect() override;
+		virtual bool disconnect() override;
+		virtual bool eof() override;
+		virtual bool good() override;
 
 		// Reading
-		virtual size_t ReadAvail() override;
-		virtual size_t Read(char* buf, size_t length) override;
-		virtual size_t Read(std::vector<char>& out) override;
-		virtual std::vector<char> Read() override;
+		virtual size_t read_avail() override;
+		virtual size_t read(char* buf, size_t length) override;
+		virtual size_t read(std::vector<char>& out) override;
+		virtual std::vector<char> read() override;
 
 		// Writing
-		virtual size_t Write(const char* buf, const size_t length) override;
-		virtual size_t Write(const std::vector<char>& buf) override;
+		virtual size_t write(const char* buf, const size_t length) override;
+		virtual size_t write(const std::vector<char>& buf) override;
 
 		// Info
-		virtual ClientId_t GetClientId() override;
+		virtual ClientId_t get_client_id() override;
 
 		private:
-		static void ThreadMain(void* ptr);
-		void ThreadLocal();
-		static void createOverlapped(OVERLAPPED& ov);
-		static void destroyOverlapped(OVERLAPPED& ov);
+		static void thread_main(void* ptr);
+		void threadlocal();
+		static void create_overlapped(OVERLAPPED& ov);
+		static void destroy_overlapped(OVERLAPPED& ov);
 
 		private:
-		OS::NamedSocket* m_parent;
+		os::named_socket* m_parent;
 		HANDLE m_handle;
 
 		bool m_stopWorkers = false;
@@ -93,11 +93,11 @@ namespace OS {
 
 		// Status
 		bool m_isServer = false;
-		enum class State {
+		enum class state {
 			Sleeping,
 			Waiting,
 			Connected
 		};
-		State m_state = State::Sleeping;
+		state m_state = state::Sleeping;
 	};
 }

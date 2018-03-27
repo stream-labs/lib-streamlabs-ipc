@@ -18,99 +18,99 @@
 #include "ipc-server.hpp"
 #include "ipc.pb.h"
 
-IPC::Server::Server() {
-	m_socket = OS::NamedSocket::Create();
+ipc::server::server() {
+	m_socket = os::named_socket::create();
 }
 
-IPC::Server::~Server() {
-	Finalize();
+ipc::server::~server() {
+	finalize();
 }
 
-void IPC::Server::Initialize(std::string socketPath) {
-	if (!m_socket->Listen(socketPath, 4))
+void ipc::server::initialize(std::string socketPath) {
+	if (!m_socket->listen(socketPath, 4))
 		throw std::exception("Failed to initialize socket.");
-	m_worker = std::thread(WorkerMain, this);
+	m_worker = std::thread(worker_main, this);
 	m_isInitialized = true;
 }
 
-void IPC::Server::Finalize() {
+void ipc::server::finalize() {
 	if (m_isInitialized) {
 		m_stopWorker = true;
 		if (m_worker.joinable())
 			m_worker.join();
 		m_clients.clear();
-		m_socket->Close();
+		m_socket->close();
 	}
 }
 
-void IPC::Server::SetConnectHandler(ServerConnectHandler_t handler, void* data) {
+void ipc::server::set_connect_handler(server_connect_handler_t handler, void* data) {
 	m_handlerConnect = std::make_pair(handler, data);
 }
 
-void IPC::Server::SetDisconnectHandler(ServerDisconnectHandler_t handler, void* data) {
+void ipc::server::set_disconnect_handler(server_disconnect_handler_t handler, void* data) {
 	m_handlerDisconnect = std::make_pair(handler, data);
 }
 
-void IPC::Server::SetMessageHandler(ServerMessageHandler_t handler, void* data) {
+void ipc::server::set_message_handler(server_message_handler_t handler, void* data) {
 	m_handlerMessage = std::make_pair(handler, data);
 }
 
-bool IPC::Server::RegisterClass(IPC::Class cls) {
-	return RegisterClass(std::make_shared<IPC::Class>(cls));
+bool ipc::server::register_collection(ipc::collection cls) {
+	return register_collection(std::make_shared<ipc::collection>(cls));
 }
 
-bool IPC::Server::RegisterClass(std::shared_ptr<IPC::Class> cls) {
-	if (m_classes.count(cls->GetName()) > 0)
+bool ipc::server::register_collection(std::shared_ptr<ipc::collection> cls) {
+	if (m_classes.count(cls->get_name()) > 0)
 		return false;
 
-	m_classes.insert(std::make_pair(cls->GetName(), cls));
+	m_classes.insert(std::make_pair(cls->get_name(), cls));
 	return true;
 }
 
-bool IPC::Server::ClientCallFunction(OS::ClientId_t cid, std::string cname, std::string fname, std::vector<IPC::Value>& args, std::vector<IPC::Value>& rval, std::string& errormsg) {
+bool ipc::server::client_call_function(os::ClientId_t cid, std::string cname, std::string fname, std::vector<ipc::value>& args, std::vector<ipc::value>& rval, std::string& errormsg) {
 	if (m_classes.count(cname) == 0) {
 		errormsg = "Class '" + cname + "' is not registered.";
 		return false;
 	}
 	auto cls = m_classes.at(cname);
 	
-	auto fnc = cls->GetFunction(fname, args);
+	auto fnc = cls->get_function(fname, args);
 	if (!fnc) {
 		errormsg = "Function '" + fname + "' not found in class '" + cname + "'.";
 		return false;
 	}
 
-	fnc->Call(cid, args, rval);
+	fnc->call(cid, args, rval);
 
 	return true;
 }
 
-void IPC::Server::WorkerMain(Server* ptr) {
-	ptr->WorkerLocal();
+void ipc::server::worker_main(server* ptr) {
+	ptr->worker_local();
 }
 
-void IPC::Server::WorkerLocal() {
-	std::queue<OS::ClientId_t> dcQueue;
+void ipc::server::worker_local() {
+	std::queue<os::ClientId_t> dcQueue;
 	while (m_stopWorker == false) {
-		std::shared_ptr<OS::NamedSocketConnection> conn = m_socket->Accept().lock();
+		std::shared_ptr<os::named_socket_connection> conn = m_socket->accept().lock();
 		if (conn) {
 			bool allow = true;
 			if (m_handlerConnect.first != nullptr)
-				allow = m_handlerConnect.first(m_handlerConnect.second, conn->GetClientId());
+				allow = m_handlerConnect.first(m_handlerConnect.second, conn->get_client_id());
 
-			if (allow && conn->Connect()) {
+			if (allow && conn->connect()) {
 				std::unique_lock<std::mutex> ulock(m_clientLock);
-				std::shared_ptr<ServerInstance> instance = std::make_shared<ServerInstance>(this, conn);
-				m_clients.insert(std::make_pair(conn->GetClientId(), instance));
+				std::shared_ptr<server_instance> instance = std::make_shared<server_instance>(this, conn);
+				m_clients.insert(std::make_pair(conn->get_client_id(), instance));
 			}
 		}
 		
 		for (auto kv = m_clients.begin(); kv != m_clients.end(); kv++) {
-			if (!kv->second->m_socket->IsConnected())
+			if (!kv->second->m_socket->is_connected())
 				dcQueue.push(kv->first);
 		}
 		while (dcQueue.size() > 0) {
-			OS::ClientId_t id = dcQueue.front();
+			os::ClientId_t id = dcQueue.front();
 			if (m_handlerDisconnect.first != nullptr)
 				m_handlerDisconnect.first(m_handlerDisconnect.second, id);
 			m_clients.erase(id);

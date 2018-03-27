@@ -17,7 +17,7 @@
 
 #include "ipc.hpp"
 
-std::string IPC::Base::MakeFunctionUniqueId(std::string name, std::vector<Type> parameters) {
+std::string ipc::base::make_unique_id(std::string name, std::vector<type> parameters) {
 	// Implement similar behavior to C/C++ compilers, which put parameter type
 	//  into the generated function name in order to allow overloading of the
 	//  same function, even when exported.
@@ -26,33 +26,33 @@ std::string IPC::Base::MakeFunctionUniqueId(std::string name, std::vector<Type> 
 	std::string uq = name;
 	if (parameters.size() > 0) {
 		uq += "_";
-		for (Type p : parameters) {
+		for (type p : parameters) {
 			switch (p) {
-				case IPC::Type::Null:
+				case ipc::type::Null:
 					uq += "N0";
 					break;
-				case IPC::Type::Float:
+				case ipc::type::Float:
 					uq += "F4";
 					break;
-				case IPC::Type::Double:
+				case ipc::type::Double:
 					uq += "F8";
 					break;
-				case IPC::Type::Int32:
+				case ipc::type::Int32:
 					uq += "I4";
 					break;
-				case IPC::Type::Int64:
+				case ipc::type::Int64:
 					uq += "I8";
 					break;
-				case IPC::Type::UInt32:
+				case ipc::type::UInt32:
 					uq += "U4";
 					break;
-				case IPC::Type::UInt64:
+				case ipc::type::UInt64:
 					uq += "U8";
 					break;
-				case IPC::Type::String:
+				case ipc::type::String:
 					uq += "PS";
 					break;
-				case IPC::Type::Binary:
+				case ipc::type::Binary:
 					uq += "PB";
 					break;
 			}

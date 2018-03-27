@@ -18,21 +18,21 @@
 #include "os-namedsocket-win.hpp"
 #include <iostream>
 
-std::unique_ptr<OS::NamedSocket> OS::NamedSocket::Create() {
-	return std::make_unique<OS::NamedSocketWindows>();
+std::unique_ptr<os::named_socket> os::named_socket::create() {
+	return std::make_unique<os::name_socket_win>();
 }
 
 #pragma region NamedSocketWindows
 #pragma region De-/Constructor
-OS::NamedSocketWindows::NamedSocketWindows() {}
+os::name_socket_win::name_socket_win() {}
 
-OS::NamedSocketWindows::~NamedSocketWindows() {
-	Close();
+os::name_socket_win::~name_socket_win() {
+	close();
 }
 #pragma endregion De-/Constructor
 
 #pragma region Listen/Connect/Close
-bool OS::NamedSocketWindows::_listen(std::string path, size_t backlog) {
+bool os::name_socket_win::_listen(std::string path, size_t backlog) {
 	// Set Pipe Mode.
 	m_openMode = PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED;
 	m_pipeMode = PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE;
@@ -48,12 +48,12 @@ bool OS::NamedSocketWindows::_listen(std::string path, size_t backlog) {
 	// Create sockets.
 	try {
 		for (size_t n = 0; n <= backlog; n++) {
-			std::shared_ptr<NamedSocketConnectionWindows> ptr;
+			std::shared_ptr<named_scoket_connection_win> ptr;
 			if (n == 0) {
-				ptr = std::make_shared<NamedSocketConnectionWindows>(this, m_pipeName,
+				ptr = std::make_shared<named_scoket_connection_win>(this, m_pipeName,
 					m_openMode | FILE_FLAG_FIRST_PIPE_INSTANCE, m_pipeMode);
 			} else {
-				ptr = std::make_shared<NamedSocketConnectionWindows>(this, m_pipeName,
+				ptr = std::make_shared<named_scoket_connection_win>(this, m_pipeName,
 					m_openMode, m_pipeMode);
 			}
 			m_connections.push_back(ptr);
@@ -65,7 +65,7 @@ bool OS::NamedSocketWindows::_listen(std::string path, size_t backlog) {
 	return true;
 }
 
-bool OS::NamedSocketWindows::_connect(std::string path) {
+bool os::name_socket_win::_connect(std::string path) {
 	// Validate and generate socket name
 	if (path.length() > 255) // Path can't be larger than 255 characters, limit set by WinAPI.
 		return false; // !TODO! Throw some kind of error to signal why it failed.
@@ -75,8 +75,8 @@ bool OS::NamedSocketWindows::_connect(std::string path) {
 	m_pipeName = "\\\\.\\pipe\\" + path;
 
 	try {
-		std::shared_ptr<NamedSocketConnectionWindows> ptr =
-			std::make_shared<NamedSocketConnectionWindows>(this, m_pipeName);
+		std::shared_ptr<named_scoket_connection_win> ptr =
+			std::make_shared<named_scoket_connection_win>(this, m_pipeName);
 		m_connections.push_back(ptr);
 	} catch (...) {
 		return false;
@@ -85,7 +85,7 @@ bool OS::NamedSocketWindows::_connect(std::string path) {
 	return true;
 }
 
-bool OS::NamedSocketWindows::_close() {
+bool os::name_socket_win::_close() {
 	m_connections.clear();
 	return true;
 }
@@ -95,7 +95,7 @@ bool OS::NamedSocketWindows::_close() {
 #pragma endregion NamedSocketWindows
 
 #pragma region Named Socket Connection Windows
-OS::NamedSocketConnectionWindows::NamedSocketConnectionWindows(OS::NamedSocket* parent,
+os::named_scoket_connection_win::named_scoket_connection_win(os::named_socket* parent,
 	std::string path, DWORD openFlags, DWORD pipeFlags) : m_parent(parent) {
 	if (parent == nullptr) // No parent
 		throw std::runtime_error("No parent");
@@ -121,9 +121,9 @@ OS::NamedSocketConnectionWindows::NamedSocketConnectionWindows(OS::NamedSocket* 
 		openFlags,
 		pipeFlags,
 		PIPE_UNLIMITED_INSTANCES,
-		static_cast<DWORD>(parent->GetSendBufferSize()),
-		static_cast<DWORD>(parent->GetReceiveBufferSize()),
-		static_cast<DWORD>(std::chrono::duration_cast<std::chrono::milliseconds>(parent->GetWaitTimeOut()).count()),
+		static_cast<DWORD>(parent->get_send_buffer_size()),
+		static_cast<DWORD>(parent->get_receive_buffer_size()),
+		static_cast<DWORD>(std::chrono::duration_cast<std::chrono::milliseconds>(parent->get_wait_timeout()).count()),
 		&m_securityAttributes);
 	if (m_handle == INVALID_HANDLE_VALUE) {
 		DWORD err = GetLastError();
@@ -132,10 +132,10 @@ OS::NamedSocketConnectionWindows::NamedSocketConnectionWindows(OS::NamedSocket* 
 
 	// Threading
 	m_stopWorkers = false;
-	m_managerThread = std::thread(ThreadMain, this);
+	m_managerThread = std::thread(thread_main, this);
 }
 
-OS::NamedSocketConnectionWindows::NamedSocketConnectionWindows(OS::NamedSocket* parent, std::string path)
+os::named_scoket_connection_win::named_scoket_connection_win(os::named_socket* parent, std::string path)
 	: m_parent(parent) {
 	if (parent == nullptr) // No parent
 		throw std::runtime_error("No parent");
@@ -162,7 +162,7 @@ OS::NamedSocketConnectionWindows::NamedSocketConnectionWindows(OS::NamedSocket* 
 			throw std::runtime_error("Unable to create socket.");
 
 		DWORD timeout = (DWORD)std::chrono::duration_cast<std::chrono::milliseconds>(
-			parent->GetWaitTimeOut()).count();
+			parent->get_wait_timeout()).count();
 		if (!WaitNamedPipe(pipeName, timeout)) {
 			if (attempt < 4) {
 				continue;
@@ -171,57 +171,57 @@ OS::NamedSocketConnectionWindows::NamedSocketConnectionWindows(OS::NamedSocket* 
 			}
 		}
 	}
-	m_state = State::Connected;
+	m_state = state::Connected;
 
 	// Threading
 	m_stopWorkers = false;
-	m_managerThread = std::thread(ThreadMain, this);
+	m_managerThread = std::thread(thread_main, this);
 }
 
-OS::NamedSocketConnectionWindows::~NamedSocketConnectionWindows() {
+os::named_scoket_connection_win::~named_scoket_connection_win() {
 	// Stop Threading
 	m_stopWorkers = true;
 	m_managerThread.join();
 
 	CancelIo(m_handle);
 	if (m_isServer)
-		Disconnect();
+		disconnect();
 }
 
-bool OS::NamedSocketConnectionWindows::IsWaiting() {
-	return m_state == State::Waiting;
+bool os::named_scoket_connection_win::is_waiting() {
+	return m_state == state::Waiting;
 }
 
-bool OS::NamedSocketConnectionWindows::IsConnected() {
-	return m_state == State::Connected;
+bool os::named_scoket_connection_win::is_connected() {
+	return m_state == state::Connected;
 }
 
-bool OS::NamedSocketConnectionWindows::Connect() {
+bool os::named_scoket_connection_win::connect() {
 	if (!m_isServer)
 		throw std::logic_error("Clients are automatically connected.");
 
-	if (m_state != State::Waiting)
+	if (m_state != state::Waiting)
 		return false;
 
-	m_state = State::Connected;
+	m_state = state::Connected;
 	return true;
 }
 
-bool OS::NamedSocketConnectionWindows::Disconnect() {
+bool os::named_scoket_connection_win::disconnect() {
 	if (!m_isServer)
 		throw std::logic_error("Clients are automatically disconnected.");
 
-	if (m_state != State::Connected)
+	if (m_state != state::Connected)
 		return false;
 
 	return !!DisconnectNamedPipe(m_handle);
 }
 
-bool OS::NamedSocketConnectionWindows::EoF() {
-	return Bad() || IsWaiting() || (ReadAvail() == 0);
+bool os::named_scoket_connection_win::eof() {
+	return bad() || is_waiting() || (read_avail() == 0);
 }
 
-bool OS::NamedSocketConnectionWindows::Good() {
+bool os::named_scoket_connection_win::good() {
 	ULONG pid;
 	if (!GetNamedPipeClientProcessId(m_handle, &pid))
 		return false;
@@ -235,14 +235,14 @@ bool OS::NamedSocketConnectionWindows::Good() {
 	return true;
 }
 
-size_t OS::NamedSocketConnectionWindows::ReadAvail() {
+size_t os::named_scoket_connection_win::read_avail() {
 	DWORD availBytes = 0;
 	PeekNamedPipe(m_handle, NULL, NULL, NULL, NULL, &availBytes);
 	return availBytes;
 }
 
-size_t OS::NamedSocketConnectionWindows::Read(char* buf, size_t length) {
-	if (length > m_parent->GetReceiveBufferSize())
+size_t os::named_scoket_connection_win::read(char* buf, size_t length) {
+	if (length > m_parent->get_receive_buffer_size())
 		return -1;
 	
 	OVERLAPPED ov;
@@ -263,7 +263,7 @@ size_t OS::NamedSocketConnectionWindows::Read(char* buf, size_t length) {
 	}
 
 	DWORD waitTime = (DWORD)std::chrono::duration_cast<std::chrono::milliseconds>(
-		m_parent->GetReceiveTimeOut()).count();
+		m_parent->get_receive_timeout()).count();
 	res = WaitForSingleObjectEx(m_handle, waitTime, false);
 	if (res == WAIT_TIMEOUT) {
 		if (!HasOverlappedIoCompleted(&ov)) {
@@ -289,29 +289,29 @@ read_fail:
 	return 0;
 }
 
-size_t OS::NamedSocketConnectionWindows::Read(std::vector<char>& out) {
+size_t os::named_scoket_connection_win::read(std::vector<char>& out) {
 	size_t readLength = out.size();
-	if (readLength > m_parent->GetReceiveBufferSize())
-		readLength = m_parent->GetReceiveBufferSize();
-	return Read(out.data(), readLength);
+	if (readLength > m_parent->get_receive_buffer_size())
+		readLength = m_parent->get_receive_buffer_size();
+	return read(out.data(), readLength);
 }
 
-std::vector<char> OS::NamedSocketConnectionWindows::Read() {
-	size_t bytes = ReadAvail();
+std::vector<char> os::named_scoket_connection_win::read() {
+	size_t bytes = read_avail();
 	if (bytes == 0)
 		return std::vector<char>();
 
 	std::vector<char> buf(bytes);
-	size_t read = Read(buf);
-	if (read == 0ull || read == std::numeric_limits<size_t>::max())
+	size_t cread = read(buf);
+	if (cread == 0ull || cread == std::numeric_limits<size_t>::max())
 		return std::vector<char>();
 	
-	buf.resize(read);
+	buf.resize(cread);
 	return std::move(buf);
 }
 
-size_t OS::NamedSocketConnectionWindows::Write(const char* buf, size_t length) {
-	if (length >= m_parent->GetSendBufferSize())
+size_t os::named_scoket_connection_win::write(const char* buf, size_t length) {
+	if (length >= m_parent->get_send_buffer_size())
 		return -1;
 
 	OVERLAPPED ov;
@@ -328,7 +328,7 @@ size_t OS::NamedSocketConnectionWindows::Write(const char* buf, size_t length) {
 	}
 	
 	DWORD waitTime = (DWORD)std::chrono::duration_cast<std::chrono::milliseconds>(
-		m_parent->GetSendTimeOut()).count();
+		m_parent->get_send_timeout()).count();
 	res = WaitForSingleObjectEx(m_handle, waitTime, false);
 	if (res == WAIT_TIMEOUT) {
 		if (!HasOverlappedIoCompleted(&ov)) {
@@ -354,28 +354,28 @@ write_fail:
 	return 0;
 }
 
-size_t OS::NamedSocketConnectionWindows::Write(const std::vector<char>& buf) {
-	return Write(buf.data(), buf.size());
+size_t os::named_scoket_connection_win::write(const std::vector<char>& buf) {
+	return write(buf.data(), buf.size());
 }
 
-OS::ClientId_t OS::NamedSocketConnectionWindows::GetClientId() {
-	return static_cast<OS::ClientId_t>(reinterpret_cast<intptr_t>(m_handle));
+os::ClientId_t os::named_scoket_connection_win::get_client_id() {
+	return static_cast<os::ClientId_t>(reinterpret_cast<intptr_t>(m_handle));
 }
 
-void OS::NamedSocketConnectionWindows::ThreadMain(void* ptr) {
-	reinterpret_cast<NamedSocketConnectionWindows*>(ptr)->ThreadLocal();
+void os::named_scoket_connection_win::thread_main(void* ptr) {
+	reinterpret_cast<named_scoket_connection_win*>(ptr)->threadlocal();
 }
 
-void OS::NamedSocketConnectionWindows::ThreadLocal() {
+void os::named_scoket_connection_win::threadlocal() {
 	OVERLAPPED ovWrite;
-	createOverlapped(ovWrite);
+	create_overlapped(ovWrite);
 	
 	bool pendingIO = false;
 	
 	while (!m_stopWorkers) {
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
-		if (m_state == State::Sleeping) {
+		if (m_state == state::Sleeping) {
 			if (!pendingIO) {
 				if (!ConnectNamedPipe(m_handle, &ovWrite)) {
 					DWORD err = GetLastError();
@@ -385,7 +385,7 @@ void OS::NamedSocketConnectionWindows::ThreadLocal() {
 							break;
 						case ERROR_PIPE_CONNECTED:
 							pendingIO = false;
-							m_state = State::Waiting;
+							m_state = state::Waiting;
 							break;
 						default:
 							pendingIO = false;
@@ -394,7 +394,7 @@ void OS::NamedSocketConnectionWindows::ThreadLocal() {
 				}
 			} else {
 				DWORD timeout = (DWORD)std::chrono::duration_cast<std::chrono::milliseconds>(
-					m_parent->GetWaitTimeOut()).count();
+					m_parent->get_wait_timeout()).count();
 				DWORD res = WaitForSingleObjectEx(ovWrite.hEvent, timeout, true);
 				switch (res) {
 					case WAIT_OBJECT_0:
@@ -403,7 +403,7 @@ void OS::NamedSocketConnectionWindows::ThreadLocal() {
 						BOOL success = GetOverlappedResult(m_handle, &ovWrite, &bytes, FALSE);
 						ResetEvent(ovWrite.hEvent);
 						if (success) {
-							m_state = State::Waiting;
+							m_state = state::Waiting;
 						} else {
 							// Error?
 						}
@@ -417,31 +417,31 @@ void OS::NamedSocketConnectionWindows::ThreadLocal() {
 						break;
 				}
 			}
-		} else if (m_state == State::Waiting) {
+		} else if (m_state == state::Waiting) {
 			if (!PeekNamedPipe(m_handle, NULL, NULL, NULL, NULL, NULL)) {
 				DWORD err = GetLastError();
 				err = err;
 			}
 			pendingIO = false;
-		} else if (m_state == State::Connected) {
+		} else if (m_state == state::Connected) {
 			if (m_isServer) {
-				if (!Good()) {
-					Disconnect();
-					m_state = State::Sleeping;
+				if (!good()) {
+					disconnect();
+					m_state = state::Sleeping;
 				}
 			}
 		}
 	}
 
-	destroyOverlapped(ovWrite);
+	destroy_overlapped(ovWrite);
 }
 
-void OS::NamedSocketConnectionWindows::createOverlapped(OVERLAPPED& ov) {
+void os::named_scoket_connection_win::create_overlapped(OVERLAPPED& ov) {
 	memset(&ov, 0, sizeof(OVERLAPPED));
 	ov.hEvent = CreateEvent(NULL, true, false, NULL);
 }
 
-void OS::NamedSocketConnectionWindows::destroyOverlapped(OVERLAPPED& ov) {
+void os::named_scoket_connection_win::destroy_overlapped(OVERLAPPED& ov) {
 	CloseHandle(ov.hEvent);
 	memset(&ov, 0, sizeof(OVERLAPPED));
 }

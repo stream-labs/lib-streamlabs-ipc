@@ -21,7 +21,7 @@
 #define MINIMUM_BUFFER_SIZE 32767
 
 #pragma region Named Socket
-OS::NamedSocket::NamedSocket() {
+os::named_socket::named_socket() {
 	// Socket is neither initialized or listening.
 	m_isInitialized =
 		m_isListening = false;
@@ -36,12 +36,12 @@ OS::NamedSocket::NamedSocket() {
 	m_bufferSendSize = MINIMUM_BUFFER_SIZE;
 }
 
-OS::NamedSocket::~NamedSocket() {
-	Close();
+os::named_socket::~named_socket() {
+	close();
 }
 
 #pragma region Options
-bool OS::NamedSocket::SetReceiveBufferSize(size_t size) {
+bool os::named_socket::set_receive_buffer_size(size_t size) {
 	if (m_isInitialized)
 		return false;
 	if (size < MINIMUM_BUFFER_SIZE)
@@ -50,11 +50,11 @@ bool OS::NamedSocket::SetReceiveBufferSize(size_t size) {
 	return true;
 }
 
-size_t OS::NamedSocket::GetReceiveBufferSize() {
+size_t os::named_socket::get_receive_buffer_size() {
 	return m_bufferReceiveSize;
 }
 
-bool OS::NamedSocket::SetSendBufferSize(size_t size) {
+bool os::named_socket::set_send_buffer_size(size_t size) {
 	if (m_isInitialized)
 		return false;
 	if (size < MINIMUM_BUFFER_SIZE)
@@ -63,11 +63,11 @@ bool OS::NamedSocket::SetSendBufferSize(size_t size) {
 	return true;
 }
 
-size_t OS::NamedSocket::GetSendBufferSize() {
+size_t os::named_socket::get_send_buffer_size() {
 	return m_bufferSendSize;
 }
 
-bool OS::NamedSocket::SetWaitTimeOut(std::chrono::nanoseconds time) {
+bool os::named_socket::set_wait_timeout(std::chrono::nanoseconds time) {
 	if (m_isInitialized)
 		return false;
 	if (time < std::chrono::nanoseconds(MINIMUM_TIMEOUT))
@@ -76,11 +76,11 @@ bool OS::NamedSocket::SetWaitTimeOut(std::chrono::nanoseconds time) {
 	return true;
 }
 
-std::chrono::nanoseconds OS::NamedSocket::GetWaitTimeOut() {
+std::chrono::nanoseconds os::named_socket::get_wait_timeout() {
 	return m_timeOutWait;
 }
 
-bool OS::NamedSocket::SetReceiveTimeOut(std::chrono::nanoseconds time) {
+bool os::named_socket::set_receive_timeout(std::chrono::nanoseconds time) {
 	if (m_isInitialized)
 		return false;
 	if (time < std::chrono::nanoseconds(MINIMUM_TIMEOUT))
@@ -89,11 +89,11 @@ bool OS::NamedSocket::SetReceiveTimeOut(std::chrono::nanoseconds time) {
 	return true;
 }
 
-std::chrono::nanoseconds OS::NamedSocket::GetReceiveTimeOut() {
+std::chrono::nanoseconds os::named_socket::get_receive_timeout() {
 	return m_timeOutReceive;
 }
 
-bool OS::NamedSocket::SetSendTimeOut(std::chrono::nanoseconds time) {
+bool os::named_socket::set_send_timeout(std::chrono::nanoseconds time) {
 	if (m_isInitialized)
 		return false;
 	if (time < std::chrono::nanoseconds(MINIMUM_TIMEOUT))
@@ -102,13 +102,13 @@ bool OS::NamedSocket::SetSendTimeOut(std::chrono::nanoseconds time) {
 	return true;
 }
 
-std::chrono::nanoseconds OS::NamedSocket::GetSendTimeOut() {
+std::chrono::nanoseconds os::named_socket::get_send_timeout() {
 	return m_timeOutSend;
 }
 #pragma endregion Options
 
 #pragma region Listen/Connect/Close
-bool OS::NamedSocket::Listen(std::string path, size_t backlog) {
+bool os::named_socket::listen(std::string path, size_t backlog) {
 	if (m_isInitialized)
 		return false;
 
@@ -125,7 +125,7 @@ bool OS::NamedSocket::Listen(std::string path, size_t backlog) {
 	return true;
 }
 
-bool OS::NamedSocket::Connect(std::string path) {
+bool os::named_socket::connect(std::string path) {
 	if (m_isInitialized)
 		return false;
 
@@ -139,7 +139,7 @@ bool OS::NamedSocket::Connect(std::string path) {
 	return true;
 }
 
-bool OS::NamedSocket::Close() {
+bool os::named_socket::close() {
 	if (!m_isInitialized)
 		return false;
 
@@ -152,37 +152,37 @@ bool OS::NamedSocket::Close() {
 #pragma endregion Listen/Connect/Close
 
 #pragma region Server & Client
-bool OS::NamedSocket::IsInitialized() {
+bool os::named_socket::is_initialized() {
 	return m_isInitialized;
 }
 
-bool OS::NamedSocket::IsServer() {
+bool os::named_socket::is_server() {
 	return m_isInitialized && m_isListening;
 }
 
-bool OS::NamedSocket::IsClient() {
+bool os::named_socket::is_client() {
 	return m_isInitialized && !m_isListening;
 }
 
-std::weak_ptr<OS::NamedSocketConnection> OS::NamedSocket::Accept() {
+std::weak_ptr<os::named_socket_connection> os::named_socket::accept() {
 	for (auto frnt = m_connections.begin(); frnt != m_connections.end(); frnt++) {
-		if ((*frnt)->IsWaiting()) {
-			return std::weak_ptr<OS::NamedSocketConnection>(*frnt);
+		if ((*frnt)->is_waiting()) {
+			return std::weak_ptr<os::named_socket_connection>(*frnt);
 		}
 	}
-	return std::weak_ptr<OS::NamedSocketConnection>();
+	return std::weak_ptr<os::named_socket_connection>();
 }
 #pragma endregion Server & Client
 
 #pragma region Client Only
-std::shared_ptr<OS::NamedSocketConnection> OS::NamedSocket::GetConnection() {
+std::shared_ptr<os::named_socket_connection> os::named_socket::get_connection() {
 	return m_connections.front();
 }
 #pragma endregion Client Only
 #pragma endregion Named Socket
 
 #pragma region Named Socket Connection
-bool OS::NamedSocketConnection::Bad() {
-	return !Good();
+bool os::named_socket_connection::bad() {
+	return !good();
 }
 #pragma endregion Named Socket Connection
