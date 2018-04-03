@@ -144,17 +144,17 @@ void ipc::server_instance::worker() {
 		// Attempt to read a message (respects timeout values).
 		if ((messageSize = m_socket->read(messageBuffer)) > 0) {
 			if (!m_isAuthenticated) {
-				bool suc = msgAuthenticate.ParsePartialFromArray(messageBuffer.data(), messageSize);
+				bool suc = msgAuthenticate.ParsePartialFromArray(messageBuffer.data(), (int)messageSize);
 				if (suc)
 					m_isAuthenticated = true;
 			} else {
-				if (!msgCall.ParsePartialFromArray(messageBuffer.data(), messageSize))
+				if (!msgCall.ParsePartialFromArray(messageBuffer.data(), (int)messageSize))
 					continue;
 
 				// Decode Arguments
 				args.resize(msgCall.arguments_size());
 				for (size_t n = 0; n < args.size(); n++) {
-					DecodeProtobufToIPC(msgCall.arguments(n), val);
+					DecodeProtobufToIPC(msgCall.arguments((int)n), val);
 					args[n] = std::move(val);
 				}
 
@@ -173,7 +173,7 @@ void ipc::server_instance::worker() {
 
 				// Encode
 				messageSize = msgResult.ByteSizeLong();
-				if (!msgResult.SerializeToArray(messageBuffer.data(), messageSize))
+				if (!msgResult.SerializeToArray(messageBuffer.data(), (int)messageSize))
 					continue;
 
 				// Write

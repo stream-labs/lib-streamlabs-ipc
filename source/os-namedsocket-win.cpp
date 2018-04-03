@@ -250,7 +250,7 @@ size_t os::named_scoket_connection_win::read(char* buf, size_t length) {
 	ov.hEvent = CreateEvent(NULL, true, false, NULL);
 
 	DWORD bytesRead = 0;
-	ReadFile(m_handle, buf, length, &bytesRead, &ov);
+	ReadFile(m_handle, buf, (DWORD)length, &bytesRead, &ov);
 	DWORD res = GetLastError();
 	if (res == ERROR_SUCCESS) {
 		if (!GetOverlappedResult(m_handle, &ov, &bytesRead, false)) {
@@ -319,7 +319,7 @@ size_t os::named_scoket_connection_win::write(const char* buf, size_t length) {
 	ov.hEvent = CreateEvent(NULL, true, false, NULL);
 
 	DWORD bytesWritten = 0;
-	WriteFile(m_handle, buf, length, &bytesWritten, &ov);
+	WriteFile(m_handle, buf, (DWORD)length, &bytesWritten, &ov);
 	DWORD res = GetLastError();
 	if (res == ERROR_SUCCESS) {
 		goto write_success;

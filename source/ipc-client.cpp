@@ -44,7 +44,7 @@ bool ipc::client::authenticate() {
 	msg.set_password("Hello World"); // Eventually will be used.
 
 	std::vector<char> buf(msg.ByteSizeLong());
-	if (!msg.SerializePartialToArray(buf.data(), buf.size()))
+	if (!msg.SerializePartialToArray(buf.data(), (int)buf.size()))
 		return false;
 
 	for (size_t attempt = 0; attempt < 5; attempt++) {
@@ -102,7 +102,7 @@ bool ipc::client::call(std::string cname, std::string fname, std::vector<ipc::va
 	}
 
 	std::vector<char> buf(msg.ByteSizeLong());
-	if (!msg.SerializePartialToArray(buf.data(), buf.size()))
+	if (!msg.SerializePartialToArray(buf.data(), (int)buf.size()))
 		return false;
 
 	if (fn != nullptr) {
@@ -143,7 +143,7 @@ void ipc::client::worker_thread(client* ptr) {
 		if ((messageSize = sock->read(messageBuffer)) > 0) {
 			// Decode Result
 			fres.Clear();
-			if (!fres.ParsePartialFromArray(messageBuffer.data(), messageSize))
+			if (!fres.ParsePartialFromArray(messageBuffer.data(), (int)messageSize))
 				continue;
 
 			// Check if there is a callback to call.
@@ -163,7 +163,7 @@ void ipc::client::worker_thread(client* ptr) {
 			} else if (fres.value_size() > 0) {
 				rval.resize(fres.value_size());
 				for (size_t n = 0; n < rval.size(); n++) {
-					auto& v = fres.value(n);
+					auto& v = fres.value((int)n);
 					switch (v.value_case()) {
 						case ::Value::ValueCase::kValBool:
 							rval.at(n).type = ipc::type::Int32;
