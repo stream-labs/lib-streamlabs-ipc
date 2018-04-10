@@ -142,11 +142,13 @@ void ipc::server_instance::worker() {
 	// Loop
 	while (!m_stopWorkers) {
 		// Attempt to read a message (respects timeout values).
-		if ((messageSize = m_socket->read(messageBuffer)) > 0) {
+		messageSize = m_socket->read(messageBuffer);
+		if (messageSize > 0) {
 			if (!m_isAuthenticated) {
 				bool suc = msgAuthenticate.ParsePartialFromArray(messageBuffer.data(), (int)messageSize);
-				if (suc)
+				if (suc) {
 					m_isAuthenticated = true;
+				}
 			} else {
 				if (!msgCall.ParsePartialFromArray(messageBuffer.data(), (int)messageSize))
 					continue;
