@@ -173,7 +173,7 @@ void ipc::server_instance::worker() {
 
 				// Encode
 				messageSize = msgResult.ByteSizeLong();
-				if (!msgResult.SerializeToArray(messageBuffer.data(), (int)messageSize))
+				if (!msgResult.SerializePartialToArray(messageBuffer.data(), (int)messageSize))
 					continue;
 
 				// Write
