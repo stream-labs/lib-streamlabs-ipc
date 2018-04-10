@@ -322,7 +322,9 @@ size_t os::named_scoket_connection_win::write(const char* buf, size_t length) {
 	WriteFile(m_handle, buf, (DWORD)length, &bytesWritten, &ov);
 	DWORD res = GetLastError();
 	if (res == ERROR_SUCCESS) {
-		goto write_success;
+		if (HasOverlappedIoCompleted(&ov)) {
+			goto write_success;
+		}
 	} else if (res != ERROR_IO_PENDING) {
 		goto write_fail;
 	}
@@ -345,6 +347,7 @@ size_t os::named_scoket_connection_win::write(const char* buf, size_t length) {
 	}
 
 write_success:
+	FlushFileBuffers(m_handle);
 	CloseHandle(ov.hEvent);
 	return bytesWritten;
 
