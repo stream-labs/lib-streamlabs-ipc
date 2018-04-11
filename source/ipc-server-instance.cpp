@@ -169,7 +169,7 @@ void ipc::server_instance::worker() {
 				} else {
 					for (size_t n = 0; n < rval.size(); n++) {
 						::Value* rv = msgResult.add_value();
-						EncodeIPCToProtobuf(val, rv);
+						EncodeIPCToProtobuf(rval[n], rv);
 					}
 				}
 
