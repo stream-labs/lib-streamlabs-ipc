@@ -347,7 +347,7 @@ size_t os::named_scoket_connection_win::write(const char* buf, size_t length) {
 	}
 
 write_success:
-	FlushFileBuffers(m_handle);
+	//FlushFileBuffers(m_handle);
 	CloseHandle(ov.hEvent);
 	return bytesWritten;
 
