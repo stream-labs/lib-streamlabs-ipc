@@ -143,7 +143,7 @@ void ipc::client::worker_thread(client* ptr) {
 		if ((messageSize = sock->read(messageBuffer)) > 0) {
 			// Decode Result
 			fres.Clear();
-			if (!fres.ParsePartialFromArray(messageBuffer.data(), (int)messageSize))
+			if (!fres.ParseFromArray(messageBuffer.data(), (int)messageSize))
 				continue;
 
 			// Check if there is a callback to call.
