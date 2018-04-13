@@ -199,6 +199,7 @@ void ipc::client::worker_thread(client* ptr) {
 							break;
 						case ::Value::ValueCase::kValBinary:
 							rval.at(n).type = ipc::type::Binary;
+							rval.at(n).value_bin.resize(v.val_binary().size());
 							memcpy(rval.at(n).value_bin.data(), v.val_binary().data(), v.val_binary().size());
 							break;
 					}
