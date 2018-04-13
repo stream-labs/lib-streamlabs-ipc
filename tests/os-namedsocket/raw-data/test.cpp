@@ -23,7 +23,7 @@ static void blog(const char* format, ...) {
 	va_start(args, format);
 	std::string text = varlog(format, args);
 	va_end(args);
-	
+
 	auto timeSinceStart = (std::chrono::high_resolution_clock::now() - tp);
 	auto hours = std::chrono::duration_cast<std::chrono::hours>(timeSinceStart);
 	timeSinceStart -= hours;
@@ -36,7 +36,7 @@ static void blog(const char* format, ...) {
 	auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(timeSinceStart);
 	timeSinceStart -= microseconds;
 	auto nanoseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(timeSinceStart);
-	
+
 	std::vector<char> timebuf(65535, '\0');
 	std::string timeformat = "%.2d:%.2d:%.2d.%.3d.%.3d.%.3d:  %*s\n";// "%*s";
 	sprintf_s(
@@ -177,7 +177,7 @@ static int server(int argc, char* argv[]);
 static int client(int argc, char* argv[]);
 
 int main(int argc, char* argv[]) {
-	if ((argc == 2) || (strcmp(argv[0], "client") == 0)) {
+	if ((argc >= 2) || (strcmp(argv[0], "client") == 0)) {
 		client(argc, argv);
 	} else {
 		server(argc, argv);
@@ -185,14 +185,22 @@ int main(int argc, char* argv[]) {
 }
 
 int serverInstanceThread(std::shared_ptr<os::named_socket_connection> ptr) {
+	size_t msgCount = 0;
+	std::vector<char> buf;
+	size_t avail;
 	while (ptr->good()) {
-		size_t msg = ptr->read_avail();
-		if (msg > 0) {
-			ptr->write(ptr->read());
-			//blog("Reflected message with side %" PRIu64 ".", msg);
+		while ((avail = ptr->read_avail()) > 0) {
+			buf.resize(avail);
+			size_t msg = ptr->read(buf.data(), avail);
+			if (ptr->write(buf) != msg) {
+				blog("%llu: Send Buffer full at %llu messages.", ptr->get_client_id(), msgCount);
+				break;
+			};
+			msgCount++;
 		}
 		if (ptr->read_avail() == 0)
 			std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		//blog("%llu: Total messages: %llu", ptr->get_client_id(), msgCount);
 	}
 	return 0;
 }
@@ -209,7 +217,7 @@ int server(int argc, char* argv[]) {
 
 	blog("Spawning %lld clients.", (int64_t)CLIENTCOUNT);
 	for (size_t idx = 0; idx < CLIENTCOUNT; idx++) {
-		spawn(argv[0], std::string(argv[0]) + "client", get_working_directory());
+		spawn(std::string(argv[0]), '"' + std::string(argv[0]) + '"' + " client", get_working_directory());
 	}
 
 	blog("Waiting for data...");
@@ -245,32 +253,42 @@ int client(int argc, char* argv[]) {
 	std::unique_ptr<os::named_socket> socket = os::named_socket::create();
 	if (!socket->connect(CONN)) {
 		blog("Failed starting client.");
-		std::cin.get();
 		return -1;
 	}
 
 	uint64_t inbox = 0;
 	uint64_t outbox = 0;
-	uint64_t total = 10000;
+	uint64_t total = 100000;
+	auto tpstart = std::chrono::high_resolution_clock::now();
+	std::vector<char> buf;
 	while (socket->get_connection()->good()) {
 		//std::cout << inbox << ", " << outbox << ", " << total << "." << std::endl;
 		if (outbox < total) {
-			if (socket->get_connection()->write("Hello World\0", 11) == 11) {
-				outbox++;
-				if (outbox % 100 == 0) {
-					blog("Sent %lld messages so far.", outbox, 0, 0, 0, 0, 0);
+			for (size_t idx = 0; idx < 1000; idx++) {
+				if (socket->get_connection()->write("Hello World\0", 11) == 11) {
+					outbox++;
+				} else {
+					break;
 				}
+
+				if (outbox >= total) {
+					break;
+				}
+				//if (outbox % 100 == 0) {
+				//	blog("Sent %lld messages so far.", outbox, 0, 0, 0, 0, 0);
+				//}
 			}
 		}
 
 		if (inbox < total) {
 			size_t msg = socket->get_connection()->read_avail();
 			while (msg > 0) {
-				auto buf = socket->get_connection()->read();
+				buf.resize(msg);
+				auto rbytes = socket->get_connection()->read(buf.data(), buf.size());
 				inbox++;
-				if (inbox % 100 == 0) {
-					blog("Received %lld messages so far.", inbox, 0, 0, 0, 0, 0);
-				}
+				//if (inbox % 100 == 0) {
+				//	blog("Received %lld messages so far.", inbox, 0, 0, 0, 0, 0);
+				//}
 				msg = socket->get_connection()->read_avail();
 			}
 		}
@@ -281,9 +299,20 @@ int client(int argc, char* argv[]) {
 			}
 		}
 
+		//std::this_thread::sleep_for(std::chrono::milliseconds(1));
+	}
+	auto tpend = std::chrono::high_resolution_clock::now();
+
+	auto tpdurns = std::chrono::duration_cast<std::chrono::nanoseconds>(tpend - tpstart);
+	auto tpdurms = std::chrono::duration_cast<std::chrono::milliseconds>(tpend - tpstart);
+
+	blog("Sent & Received %llu messages in %llu milliseconds.", total, tpdurms.count());
+	blog("Average %llu ns per message.", tpdurns.count() / total);
+
+	while (socket->get_connection()->good()) {
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	}
-	socket->close();
 
+	socket->close();
 	return 0;
 }

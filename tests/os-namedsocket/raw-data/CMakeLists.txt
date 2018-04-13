@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(os-namedsocket_test_raw-data)
+project(test_os-namedsocket_raw-data)
 
 ADD_SUBDIRECTORY("../../../" "lib-streamlabs-ipc")
 
