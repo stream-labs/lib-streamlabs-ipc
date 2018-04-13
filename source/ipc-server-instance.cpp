@@ -127,76 +127,110 @@ void EncodeIPCToProtobuf(const ipc::value& v, ::Value* val) {
 }
 
 void ipc::server_instance::worker() {
-	Authenticate msgAuthenticate;
-	FunctionCall msgCall;
-	FunctionResult msgResult;
-	std::vector<ipc::value> args(64);
-	std::vector<ipc::value> rval;
-	ipc::value val;
-	std::string errMsg = "";
+	std::vector<char> input_buffer;
+	std::vector<char> output_buffer;
+	std::queue<std::vector<char>> output_queue;
+	std::vector<ipc::value> function_arguments;
+	std::vector<ipc::value> function_returnvalues;
+	::Authenticate authenticate_pb;
+	::FunctionCall functioncall_pb;
+	::FunctionResult functionresult_pb;
+	ipc::value value_ipc;
+	std::string error_ipc;
 
-	// Message
-	size_t bufferSize = this->m_parent->m_socket->get_receive_buffer_size() > this->m_parent->m_socket->get_send_buffer_size() ? this->m_parent->m_socket->get_receive_buffer_size() : this->m_parent->m_socket->get_send_buffer_size();
-	size_t availableSize = 0, readSize = 0, writeSize = 0;
-	std::vector<char> messageBuffer(bufferSize);
+	input_buffer.reserve(m_parent->m_socket->get_receive_buffer_size());
+	output_buffer.reserve(m_parent->m_socket->get_send_buffer_size());
 
-	// Loop
-	while (!m_stopWorkers) {
-		// Attempt to read a message (respects timeout values).
-		availableSize = m_socket->read_avail();
+	while ((!m_stopWorkers) && m_socket->good()) {
+		size_t input_size = 0, stream_input_size = 0;
+		size_t output_size = 0, stream_output_size = 0;
 
-		if (availableSize == 0) {
+		// Attempt to clear the output queue.
+		if (output_queue.size() > 0) {
+			while (output_queue.size() > 0) {
+				stream_output_size = m_socket->write(output_queue.front());
+				if (stream_output_size != output_queue.front().size()) {
+					break;
+				} else {
+					output_queue.pop();
+				}
+			}
+		}
+
+		// Attempt to read new message.
+		if ((input_size = m_socket->read_avail()) == 0) {
+			std::this_thread::sleep_for(std::chrono::microseconds(100));
 			continue;
 		}
 
-		messageBuffer.resize(availableSize);
-		readSize = m_socket->read(messageBuffer.data(), availableSize);
+		input_buffer.resize(input_size);
+		stream_input_size = m_socket->read(input_buffer.data(), input_size);
+		if (stream_input_size != input_size) {
+			std::this_thread::sleep_for(std::chrono::microseconds(100));
+			continue;
+		}
+		
+		// Process read message.
+		bool success = false;
+		if (!m_isAuthenticated) {
+			// Client is not authenticated.
+			success = authenticate_pb.ParsePartialFromArray(input_buffer.data(), stream_input_size);
+			if (success) {
+				m_isAuthenticated = true;
+				continue;
+			}
+		} else {
+			// Client is authenticated.
 
-		if (readSize > 0) {
-			if (!m_isAuthenticated) {
-				bool suc = msgAuthenticate.ParsePartialFromArray(messageBuffer.data(), (int)readSize);
-				if (suc) {
-					m_isAuthenticated = true;
+			// Parse
+			success = functioncall_pb.ParsePartialFromArray(input_buffer.data(), stream_input_size);
+			if (!success) {
+				//sprintf_s("Skipped parsing invalid packet from %llu.", m_clientId);
+				continue;
+			}
+
+			// Decode Arguments
+			function_arguments.resize(functioncall_pb.arguments_size());
+			for (size_t n = 0; n < function_arguments.size(); n++) {
+				DecodeProtobufToIPC(functioncall_pb.arguments((int)n), value_ipc);
+				function_arguments[n] = std::move(value_ipc);
+			}
+
+			// Execute
+			functionresult_pb.Clear();
+			functionresult_pb.set_timestamp(functioncall_pb.timestamp());
+			function_returnvalues.resize(0);
+			success = m_parent->client_call_function(m_clientId,
+				functioncall_pb.classname(), functioncall_pb.functionname(),
+				function_arguments, function_returnvalues, error_ipc);
+			if (success) {
+				for (size_t n = 0; n < function_returnvalues.size(); n++) {
+					::Value* rv = functionresult_pb.add_value();
+					EncodeIPCToProtobuf(function_returnvalues[n], rv);
 				}
 			} else {
-				if (!msgCall.ParsePartialFromArray(messageBuffer.data(), (int)readSize))
-					continue;
-
-				// Decode Arguments
-				args.resize(msgCall.arguments_size());
-				for (size_t n = 0; n < args.size(); n++) {
-					DecodeProtobufToIPC(msgCall.arguments((int)n), val);
-					args[n] = std::move(val);
-				}
-
-				// Execute
-				msgResult.Clear();
-				msgResult.set_timestamp(msgCall.timestamp());
-				rval.clear();
-				if (!m_parent->client_call_function(m_clientId, msgCall.classname(), msgCall.functionname(), args, rval, errMsg)) {
-					msgResult.set_error(errMsg);
-				} else {
-					for (size_t n = 0; n < rval.size(); n++) {
-						::Value* rv = msgResult.add_value();
-						EncodeIPCToProtobuf(rval[n], rv);
-					}
-				}
-
-				// Encode
-				writeSize = msgResult.ByteSizeLong();
-				if (!msgResult.SerializePartialToArray(messageBuffer.data(), (int)writeSize))
-					continue;
-
-				// Write
-				if (writeSize > 0) {
-					for (size_t attempt = 0; attempt < 5; attempt++) {
-						size_t bytes = m_socket->write(messageBuffer.data(), writeSize);
-						if (bytes == writeSize) {
-							break;
-						}
-					}
-				}
+				functionresult_pb.set_error(error_ipc);
 			}
+
+			// Encode
+			output_size = functionresult_pb.ByteSizeLong();
+			if (output_size == 0) {
+				continue;
+			}
+
+			output_buffer.resize(output_size);
+			success = functionresult_pb.SerializePartialToArray(output_buffer.data(), output_size);
+			if (!success) {
+				continue;
+			}
+		}
+
+		// Write new output.
+		stream_output_size = m_socket->write(output_buffer.data(), output_size);
+		if (stream_output_size != output_size) {
+			// Failed to write? Put it into the queue.
+			output_queue.push(std::move(output_buffer));
+			output_buffer.reserve(m_parent->m_socket->get_send_buffer_size());
 		}
 	}
 }
