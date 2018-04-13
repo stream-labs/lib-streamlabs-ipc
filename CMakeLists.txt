@@ -88,6 +88,7 @@ IF(WIN32)
 		"${PROJECT_SOURCE_DIR}/source/os-namedsocket-win.cpp"
 	)
 	LIST(APPEND lib-streamlabs-ipc_DEPS
+		advapi32
 	)
 ELSEIF(APPLE)
 	# MacOSX

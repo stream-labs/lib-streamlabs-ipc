@@ -18,21 +18,181 @@
 #include "os-namedsocket-win.hpp"
 #include <iostream>
 
+void os::overlapped_manager::create_overlapped(std::shared_ptr<OVERLAPPED>& ov) {
+	ov = std::make_shared<OVERLAPPED>();
+	ov->Internal = ov->InternalHigh = ov->Offset = ov->OffsetHigh = 0;
+	ov->Pointer = nullptr;
+	ov->hEvent = CreateEventW(NULL, false, false, NULL);
+}
+
+void os::overlapped_manager::destroy_overlapped(std::shared_ptr<OVERLAPPED>& ov) {
+	CloseHandle(ov->hEvent);
+	ov = nullptr;
+}
+
+void os::overlapped_manager::append_create_overlapped() {
+	std::shared_ptr<OVERLAPPED> ov = nullptr;
+	create_overlapped(ov);
+	freeOverlapped.push(ov);
+}
+
+bool os::overlapped_manager::create_security_attributes() {
+	DWORD dwRes;
+
+	// Create a well-known SID for the Everyone group.
+	if (!AllocateAndInitializeSid(&SIDAuthWorld, 1,
+		SECURITY_WORLD_RID,
+		0, 0, 0, 0, 0, 0, 0,
+		&pEveryoneSID)) {
+		std::cerr << "AllocateAndInitializeSid Error" << GetLastError() << std::endl;
+		return false;
+	}
+
+	// Initialize an EXPLICIT_ACCESS structure for an ACE.
+	// The ACE will allow Everyone read access to the key.
+	ZeroMemory(&ea, 2 * sizeof(EXPLICIT_ACCESS));
+	ea[0].grfAccessPermissions = KEY_READ;
+	ea[0].grfAccessMode = SET_ACCESS;
+	ea[0].grfInheritance = NO_INHERITANCE;
+	ea[0].Trustee.TrusteeForm = TRUSTEE_IS_SID;
+	ea[0].Trustee.TrusteeType = TRUSTEE_IS_WELL_KNOWN_GROUP;
+	ea[0].Trustee.ptstrName = (LPTSTR)pEveryoneSID;
+
+	// Create a SID for the BUILTIN\Administrators group.
+	if (!AllocateAndInitializeSid(&SIDAuthNT, 2,
+		SECURITY_BUILTIN_DOMAIN_RID,
+		DOMAIN_ALIAS_RID_ADMINS,
+		0, 0, 0, 0, 0, 0,
+		&pAdminSID)) {
+		std::cerr << "AllocateAndInitializeSid Error" << GetLastError() << std::endl;
+		return false;
+	}
+
+	// Initialize an EXPLICIT_ACCESS structure for an ACE.
+	// The ACE will allow the Administrators group full access to
+	// the key.
+	ea[1].grfAccessPermissions = KEY_ALL_ACCESS;
+	ea[1].grfAccessMode = SET_ACCESS;
+	ea[1].grfInheritance = NO_INHERITANCE;
+	ea[1].Trustee.TrusteeForm = TRUSTEE_IS_SID;
+	ea[1].Trustee.TrusteeType = TRUSTEE_IS_GROUP;
+	ea[1].Trustee.ptstrName = (LPTSTR)pAdminSID;
+
+	// Create a new ACL that contains the new ACEs.
+	dwRes = SetEntriesInAcl(2, ea, NULL, &pACL);
+	if (ERROR_SUCCESS != dwRes) {
+		std::cerr << "SetEntriesInAcl Error" << GetLastError() << std::endl;
+		return false;
+	}
+
+	// Initialize a security descriptor.  
+	pSD = (PSECURITY_DESCRIPTOR)LocalAlloc(LPTR,
+		SECURITY_DESCRIPTOR_MIN_LENGTH);
+	if (NULL == pSD) {
+		std::cerr << "LocalAlloc Error" << GetLastError() << std::endl;
+		return false;
+	}
+
+	if (!InitializeSecurityDescriptor(pSD,
+		SECURITY_DESCRIPTOR_REVISION)) {
+		std::cerr << "InitializeSecurityDescriptor Error" << GetLastError() << std::endl;
+		return false;
+	}
+
+	// Add the ACL to the security descriptor. 
+	if (!SetSecurityDescriptorDacl(pSD,
+		TRUE,     // bDaclPresent flag   
+		pACL,
+		FALSE))   // not a default DACL 
+	{
+		std::cerr << "SetSecurityDescriptorDacl Error" << GetLastError() << std::endl;
+		return false;
+	}
+
+	// Initialize a security attributes structure.
+	sa.nLength = sizeof(SECURITY_ATTRIBUTES);
+	sa.lpSecurityDescriptor = pSD;
+	sa.bInheritHandle = FALSE;
+	return true;
+}
+
+void os::overlapped_manager::destroy_security_attributes() {
+	if (pEveryoneSID)
+		FreeSid(pEveryoneSID);
+	if (pAdminSID)
+		FreeSid(pAdminSID);
+	if (pACL)
+		LocalFree(pACL);
+	if (pSD)
+		LocalFree(pSD);
+}
+
+os::overlapped_manager::overlapped_manager() {
+	if (!create_security_attributes()) {
+		destroy_security_attributes();
+		throw std::runtime_error("can't create security attributes");
+	}
+
+	// Prepare for 8 queued writes.
+	for (size_t idx = 0; idx < 8; idx++) {
+		append_create_overlapped();
+	}
+}
+
+os::overlapped_manager::~overlapped_manager() {
+	std::shared_ptr<OVERLAPPED> ov = nullptr;
+	while (freeOverlapped.size() > 0) {
+		ov = freeOverlapped.front();
+		freeOverlapped.pop();
+		destroy_overlapped(ov);
+	}
+
+	while (usedOverlapped.size() > 0) {
+		ov = usedOverlapped.front();
+		usedOverlapped.pop_front();
+		destroy_overlapped(ov);
+	}
+
+	destroy_security_attributes();
+}
+
+std::shared_ptr<OVERLAPPED> os::overlapped_manager::alloc() {
+	std::unique_lock<std::mutex> ulock(mtx);
+	if (freeOverlapped.size() == 0) {
+		append_create_overlapped();
+	}
+
+	std::shared_ptr<OVERLAPPED> ov = freeOverlapped.front();
+	freeOverlapped.pop();
+	return ov;
+}
+
+void os::overlapped_manager::free(std::shared_ptr<OVERLAPPED> ov) {
+	std::unique_lock<std::mutex> ulock(mtx);
+	for (auto itr = usedOverlapped.begin(); itr != usedOverlapped.end(); itr++) {
+		if (*itr == ov) {
+			usedOverlapped.erase(itr);
+		}
+	}
+	ResetEvent(ov->hEvent);
+	freeOverlapped.push(ov);
+}
+
 std::unique_ptr<os::named_socket> os::named_socket::create() {
-	return std::make_unique<os::name_socket_win>();
+	return std::make_unique<os::named_socket_win>();
 }
 
 #pragma region NamedSocketWindows
 #pragma region De-/Constructor
-os::name_socket_win::name_socket_win() {}
+os::named_socket_win::named_socket_win() {}
 
-os::name_socket_win::~name_socket_win() {
+os::named_socket_win::~named_socket_win() {
 	close();
 }
 #pragma endregion De-/Constructor
 
 #pragma region Listen/Connect/Close
-bool os::name_socket_win::_listen(std::string path, size_t backlog) {
+bool os::named_socket_win::_listen(std::string path, size_t backlog) {
 	// Set Pipe Mode.
 	m_openMode = PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED;
 	m_pipeMode = PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE;
@@ -48,12 +208,12 @@ bool os::name_socket_win::_listen(std::string path, size_t backlog) {
 	// Create sockets.
 	try {
 		for (size_t n = 0; n <= backlog; n++) {
-			std::shared_ptr<named_scoket_connection_win> ptr;
+			std::shared_ptr<named_socket_connection_win> ptr;
 			if (n == 0) {
-				ptr = std::make_shared<named_scoket_connection_win>(this, m_pipeName,
+				ptr = std::make_shared<named_socket_connection_win>(this, m_pipeName,
 					m_openMode | FILE_FLAG_FIRST_PIPE_INSTANCE, m_pipeMode);
 			} else {
-				ptr = std::make_shared<named_scoket_connection_win>(this, m_pipeName,
+				ptr = std::make_shared<named_socket_connection_win>(this, m_pipeName,
 					m_openMode, m_pipeMode);
 			}
 			m_connections.push_back(ptr);
@@ -65,7 +225,7 @@ bool os::name_socket_win::_listen(std::string path, size_t backlog) {
 	return true;
 }
 
-bool os::name_socket_win::_connect(std::string path) {
+bool os::named_socket_win::_connect(std::string path) {
 	// Validate and generate socket name
 	if (path.length() > 255) // Path can't be larger than 255 characters, limit set by WinAPI.
 		return false; // !TODO! Throw some kind of error to signal why it failed.
@@ -75,8 +235,8 @@ bool os::name_socket_win::_connect(std::string path) {
 	m_pipeName = "\\\\.\\pipe\\" + path;
 
 	try {
-		std::shared_ptr<named_scoket_connection_win> ptr =
-			std::make_shared<named_scoket_connection_win>(this, m_pipeName);
+		std::shared_ptr<named_socket_connection_win> ptr =
+			std::make_shared<named_socket_connection_win>(this, m_pipeName);
 		m_connections.push_back(ptr);
 	} catch (...) {
 		return false;
@@ -85,7 +245,7 @@ bool os::name_socket_win::_connect(std::string path) {
 	return true;
 }
 
-bool os::name_socket_win::_close() {
+bool os::named_socket_win::_close() {
 	m_connections.clear();
 	return true;
 }
@@ -95,7 +255,7 @@ bool os::name_socket_win::_close() {
 #pragma endregion NamedSocketWindows
 
 #pragma region Named Socket Connection Windows
-os::named_scoket_connection_win::named_scoket_connection_win(os::named_socket* parent,
+os::named_socket_connection_win::named_socket_connection_win(os::named_socket* parent,
 	std::string path, DWORD openFlags, DWORD pipeFlags) : m_parent(parent) {
 	if (parent == nullptr) // No parent
 		throw std::runtime_error("No parent");
@@ -135,7 +295,7 @@ os::named_scoket_connection_win::named_scoket_connection_win(os::named_socket* p
 	m_managerThread = std::thread(thread_main, this);
 }
 
-os::named_scoket_connection_win::named_scoket_connection_win(os::named_socket* parent, std::string path)
+os::named_socket_connection_win::named_socket_connection_win(os::named_socket* parent, std::string path)
 	: m_parent(parent) {
 	if (parent == nullptr) // No parent
 		throw std::runtime_error("No parent");
@@ -173,12 +333,17 @@ os::named_scoket_connection_win::named_scoket_connection_win(os::named_socket* p
 	}
 	m_state = state::Connected;
 
+	DWORD flags = PIPE_READMODE_MESSAGE | PIPE_WAIT;
+	if (!SetNamedPipeHandleState(m_handle, &flags, NULL, NULL)) {
+		// well, what do we do now?
+	}
+
 	// Threading
 	m_stopWorkers = false;
 	m_managerThread = std::thread(thread_main, this);
 }
 
-os::named_scoket_connection_win::~named_scoket_connection_win() {
+os::named_socket_connection_win::~named_socket_connection_win() {
 	// Stop Threading
 	m_stopWorkers = true;
 	m_managerThread.join();
@@ -188,15 +353,15 @@ os::named_scoket_connection_win::~named_scoket_connection_win() {
 		disconnect();
 }
 
-bool os::named_scoket_connection_win::is_waiting() {
+bool os::named_socket_connection_win::is_waiting() {
 	return m_state == state::Waiting;
 }
 
-bool os::named_scoket_connection_win::is_connected() {
+bool os::named_socket_connection_win::is_connected() {
 	return m_state == state::Connected;
 }
 
-bool os::named_scoket_connection_win::connect() {
+bool os::named_socket_connection_win::connect() {
 	if (!m_isServer)
 		throw std::logic_error("Clients are automatically connected.");
 
@@ -207,7 +372,7 @@ bool os::named_scoket_connection_win::connect() {
 	return true;
 }
 
-bool os::named_scoket_connection_win::disconnect() {
+bool os::named_socket_connection_win::disconnect() {
 	if (!m_isServer)
 		throw std::logic_error("Clients are automatically disconnected.");
 
@@ -217,11 +382,11 @@ bool os::named_scoket_connection_win::disconnect() {
 	return !!DisconnectNamedPipe(m_handle);
 }
 
-bool os::named_scoket_connection_win::eof() {
+bool os::named_socket_connection_win::eof() {
 	return bad() || is_waiting() || (read_avail() == 0);
 }
 
-bool os::named_scoket_connection_win::good() {
+bool os::named_socket_connection_win::good() {
 	ULONG pid;
 	if (!GetNamedPipeClientProcessId(m_handle, &pid))
 		return false;
@@ -235,68 +400,81 @@ bool os::named_scoket_connection_win::good() {
 	return true;
 }
 
-size_t os::named_scoket_connection_win::read_avail() {
+size_t os::named_socket_connection_win::read_avail() {
 	DWORD availBytes = 0;
-	PeekNamedPipe(m_handle, NULL, NULL, NULL, NULL, &availBytes);
+	DWORD totalBytes = 0;
+	PeekNamedPipe(m_handle, NULL, NULL, NULL, &totalBytes, &availBytes);
 	return availBytes;
 }
 
-size_t os::named_scoket_connection_win::read(char* buf, size_t length) {
+size_t os::named_socket_connection_win::read(char* buf, size_t length) {
+	DWORD bytesRead = 0;
+	DWORD errorCode = 0;
+
 	if (length > m_parent->get_receive_buffer_size())
 		return -1;
 	
-	OVERLAPPED ov;
-	memset(&ov, 0, sizeof(ov));
-	ov.hEvent = CreateEvent(NULL, true, false, NULL);
+	std::shared_ptr<OVERLAPPED> ov = dynamic_cast<named_socket_win*>(m_parent)->ovm.alloc();
 
-	DWORD bytesRead = 0;
-	ReadFile(m_handle, buf, (DWORD)length, &bytesRead, &ov);
-	DWORD res = GetLastError();
-	if (res == ERROR_SUCCESS) {
-		if (!GetOverlappedResult(m_handle, &ov, &bytesRead, false)) {
-			goto read_fail;
+	// Attempt to read from the handle.
+	SetLastError(ERROR_SUCCESS);
+	ReadFile(m_handle, buf, (DWORD)length, &bytesRead, ov.get());
+
+	// Test for actual return code.
+	errorCode = GetLastError();
+	if (errorCode == ERROR_SUCCESS) {
+		// ERROR_SUCCESS should mean that we immediately read everything.
+		if (!GetOverlappedResult(m_handle, ov.get(), &bytesRead, false)) {
+			// In case it didn't, just wait as normal.
+			goto resume_wait;
 		}
+		// In case it did, continue to success.
 		goto read_success;
-	} else if (res != ERROR_IO_PENDING) {
-		std::cout << "IO not pending!" << std::endl;
+	} else if (errorCode != ERROR_IO_PENDING) {
+		// Any other code than ERROR_IO_PENDING means that there's nothing to read from.
 		goto read_fail;
 	}
 
+resume_wait:
+	// Now wait until we actually have a result available.
 	DWORD waitTime = (DWORD)std::chrono::duration_cast<std::chrono::milliseconds>(
 		m_parent->get_receive_timeout()).count();
-	res = WaitForSingleObjectEx(m_handle, waitTime, false);
-	if (res == WAIT_TIMEOUT) {
-		if (!HasOverlappedIoCompleted(&ov)) {
+	errorCode = WaitForSingleObjectEx(m_handle, waitTime, false);
+	if (errorCode == WAIT_TIMEOUT) {
+		if (!HasOverlappedIoCompleted(ov.get())) {
+			// If we timed out and it still hasn't completed, consider the request failed.
 			goto read_fail;
 		} else {
-			if (!GetOverlappedResult(m_handle, &ov, &bytesRead, false)) {
+			if (!GetOverlappedResult(m_handle, ov.get(), &bytesRead, false)) {
+				// Overlapped IO completed, but we can't get any result back.
+				errorCode = GetLastError();
 				goto read_fail;
 			}
 		}
-	} else if (res == WAIT_ABANDONED) {
+	} else if (errorCode == WAIT_ABANDONED) {
 		goto read_fail;
-	} else if (res == WAIT_FAILED) {
+	} else if (errorCode == WAIT_FAILED) {
 		goto read_fail;
 	}
 
 read_success:
-	CloseHandle(ov.hEvent);
+	dynamic_cast<named_socket_win*>(m_parent)->ovm.free(ov);
 	return bytesRead;
 
 read_fail:
-	CancelIoEx(m_handle, &ov);
-	CloseHandle(ov.hEvent);
+	CancelIoEx(m_handle, ov.get());
+	dynamic_cast<named_socket_win*>(m_parent)->ovm.free(ov);
 	return 0;
 }
 
-size_t os::named_scoket_connection_win::read(std::vector<char>& out) {
+size_t os::named_socket_connection_win::read(std::vector<char>& out) {
 	size_t readLength = out.size();
 	if (readLength > m_parent->get_receive_buffer_size())
 		readLength = m_parent->get_receive_buffer_size();
 	return read(out.data(), readLength);
 }
 
-std::vector<char> os::named_scoket_connection_win::read() {
+std::vector<char> os::named_socket_connection_win::read() {
 	size_t bytes = read_avail();
 	if (bytes == 0)
 		return std::vector<char>();
@@ -305,38 +483,39 @@ std::vector<char> os::named_scoket_connection_win::read() {
 	size_t cread = read(buf);
 	if (cread == 0ull || cread == std::numeric_limits<size_t>::max())
 		return std::vector<char>();
-	
+
 	buf.resize(cread);
 	return std::move(buf);
 }
 
-size_t os::named_scoket_connection_win::write(const char* buf, size_t length) {
+size_t os::named_socket_connection_win::write(const char* buf, size_t length) {
+	DWORD bytesWritten = 0;
+
 	if (length >= m_parent->get_send_buffer_size())
 		return -1;
+	
+	std::shared_ptr<OVERLAPPED> ov = dynamic_cast<named_socket_win*>(m_parent)->ovm.alloc();
 
-	OVERLAPPED ov;
-	memset(&ov, 0, sizeof(ov));
-	ov.hEvent = CreateEvent(NULL, true, false, NULL);
+	SetLastError(ERROR_SUCCESS);
+	WriteFile(m_handle, buf, (DWORD)length, &bytesWritten, ov.get());
 
-	DWORD bytesWritten = 0;
-	WriteFile(m_handle, buf, (DWORD)length, &bytesWritten, &ov);
 	DWORD res = GetLastError();
 	if (res == ERROR_SUCCESS) {
-		if (HasOverlappedIoCompleted(&ov)) {
+		if (HasOverlappedIoCompleted(ov.get())) {
 			goto write_success;
 		}
 	} else if (res != ERROR_IO_PENDING) {
 		goto write_fail;
 	}
-	
+
 	DWORD waitTime = (DWORD)std::chrono::duration_cast<std::chrono::milliseconds>(
 		m_parent->get_send_timeout()).count();
 	res = WaitForSingleObjectEx(m_handle, waitTime, false);
 	if (res == WAIT_TIMEOUT) {
-		if (!HasOverlappedIoCompleted(&ov)) {
+		if (!HasOverlappedIoCompleted(ov.get())) {
 			goto write_fail;
 		} else {
-			if (!GetOverlappedResult(m_handle, &ov, &bytesWritten, false)) {
+			if (!GetOverlappedResult(m_handle, ov.get(), &bytesWritten, false)) {
 				goto write_fail;
 			}
 		}
@@ -347,34 +526,33 @@ size_t os::named_scoket_connection_win::write(const char* buf, size_t length) {
 	}
 
 write_success:
-	//FlushFileBuffers(m_handle);
-	CloseHandle(ov.hEvent);
+	dynamic_cast<named_socket_win*>(m_parent)->ovm.free(ov);
 	return bytesWritten;
 
 write_fail:
-	CancelIoEx(m_handle, &ov);
-	CloseHandle(ov.hEvent);
+	CancelIoEx(m_handle, ov.get());
+	dynamic_cast<named_socket_win*>(m_parent)->ovm.free(ov);
 	return 0;
 }
 
-size_t os::named_scoket_connection_win::write(const std::vector<char>& buf) {
+size_t os::named_socket_connection_win::write(const std::vector<char>& buf) {
 	return write(buf.data(), buf.size());
 }
 
-os::ClientId_t os::named_scoket_connection_win::get_client_id() {
+os::ClientId_t os::named_socket_connection_win::get_client_id() {
 	return static_cast<os::ClientId_t>(reinterpret_cast<intptr_t>(m_handle));
 }
 
-void os::named_scoket_connection_win::thread_main(void* ptr) {
-	reinterpret_cast<named_scoket_connection_win*>(ptr)->threadlocal();
+void os::named_socket_connection_win::thread_main(void* ptr) {
+	reinterpret_cast<named_socket_connection_win*>(ptr)->threadlocal();
 }
 
-void os::named_scoket_connection_win::threadlocal() {
+void os::named_socket_connection_win::threadlocal() {
 	OVERLAPPED ovWrite;
 	create_overlapped(ovWrite);
-	
+
 	bool pendingIO = false;
-	
+
 	while (!m_stopWorkers) {
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
@@ -412,7 +590,7 @@ void os::named_scoket_connection_win::threadlocal() {
 						}
 						pendingIO = false;
 					}
-						break;
+					break;
 					case WAIT_TIMEOUT:
 						break;
 					default:
@@ -439,12 +617,12 @@ void os::named_scoket_connection_win::threadlocal() {
 	destroy_overlapped(ovWrite);
 }
 
-void os::named_scoket_connection_win::create_overlapped(OVERLAPPED& ov) {
+void os::named_socket_connection_win::create_overlapped(OVERLAPPED& ov) {
 	memset(&ov, 0, sizeof(OVERLAPPED));
 	ov.hEvent = CreateEvent(NULL, true, false, NULL);
 }
 
-void os::named_scoket_connection_win::destroy_overlapped(OVERLAPPED& ov) {
+void os::named_socket_connection_win::destroy_overlapped(OVERLAPPED& ov) {
 	CloseHandle(ov.hEvent);
 	memset(&ov, 0, sizeof(OVERLAPPED));
 }

@@ -20,18 +20,47 @@
 #include <mutex>
 #include <thread>
 #include <queue>
+#include <list>
 extern "C" { // clang++ compatible
 #define NOMINMAX
-#define WIN32_LEAN_AND_MEAN
-#define _WIN32_WINNT _WIN32_WINNT_WIN7
+#define _WIN32_WINNT _WIN32_WINNT_WIN10
 #include <windows.h>
+#include <AclAPI.h>
+#include <AccCtrl.h>
 }
 
 namespace os {
-	class name_socket_win : public named_socket {
+	class overlapped_manager {
+		std::queue<std::shared_ptr<OVERLAPPED>> freeOverlapped;
+		std::list<std::shared_ptr<OVERLAPPED>> usedOverlapped;
+		std::mutex mtx;
+		SECURITY_ATTRIBUTES sa;
+		PSECURITY_DESCRIPTOR pSD = NULL;
+		PSID pEveryoneSID = NULL, pAdminSID = NULL;
+		PACL pACL = NULL;
+		EXPLICIT_ACCESS ea[2];
+		SID_IDENTIFIER_AUTHORITY SIDAuthWorld = SECURITY_WORLD_SID_AUTHORITY;
+		SID_IDENTIFIER_AUTHORITY SIDAuthNT = SECURITY_NT_AUTHORITY;
+
+		void create_overlapped(std::shared_ptr<OVERLAPPED>& ov);
+		void destroy_overlapped(std::shared_ptr<OVERLAPPED>& ov);
+		void append_create_overlapped();
+
+		bool create_security_attributes();
+		void destroy_security_attributes();
+
 		public:
-		name_socket_win();
-		virtual ~name_socket_win();
+		overlapped_manager();
+		~overlapped_manager();
+
+		std::shared_ptr<OVERLAPPED> alloc();
+		void free(std::shared_ptr<OVERLAPPED> ov);
+	};
+
+	class named_socket_win : public named_socket {
+		public:
+		named_socket_win();
+		virtual ~named_socket_win();
 
 		protected:
 	#pragma region Listen/Connect/Close
@@ -45,13 +74,18 @@ namespace os {
 		std::string m_pipeName;
 		DWORD m_openMode;
 		DWORD m_pipeMode;
+
+		protected:
+		overlapped_manager ovm;
+
+		friend class named_socket_connection_win;
 	};
 
-	class named_scoket_connection_win : public named_socket_connection {
+	class named_socket_connection_win : public named_socket_connection {
 		public:
-		named_scoket_connection_win(os::named_socket* parent, std::string path, DWORD openFlags, DWORD pipeFlags);
-		named_scoket_connection_win(os::named_socket* parent, std::string path);
-		virtual ~named_scoket_connection_win();
+		named_socket_connection_win(os::named_socket* parent, std::string path, DWORD openFlags, DWORD pipeFlags);
+		named_socket_connection_win(os::named_socket* parent, std::string path);
+		virtual ~named_socket_connection_win();
 		
 		// Status
 		virtual bool is_waiting() override;

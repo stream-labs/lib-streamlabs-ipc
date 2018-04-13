@@ -170,7 +170,7 @@ std::weak_ptr<os::named_socket_connection> os::named_socket::accept() {
 			return std::weak_ptr<os::named_socket_connection>(*frnt);
 		}
 	}
-	return std::weak_ptr<os::named_socket_connection>();
+	return {};
 }
 #pragma endregion Server & Client
 
