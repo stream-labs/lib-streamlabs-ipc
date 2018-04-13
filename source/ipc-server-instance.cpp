@@ -134,23 +134,32 @@ void ipc::server_instance::worker() {
 	std::vector<ipc::value> rval;
 	ipc::value val;
 	std::string errMsg = "";
-	
+
 	// Message
-	size_t messageSize = this->m_parent->m_socket->get_receive_buffer_size() > this->m_parent->m_socket->get_send_buffer_size() ? this->m_parent->m_socket->get_receive_buffer_size() : this->m_parent->m_socket->get_send_buffer_size();
-	std::vector<char> messageBuffer(messageSize);
+	size_t bufferSize = this->m_parent->m_socket->get_receive_buffer_size() > this->m_parent->m_socket->get_send_buffer_size() ? this->m_parent->m_socket->get_receive_buffer_size() : this->m_parent->m_socket->get_send_buffer_size();
+	size_t availableSize = 0, readSize = 0, writeSize = 0;
+	std::vector<char> messageBuffer(bufferSize);
 
 	// Loop
 	while (!m_stopWorkers) {
 		// Attempt to read a message (respects timeout values).
-		messageSize = m_socket->read(messageBuffer);
-		if (messageSize > 0) {
+		availableSize = m_socket->read_avail();
+
+		if (availableSize == 0) {
+			continue;
+		}
+
+		messageBuffer.resize(availableSize);
+		readSize = m_socket->read(messageBuffer.data(), availableSize);
+
+		if (readSize > 0) {
 			if (!m_isAuthenticated) {
-				bool suc = msgAuthenticate.ParsePartialFromArray(messageBuffer.data(), (int)messageSize);
+				bool suc = msgAuthenticate.ParsePartialFromArray(messageBuffer.data(), (int)readSize);
 				if (suc) {
 					m_isAuthenticated = true;
 				}
 			} else {
-				if (!msgCall.ParsePartialFromArray(messageBuffer.data(), (int)messageSize))
+				if (!msgCall.ParsePartialFromArray(messageBuffer.data(), (int)readSize))
 					continue;
 
 				// Decode Arguments
@@ -174,15 +183,15 @@ void ipc::server_instance::worker() {
 				}
 
 				// Encode
-				messageSize = msgResult.ByteSizeLong();
-				if (!msgResult.SerializePartialToArray(messageBuffer.data(), (int)messageSize))
+				writeSize = msgResult.ByteSizeLong();
+				if (!msgResult.SerializePartialToArray(messageBuffer.data(), (int)writeSize))
 					continue;
 
 				// Write
-				if (messageSize > 0) {
+				if (writeSize > 0) {
 					for (size_t attempt = 0; attempt < 5; attempt++) {
-						size_t bytes = m_socket->write(messageBuffer.data(), messageSize);
-						if (bytes == messageSize) {
+						size_t bytes = m_socket->write(messageBuffer.data(), writeSize);
+						if (bytes == writeSize) {
 							break;
 						}
 					}
