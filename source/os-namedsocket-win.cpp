@@ -439,7 +439,7 @@ resume_wait:
 	// Now wait until we actually have a result available.
 	DWORD waitTime = (DWORD)std::chrono::duration_cast<std::chrono::milliseconds>(
 		m_parent->get_receive_timeout()).count();
-	errorCode = WaitForSingleObjectEx(m_handle, waitTime, false);
+	errorCode = WaitForSingleObjectEx(m_handle, waitTime, true);
 	if (errorCode == WAIT_TIMEOUT) {
 		if (!HasOverlappedIoCompleted(ov.get())) {
 			// If we timed out and it still hasn't completed, consider the request failed.
@@ -510,7 +510,7 @@ size_t os::named_socket_connection_win::write(const char* buf, size_t length) {
 
 	DWORD waitTime = (DWORD)std::chrono::duration_cast<std::chrono::milliseconds>(
 		m_parent->get_send_timeout()).count();
-	res = WaitForSingleObjectEx(m_handle, waitTime, false);
+	res = WaitForSingleObjectEx(m_handle, waitTime, true);
 	if (res == WAIT_TIMEOUT) {
 		if (!HasOverlappedIoCompleted(ov.get())) {
 			goto write_fail;
