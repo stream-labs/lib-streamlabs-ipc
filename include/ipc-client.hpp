@@ -36,7 +36,10 @@ namespace ipc {
 
 		bool authenticate();
 		bool call(std::string cname, std::string fname, std::vector<ipc::value> args, call_return_t fn, void* data);
-		
+
+		// Temporary helper
+		std::vector<ipc::value> call_synchronous_helper(std::string cname, std::string fname, std::vector<ipc::value> args);
+
 		private:
 		std::unique_ptr<os::named_socket> m_socket;
 		bool m_authenticated = false;

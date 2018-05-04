@@ -126,6 +126,38 @@ bool ipc::client::call(std::string cname, std::string fname, std::vector<ipc::va
 	return false;
 }
 
+std::vector<ipc::value> ipc::client::call_synchronous_helper(std::string cname, std::string fname, std::vector<ipc::value> args) {
+	// Set up call reference data.
+	struct CallData {
+		std::condition_variable cv;
+		std::mutex mtx;
+		bool called = false;
+
+		std::vector<ipc::value> values;
+	} cd;
+
+	auto cb = [](const void* data, const std::vector<ipc::value>& rval) {
+		CallData& cd = const_cast<CallData&>(*static_cast<const CallData*>(data));
+
+		// This copies the data off of the reply thread to the main thread.
+		cd.values.reserve(rval.size());
+		std::copy(rval.begin(), rval.end(), std::back_inserter(cd.values));
+
+		cd.called = true;
+		cd.cv.notify_all();
+	};
+
+	std::unique_lock<std::mutex> ulock(cd.mtx);
+	bool success = call(cname, fname, std::move(args), cb, &cd);
+	if (!success) {
+		return {};
+	}
+
+	cd.cv.wait(ulock, [&cd]() { return cd.called; });
+	
+	return std::move(cd.values);
+}
+
 void ipc::client::worker_thread(client* ptr) {
 	std::vector<char> input_buffer;
 	std::vector<ipc::value> rval;
