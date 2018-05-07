@@ -259,4 +259,18 @@ void ipc::client::worker_thread(client* ptr) {
 			ptr->m_cb.erase(fres.timestamp());
 		}
 	}
+
+	// Call any remaining callbacks.
+	rval.resize(1);
+	rval[0].type = ipc::type::Null;
+	rval[0].value_str = "Lost IPC Connection";
+
+	{ // ToDo: Figure out better way of registering functions, perhaps even a way to have "events" across a IPC connection.
+		std::unique_lock<std::mutex> ulock(ptr->m_lock);
+		for (auto& cb : ptr->m_cb) {
+			cb.second.first(cb.second.second, rval);
+		}
+
+		ptr->m_cb.clear();
+	}
 }
