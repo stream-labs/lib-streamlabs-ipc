@@ -66,8 +66,15 @@ bool ipc::client::call(std::string cname, std::string fname, std::vector<ipc::va
 	if (sock->bad())
 		return false;
 
+	static std::mutex mtx;
+	static uint64_t timestamp = 0;
+
 	::FunctionCall msg;
-	msg.set_timestamp(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+	{
+		std::unique_lock<std::mutex> ulock(mtx);
+		timestamp++;
+		msg.set_timestamp(timestamp);
+	}
 	msg.set_classname(cname);
 	msg.set_functionname(fname);
 	auto b = msg.mutable_arguments();
