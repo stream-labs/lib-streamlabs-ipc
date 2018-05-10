@@ -139,6 +139,7 @@ std::vector<ipc::value> ipc::client::call_synchronous_helper(std::string cname, 
 		std::condition_variable cv;
 		std::mutex mtx;
 		bool called = false;
+		std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
 
 		std::vector<ipc::value> values;
 	} cd;
@@ -160,7 +161,7 @@ std::vector<ipc::value> ipc::client::call_synchronous_helper(std::string cname, 
 		return {};
 	}
 
-	cd.cv.wait(ulock, [&cd]() { return cd.called; });
+	cd.cv.wait(ulock, [&cd]() { return cd.called || (std::chrono::high_resolution_clock::now() - cd.start).count() >= 500 * 1000 * 1000; });
 	
 	return std::move(cd.values);
 }
