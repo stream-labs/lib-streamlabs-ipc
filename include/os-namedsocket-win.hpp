@@ -105,6 +105,8 @@ namespace os {
 		virtual size_t write(const char* buf, const size_t length) override;
 		virtual size_t write(const std::vector<char>& buf) override;
 
+		virtual os::error flush() override;
+
 		// Info
 		virtual ClientId_t get_client_id() override;
 

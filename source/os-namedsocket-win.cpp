@@ -538,6 +538,19 @@ write_fail:
 size_t os::named_socket_connection_win::write(const std::vector<char>& buf) {
 	return write(buf.data(), buf.size());
 }
+	
+os::error os::named_socket_connection_win::flush() {
+	SetLastError(ERROR_SUCCESS);
+	FlushFileBuffers(m_handle);
+	switch (GetLastError()) {
+		case ERROR_INVALID_HANDLE:
+			return os::error::Error;
+		case ERROR_SUCCESS:
+			return os::error::Ok;
+		default:
+			return os::error::Error;
+	}
+}
 
 os::ClientId_t os::named_socket_connection_win::get_client_id() {
 	return static_cast<os::ClientId_t>(reinterpret_cast<intptr_t>(m_handle));

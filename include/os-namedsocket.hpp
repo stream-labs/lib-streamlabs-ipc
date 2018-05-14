@@ -138,6 +138,8 @@ namespace os {
 		virtual size_t write(const char* buf, const size_t length) = 0;
 		virtual size_t write(const std::vector<char>& buf) = 0;
 
+		virtual os::error flush() = 0;
+
 		// Info
 		virtual ClientId_t get_client_id() = 0;
 	};
