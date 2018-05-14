@@ -50,6 +50,7 @@ SET(lib-streamlabs-ipc_SOURCES
 	"${PROJECT_SOURCE_DIR}/include/ipc-server-instance.hpp"
 	"${PROJECT_SOURCE_DIR}/source/ipc-value.cpp"
 	"${PROJECT_SOURCE_DIR}/include/ipc-value.hpp"
+	"${PROJECT_SOURCE_DIR}/include/os-error.hpp"
 	"${PROJECT_SOURCE_DIR}/source/os-namedsocket.cpp"
 	"${PROJECT_SOURCE_DIR}/include/os-namedsocket.hpp"
 	"${PROJECT_SOURCE_DIR}/include/util.h"
