@@ -199,14 +199,7 @@ int serverInstanceThread(std::shared_ptr<os::named_socket_connection> ptr) {
 			};
 			msgCount++;
 		}
-		//if (ptr->read_avail() == 0) {
-		//	index++;
-		//	if (index > 5) {
-		//		std::this_thread::sleep_for(std::chrono::milliseconds(1));
-		//		index = 0;
-		//	}
-		//}
-		//blog("%llu: Total messages: %llu", ptr->get_client_id(), msgCount);
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	}
 	return 0;
 }
