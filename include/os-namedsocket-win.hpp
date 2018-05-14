@@ -132,7 +132,8 @@ namespace os {
 		enum class state {
 			Sleeping,
 			Waiting,
-			Connected
+			Connected,
+			Disconnected
 		};
 		state m_state = state::Sleeping;
 	};

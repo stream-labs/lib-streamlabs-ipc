@@ -351,6 +351,8 @@ os::named_socket_connection_win::~named_socket_connection_win() {
 	CancelIo(m_handle);
 	if (m_isServer)
 		disconnect();
+	else
+		CloseHandle(m_handle);
 }
 
 bool os::named_socket_connection_win::is_waiting() {
@@ -388,13 +390,9 @@ bool os::named_socket_connection_win::eof() {
 
 bool os::named_socket_connection_win::good() {
 	ULONG pid;
-	if (!GetNamedPipeClientProcessId(m_handle, &pid))
-		return false;
 
-	if (!PeekNamedPipe(m_handle, NULL, NULL, NULL, NULL, NULL)) {
-		DWORD err = GetLastError();
-		if (err == ERROR_BROKEN_PIPE)
-			return false;
+	if (m_state != state::Connected) {
+		return false;
 	}
 
 	return true;
@@ -413,7 +411,7 @@ size_t os::named_socket_connection_win::read(char* buf, size_t length) {
 
 	if (length > m_parent->get_receive_buffer_size())
 		return -1;
-	
+
 	std::shared_ptr<OVERLAPPED> ov = dynamic_cast<named_socket_win*>(m_parent)->ovm.alloc();
 
 	// Attempt to read from the handle.
@@ -620,9 +618,13 @@ void os::named_socket_connection_win::threadlocal() {
 		} else if (m_state == state::Connected) {
 			if (m_isServer) {
 				if (!good()) {
-					disconnect();
-					m_state = state::Sleeping;
+					m_state = state::Disconnected;
 				}
+			}
+		} else if (m_state == state::Disconnected) {
+			if (m_isServer) {
+				disconnect();
+				m_state = state::Sleeping;
 			}
 		}
 	}
