@@ -30,6 +30,8 @@ SET(Protobuf_PROTOC_LIBRARY_DEBUG	"${PROJECT_SOURCE_DIR}/third-party/protobuf/bi
 SET(Protobuf_PROTOC_LIBRARY_RELEASE	"${PROJECT_SOURCE_DIR}/third-party/protobuf/bin/Release/libprotoc.lib")
 find_package(Protobuf REQUIRED)
 
+OPTION(BUILD_TESTS "Build lib-streamlabs-ipc Tests" OFF)
+
 ################################################################################
 # Code
 ################################################################################
@@ -147,3 +149,15 @@ TARGET_LINK_LIBRARIES(${PROJECT_NAME}
 	${Protobuf_LIBRARIES}
 	${Boost_LIBRARIES}
 )
+
+################################################################################
+# Others
+################################################################################
+IF(BUILD_TESTS)
+	ADD_SUBDIRECTORY(tests/os-namedsocket/raw-data)
+	ADD_SUBDIRECTORY(tests/os-namedsocket/read-no-sleep)
+	ADD_SUBDIRECTORY(tests/os-namedsocket/single-in-single-out)
+	ADD_SUBDIRECTORY(tests/ipc/simple-multi-client)
+	ADD_SUBDIRECTORY(tests/ipc/synchronous-call)
+ENDIF(BUILD_TESTS)
+

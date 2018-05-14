@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(test_ipc_simple-multi-client)
+project(test_os-namedsocket_read-no-sleep)
 
 ################################################################################
 # System & Utilities
