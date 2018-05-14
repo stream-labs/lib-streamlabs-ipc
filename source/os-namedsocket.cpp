@@ -17,7 +17,7 @@
 
 #include "os-namedsocket.hpp"
 
-#define MINIMUM_TIMEOUT 1000000
+#define MINIMUM_TIMEOUT 1000
 #define MINIMUM_BUFFER_SIZE 32767
 
 #pragma region Named Socket
