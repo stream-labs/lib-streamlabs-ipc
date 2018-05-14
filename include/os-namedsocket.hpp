@@ -22,6 +22,7 @@
 #include <string>
 #include <vector>
 #include <list>
+#include "os-error.hpp"
 
 namespace os {
 	typedef int64_t ClientId_t;
@@ -134,9 +135,13 @@ namespace os {
 		virtual size_t read(std::vector<char>& out) = 0;
 		virtual std::vector<char> read() = 0;
 
+		virtual os::error read(char* buffer, size_t length, size_t& read_length) = 0;
+
 		// Writing
 		virtual size_t write(const char* buf, const size_t length) = 0;
 		virtual size_t write(const std::vector<char>& buf) = 0;
+
+		virtual os::error write(char const* buffer, size_t const length, size_t& write_length) = 0;
 
 		virtual os::error flush() = 0;
 

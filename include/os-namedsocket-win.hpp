@@ -100,10 +100,12 @@ namespace os {
 		virtual size_t read(char* buf, size_t length) override;
 		virtual size_t read(std::vector<char>& out) override;
 		virtual std::vector<char> read() override;
+		virtual os::error read(char* buffer, size_t length, size_t& read_length) override;
 
 		// Writing
 		virtual size_t write(const char* buf, const size_t length) override;
 		virtual size_t write(const std::vector<char>& buf) override;
+		virtual os::error write(char const* buffer, size_t const length, size_t& write_length) override;
 
 		virtual os::error flush() override;
 

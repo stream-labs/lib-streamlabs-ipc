@@ -467,8 +467,6 @@ read_fail:
 
 size_t os::named_socket_connection_win::read(std::vector<char>& out) {
 	size_t readLength = out.size();
-	if (readLength > m_parent->get_receive_buffer_size())
-		readLength = m_parent->get_receive_buffer_size();
 	return read(out.data(), readLength);
 }
 
@@ -486,12 +484,92 @@ std::vector<char> os::named_socket_connection_win::read() {
 	return std::move(buf);
 }
 
+os::error os::named_socket_connection_win::read(char* buffer, size_t length, size_t& read_length) {
+	if (m_state != state::Connected) {
+		read_length = 0;
+		return os::error::Disconnected;
+	}
+
+	DWORD bytesRead = 0;
+	DWORD errorCode = 0;
+	os::error returnCode = os::error::Ok;
+	std::shared_ptr<OVERLAPPED> ov = dynamic_cast<named_socket_win*>(m_parent)->ovm.alloc();
+
+	// Attempt to read from the handle.
+	SetLastError(ERROR_SUCCESS);
+	ReadFile(m_handle, buffer, (DWORD)length, &bytesRead, ov.get());
+
+test_error:
+	// Test for actual return code.
+	errorCode = GetLastError();
+	if (errorCode == ERROR_SUCCESS) {
+		// ERROR_SUCCESS should mean that we immediately read everything.
+		if (!GetOverlappedResult(m_handle, ov.get(), &bytesRead, false)) {
+			// In case it didn't, just wait as normal.
+			goto resume_wait;
+		}
+		// In case it did, continue to success.
+		returnCode = os::error::Ok;
+		read_length = bytesRead;
+		goto read_success;
+	} else if (errorCode == ERROR_MORE_DATA) {
+		// ERROR_MORE_DATA means that there is additional data to be read.
+		GetOverlappedResult(m_handle, ov.get(), &bytesRead, false);
+		returnCode = os::error::MoreData;
+		read_length = bytesRead;
+		goto read_success;
+	} else if (errorCode == ERROR_BROKEN_PIPE) {
+		// Disconnected.
+		m_state = state::Disconnected;
+		returnCode = os::error::Disconnected;
+		goto read_fail;
+	} else if (errorCode != ERROR_IO_PENDING) {
+		// Any other code than ERROR_IO_PENDING means that there's nothing to read from.
+		returnCode = os::error::Error;
+		goto read_fail;
+	}
+
+resume_wait:
+	// Now wait until we actually have a result available.
+	DWORD waitTime = (DWORD)std::chrono::duration_cast<std::chrono::milliseconds>(
+		m_parent->get_receive_timeout()).count();
+	errorCode = WaitForSingleObjectEx(m_handle, waitTime, true);
+	if (errorCode == WAIT_TIMEOUT) {
+		if (!HasOverlappedIoCompleted(ov.get())) {
+			// If we timed out and it still hasn't completed, consider the request failed.
+			returnCode = os::error::TimedOut;
+			goto read_fail;
+		} else {
+			if (!GetOverlappedResult(m_handle, ov.get(), &bytesRead, false)) {
+				// Overlapped IO completed, but we can't get any result back.
+				errorCode = GetLastError();
+				goto test_error;
+			}
+		}
+	} else if (errorCode == WAIT_ABANDONED) {
+		returnCode = os::error::Disconnected;
+		goto read_fail;
+	} else if (errorCode == WAIT_FAILED) {
+		errorCode = GetLastError();
+		returnCode = os::error::Error;
+		goto read_fail;
+	}
+	read_length = bytesRead;
+	returnCode = os::error::Ok;
+
+read_success:
+	dynamic_cast<named_socket_win*>(m_parent)->ovm.free(ov);
+	return returnCode;
+
+read_fail:
+	CancelIoEx(m_handle, ov.get());
+	dynamic_cast<named_socket_win*>(m_parent)->ovm.free(ov);
+	return returnCode;
+}
+
 size_t os::named_socket_connection_win::write(const char* buf, size_t length) {
 	DWORD bytesWritten = 0;
 
-	if (length >= m_parent->get_send_buffer_size())
-		return -1;
-	
 	std::shared_ptr<OVERLAPPED> ov = dynamic_cast<named_socket_win*>(m_parent)->ovm.alloc();
 
 	SetLastError(ERROR_SUCCESS);
@@ -536,7 +614,82 @@ write_fail:
 size_t os::named_socket_connection_win::write(const std::vector<char>& buf) {
 	return write(buf.data(), buf.size());
 }
-	
+
+os::error os::named_socket_connection_win::write(char const* buffer, size_t const length, size_t& write_length) {
+	if (m_state != state::Connected) {
+		write_length = 0;
+		return os::error::Disconnected;
+	}
+
+	DWORD bytesWritten = 0;
+	DWORD errorCode = ERROR_SUCCESS;
+	os::error returnCode = os::error::Ok;
+	std::shared_ptr<OVERLAPPED> ov = dynamic_cast<named_socket_win*>(m_parent)->ovm.alloc();
+
+	SetLastError(ERROR_SUCCESS);
+	WriteFile(m_handle, buffer, (DWORD)length, &bytesWritten, ov.get());
+
+write_test_error:
+	// Test for actual return code.
+	errorCode = GetLastError();
+	switch (errorCode) {
+		case ERROR_SUCCESS:
+			// ERROR_SUCCESS should mean that we immediately read everything.
+			if (!GetOverlappedResult(m_handle, ov.get(), &bytesWritten, false)) {
+				// In case it didn't, just wait as normal.
+				goto write_resume_wait;
+			}
+
+			// In case it did, continue to success.
+			returnCode = os::error::Ok;
+			write_length = bytesWritten;
+			goto write_success;
+			break;
+		case ERROR_IO_PENDING:
+			goto write_resume_wait;
+			break;
+		default:
+			goto write_fail;
+	}
+
+write_resume_wait:
+	// Now wait until we actually have a result available.
+	DWORD waitTime = (DWORD)std::chrono::duration_cast<std::chrono::milliseconds>(
+		m_parent->get_send_timeout()).count();
+	errorCode = WaitForSingleObjectEx(m_handle, waitTime, true);
+	if (errorCode == WAIT_TIMEOUT) {
+		if (!HasOverlappedIoCompleted(ov.get())) {
+			// If we timed out and it still hasn't completed, consider the request failed.
+			returnCode = os::error::TimedOut;
+			goto write_fail;
+		} else {
+			if (!GetOverlappedResult(m_handle, ov.get(), &bytesWritten, false)) {
+				// Overlapped IO completed, but we can't get any result back.
+				errorCode = GetLastError();
+				goto write_test_error;
+			}
+		}
+	} else if (errorCode == WAIT_ABANDONED) {
+		returnCode = os::error::Disconnected;
+		goto write_fail;
+	} else if (errorCode == WAIT_FAILED) {
+		errorCode = GetLastError();
+		returnCode = os::error::Error;
+		goto write_fail;
+	}
+	write_length = bytesWritten;
+	returnCode = os::error::Ok;
+
+write_success:
+	dynamic_cast<named_socket_win*>(m_parent)->ovm.free(ov);
+	return returnCode;
+
+write_fail:
+	CancelIoEx(m_handle, ov.get());
+	dynamic_cast<named_socket_win*>(m_parent)->ovm.free(ov);
+	return returnCode;
+}
+
 os::error os::named_socket_connection_win::flush() {
 	SetLastError(ERROR_SUCCESS);
 	FlushFileBuffers(m_handle);
