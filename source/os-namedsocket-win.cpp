@@ -428,6 +428,10 @@ size_t os::named_socket_connection_win::read(char* buf, size_t length) {
 		}
 		// In case it did, continue to success.
 		goto read_success;
+	} else if (errorCode == ERROR_BROKEN_PIPE) {
+		// Disconnected.
+		m_state = state::Disconnected;
+		goto read_fail;
 	} else if (errorCode != ERROR_IO_PENDING) {
 		// Any other code than ERROR_IO_PENDING means that there's nothing to read from.
 		goto read_fail;
@@ -580,6 +584,10 @@ size_t os::named_socket_connection_win::write(const char* buf, size_t length) {
 		if (HasOverlappedIoCompleted(ov.get())) {
 			goto write_success;
 		}
+	} else if (res == ERROR_BROKEN_PIPE) {
+		// Disconnected.
+		m_state = state::Disconnected;
+		goto write_fail;
 	} else if (res != ERROR_IO_PENDING) {
 		goto write_fail;
 	}
