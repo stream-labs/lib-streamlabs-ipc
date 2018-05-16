@@ -41,7 +41,8 @@ namespace ipc {
 		bool cancel(int64_t const& id);
 
 		// Temporary helper
-		std::vector<ipc::value> call_synchronous_helper(std::string cname, std::string fname, std::vector<ipc::value> args);
+		std::vector<ipc::value> call_synchronous_helper(std::string cname, std::string fname, std::vector<ipc::value> args,
+			std::chrono::nanoseconds timeout = std::chrono::milliseconds(5000));
 
 		private:
 		std::unique_ptr<os::named_socket> m_socket;

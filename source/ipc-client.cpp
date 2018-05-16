@@ -210,7 +210,8 @@ bool ipc::client::call(std::string cname, std::string fname, std::vector<ipc::va
 	return false;
 }
 
-std::vector<ipc::value> ipc::client::call_synchronous_helper(std::string cname, std::string fname, std::vector<ipc::value> args) {
+std::vector<ipc::value> ipc::client::call_synchronous_helper(std::string cname, std::string fname, std::vector<ipc::value> args,
+	std::chrono::nanoseconds timeout) {
 	// Set up call reference data.
 	struct CallData {
 		std::condition_variable cv;
@@ -240,7 +241,7 @@ std::vector<ipc::value> ipc::client::call_synchronous_helper(std::string cname, 
 		return {};
 	}
 
-	cd.cv.wait_for(ulock, std::chrono::milliseconds(500), [&cd]() { return cd.called; });
+	cd.cv.wait_for(ulock, timeout, [&cd]() { return cd.called; });
 	if (!cd.called) {
 		cancel(cbid);
 		return {};
