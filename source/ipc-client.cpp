@@ -127,8 +127,85 @@ bool ipc::client::call(std::string cname, std::string fname, std::vector<ipc::va
 	}
 
 	if (fn != nullptr) {
+	}
+	return false;
+}
+
+bool ipc::client::cancel(int64_t const& id) {
+	std::unique_lock<std::mutex> ulock(m_lock);
+	return m_cb.erase(id) != 0;
+}
+
+bool ipc::client::call(std::string cname, std::string fname, std::vector<ipc::value> args, call_return_t fn, void* data, int64_t& cbid) {
+	auto sock = m_socket->get_connection();
+	if (sock->bad())
+		return false;
+
+	static std::mutex mtx;
+	static uint64_t timestamp = 0;
+
+	::FunctionCall msg;
+	{
+		std::unique_lock<std::mutex> ulock(mtx);
+		timestamp++;
+		msg.set_timestamp(timestamp);
+	}
+	msg.set_classname(cname);
+	msg.set_functionname(fname);
+	auto b = msg.mutable_arguments();
+	for (ipc::value& v : args) {
+		::Value* val = b->Add();
+		switch (v.type) {
+			case type::Float:
+				val->set_val_float(v.value_union.fp32);
+				break;
+			case type::Double:
+				val->set_val_double(v.value_union.fp64);
+				break;
+			case type::Int32:
+				val->set_val_int32(v.value_union.i32);
+				break;
+			case type::Int64:
+				val->set_val_int64(v.value_union.i64);
+				break;
+			case type::UInt32:
+				val->set_val_uint32(v.value_union.ui32);
+				break;
+			case type::UInt64:
+				val->set_val_uint64(v.value_union.ui64);
+				break;
+			case type::String:
+				val->set_val_string(v.value_str);
+				break;
+			case type::Binary:
+				val->set_val_binary(v.value_bin.data(), v.value_bin.size());
+				break;
+		}
+	}
+
+	std::vector<char> buf(msg.ByteSizeLong());
+	if (!msg.SerializePartialToArray(buf.data(), (int)buf.size()))
+		return false;
+
+	if (fn != nullptr) {
+		std::unique_lock<std::mutex> ulock(m_lock);
+		m_cb.insert(std::make_pair(msg.timestamp(), std::make_pair(fn, data)));
+		cbid = msg.timestamp();
+	}
+
+	for (size_t attempt = 0; attempt < 5; attempt++) {
+		if (sock->bad())
+			break;
+
+		size_t written = sock->write(buf);
+		if (written == buf.size())
+			return true;
+	}
+
+	if (fn != nullptr) {
 		std::unique_lock<std::mutex> ulock(m_lock);
 		m_cb.erase(msg.timestamp());
+		cbid = 0;
 	}
 	return false;
 }
@@ -156,12 +233,18 @@ std::vector<ipc::value> ipc::client::call_synchronous_helper(std::string cname, 
 	};
 
 	std::unique_lock<std::mutex> ulock(cd.mtx);
-	bool success = call(cname, fname, std::move(args), cb, &cd);
+
+	int64_t cbid = 0;
+	bool success = call(cname, fname, std::move(args), cb, &cd, cbid);
 	if (!success) {
 		return {};
 	}
 
-	cd.cv.wait(ulock, [&cd]() { return cd.called || (std::chrono::high_resolution_clock::now() - cd.start).count() >= 500 * 1000 * 1000; });
+	cd.cv.wait_for(ulock, std::chrono::milliseconds(500), [&cd]() { return cd.called; });
+	if (!cd.called) {
+		cancel(cbid);
+		return {};
+	}
 	
 	return std::move(cd.values);
 }
