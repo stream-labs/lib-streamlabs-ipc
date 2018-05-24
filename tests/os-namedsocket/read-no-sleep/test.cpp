@@ -369,6 +369,7 @@ int serverInstanceThread(std::shared_ptr<os::named_socket_connection> ptr) {
 			//blog("%s", os::to_string(readError));
 			continue;
 		}
+		//blog("%llu: Message", ptr->get_client_id());
 
 		auto tmrWriteInst = tmrWrite.track();
 		size_t writeLength = ptr->write(buf);
@@ -378,6 +379,7 @@ int serverInstanceThread(std::shared_ptr<os::named_socket_connection> ptr) {
 			blog("%llu: Send Buffer full.", ptr->get_client_id());
 			continue;
 		}
+		//blog("%llu: Message Reply", ptr->get_client_id());
 		ptr->flush();
 		Sleep(0);
 		tmrProcessInst.reset();
@@ -480,10 +482,38 @@ int server(int argc, char* argv[]) {
 	return 0;
 }
 
+void clientThread(std::shared_ptr<os::named_socket> socket, std::vector<char>* databuf, uint64_t* inbox, uint64_t* outbox, bool* stop) {
+	std::vector<char> buf;
+	size_t readLength = 0;
+	char storedChar = 0;
+	while (socket->get_connection()->good() && !*stop) {
+		os::error readError = socket->get_connection()->read(&storedChar, 1, readLength);
+		if (readError == os::error::Ok) {
+			buf.resize(1);
+			buf[0] = storedChar;
+		} else if (readError == os::error::MoreData) {
+			size_t avail = socket->get_connection()->read_avail();
+			buf.resize(avail + 1);
+			if (socket->get_connection()->read(buf.data() + 1, buf.size(), avail) != os::error::Ok) {
+				if (buf.size() != 10 + (*inbox % 20)) {
+					std::cout << "Size changes failure, should " << (10 + (*inbox % 20)) << " have " << buf.size() << std::endl;
+				}
+				std::cout << "Catastrophic failure" << std::endl;
+				break;
+			}
+			*inbox = *inbox + 1;
+			buf[0] = storedChar;
+		} else {
+			continue;
+		}
+	}
+	return;
+}
+
 int client(int argc, char* argv[]) {
 	blog("Starting client...");
 
-	std::unique_ptr<os::named_socket> socket = os::named_socket::create();
+	std::shared_ptr<os::named_socket> socket = os::named_socket::create();
 	socket->set_receive_timeout(std::chrono::nanoseconds(1000000ull));
 	socket->set_send_timeout(std::chrono::nanoseconds(1000000ull));
 	socket->set_send_buffer_size(128 * 1024 * 1024);
@@ -500,6 +530,7 @@ int client(int argc, char* argv[]) {
 	std::vector<char> buf;
 	size_t readLength = 0;
 	char storedChar = 0;
+	bool stop = false;
 
 	Timer tmrLoop;
 	Timer tmrWrite;
@@ -507,55 +538,40 @@ int client(int argc, char* argv[]) {
 	Timer tmrProcess;
 
 	std::vector<char> databuf;
-	databuf.resize(1 * 128 * 1024);
+	const size_t maxsize = 1 * 128 * 1024;
+	databuf.resize(maxsize);
 	for (size_t n = 0; n < databuf.size(); n++) {
 		databuf[n] = (1 << n) * (n / 4) * (n * n);
-	}	
+	}
+
+	std::thread worker = std::thread(clientThread, socket, &databuf, &inbox, &outbox, &stop);
 
 	auto tmrLoopInst = tmrLoop.track();
 	while (socket->get_connection()->good()) {
-		auto tmrProcessInst = tmrProcess.track();
-		auto tmrWriteInst = tmrWrite.track();
-		size_t temp;
-		if (socket->get_connection()->write(databuf.data(), databuf.size(), temp) == os::error::Ok) {
-			tmrWriteInst.reset();
-			outbox++;
-			socket->get_connection()->flush();
-			Sleep(0);
-		} else {
-			blog("Write failed.");
-			tmrWriteInst->cancel();
-			tmrWriteInst.reset();
-			tmrProcessInst->cancel();
-			tmrProcessInst.reset();
-			continue;
-		}
-
-		while (inbox < outbox) {
-			auto tmrReadAllInst = tmrReadAll.track();
-			auto tmrReadSuccessInst = tmrReadSuccess.track();
-			os::error readError = socket->get_connection()->read(&storedChar, 1, readLength);
-			if (readError == os::error::Ok) {
-				tmrReadAllInst.reset();
-				tmrReadSuccessInst.reset();
-				buf.resize(1);
-				buf[0] = storedChar;
-			} else if (readError == os::error::MoreData) {
-				tmrReadAllInst.reset();
-				tmrReadSuccessInst.reset();
-				size_t avail = socket->get_connection()->read_avail();
-				buf.resize(avail + 1);
-				auto rbytes = socket->get_connection()->read(buf.data() + 1, avail);
-				buf[0] = storedChar;
+		if (outbox < total) {
+			auto tmrProcessInst = tmrProcess.track();
+			auto tmrWriteInst = tmrWrite.track();
+			size_t temp;
+			if (socket->get_connection()->write(databuf.data(), 10 + (outbox % 20), temp) == os::error::Ok) {
+				tmrWriteInst.reset();
+				outbox++;
+				socket->get_connection()->flush();
+				Sleep(0);
 			} else {
-				tmrReadAllInst.reset();
-				tmrReadSuccessInst->cancel();
+				blog("Write failed.");
+				tmrWriteInst->cancel();
+				tmrWriteInst.reset();
+				tmrProcessInst->cancel();
+				tmrProcessInst.reset();
 				continue;
 			}
-			inbox++;
-		}
-		tmrProcessInst.reset();
 
+			tmrProcessInst.reset();
+		} else {
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		}
+
+		//blog("%llu %llu", outbox, inbox);
 		if (outbox == total) {
 			if (inbox == total) {
 				break;
@@ -563,6 +579,10 @@ int client(int argc, char* argv[]) {
 		}
 	}
 	tmrLoopInst.reset();
+
+	stop = true;
+	if (worker.joinable())
+		worker.join();
 
 	socket->close();
 	socket = nullptr;
