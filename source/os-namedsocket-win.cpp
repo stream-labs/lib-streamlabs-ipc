@@ -657,6 +657,7 @@ write_test_error:
 			goto write_resume_wait;
 			break;
 		default:
+			returnCode = os::error::Error;
 			goto write_fail;
 	}
 
@@ -665,7 +666,7 @@ write_resume_wait:
 	DWORD waitTime = (DWORD)std::chrono::duration_cast<std::chrono::milliseconds>(
 		m_parent->get_send_timeout()).count();
 	errorCode = WaitForSingleObjectEx(m_handle, waitTime, true);
-	if (errorCode == WAIT_TIMEOUT) {
+	if (errorCode == WAIT_TIMEOUT || errorCode == WAIT_IO_COMPLETION) {
 		if (!HasOverlappedIoCompleted(ov.get())) {
 			// If we timed out and it still hasn't completed, consider the request failed.
 			returnCode = os::error::TimedOut;
