@@ -495,7 +495,7 @@ int client(int argc, char* argv[]) {
 
 	uint64_t inbox = 0;
 	uint64_t outbox = 0;
-	uint64_t total = 100;
+	uint64_t total = 100000;
 	auto tpstart = std::chrono::high_resolution_clock::now();
 	std::vector<char> buf;
 	size_t readLength = 0;
@@ -507,7 +507,7 @@ int client(int argc, char* argv[]) {
 	Timer tmrProcess;
 
 	std::vector<char> databuf;
-	databuf.resize(50 * 1024 * 1024);
+	databuf.resize(1 * 128 * 1024);
 	for (size_t n = 0; n < databuf.size(); n++) {
 		databuf[n] = (1 << n) * (n / 4) * (n * n);
 	}	
@@ -516,7 +516,8 @@ int client(int argc, char* argv[]) {
 	while (socket->get_connection()->good()) {
 		auto tmrProcessInst = tmrProcess.track();
 		auto tmrWriteInst = tmrWrite.track();
-		if (socket->get_connection()->write(databuf) == databuf.size()) {
+		size_t temp;
+		if (socket->get_connection()->write(databuf.data(), databuf.size(), temp) == os::error::Ok) {
 			tmrWriteInst.reset();
 			outbox++;
 			socket->get_connection()->flush();
@@ -527,7 +528,7 @@ int client(int argc, char* argv[]) {
 			tmrWriteInst.reset();
 			tmrProcessInst->cancel();
 			tmrProcessInst.reset();
-			break;
+			continue;
 		}
 
 		while (inbox < outbox) {
