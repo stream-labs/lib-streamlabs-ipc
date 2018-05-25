@@ -55,6 +55,10 @@ SET(lib-streamlabs-ipc_SOURCES
 	"${PROJECT_SOURCE_DIR}/include/os-error.hpp"
 	"${PROJECT_SOURCE_DIR}/source/os-namedsocket.cpp"
 	"${PROJECT_SOURCE_DIR}/include/os-namedsocket.hpp"
+	"${PROJECT_SOURCE_DIR}/source/os-signal.cpp"
+	"${PROJECT_SOURCE_DIR}/include/os-signal.hpp"
+	"${PROJECT_SOURCE_DIR}/source/os-signal-win.cpp"
+	"${PROJECT_SOURCE_DIR}/include/os-signal-win.hpp"
 	"${PROJECT_SOURCE_DIR}/include/util.h"
 )
 SET(Protobuf_IMPORT_DIRS
