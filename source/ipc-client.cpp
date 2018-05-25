@@ -18,10 +18,14 @@
 #include "ipc-client.hpp"
 #include "ipc.pb.h"
 #include "os-error.hpp"
+#include <sstream>
+#include <iomanip>
+#include <iostream>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <Objbase.h>
 #endif
 
 static const size_t buffer_size = 128 * 1024 * 1024;
@@ -58,7 +62,18 @@ bool ipc::client::authenticate() {
 
 	::Authenticate msg;
 	msg.set_password("Hello World"); // Eventually will be used.
-	msg.set_name("TotallyRandomName");
+	std::string signalname = "";
+#ifdef _WIN32
+	GUID guid;
+	CoCreateGuid(&guid);
+	std::stringstream sstr;
+	sstr << std::hex << std::setw(8) << std::setfill('0') << guid.Data1 <<
+		"-" << std::hex << std::setw(8) << std::setfill('0') << guid.Data2 <<
+		"-" << std::hex << std::setw(8) << std::setfill('0') << guid.Data3 <<
+		"-" << std::hex << std::setw(8) << std::setfill('0') << reinterpret_cast<unsigned long>(guid.Data4);
+	signalname = sstr.str();
+#endif
+	msg.set_name(signalname);
 
 	std::vector<char> buf(msg.ByteSizeLong());
 	if (!msg.SerializePartialToArray(buf.data(), (int)buf.size()))

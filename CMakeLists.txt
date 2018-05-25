@@ -96,6 +96,7 @@ IF(WIN32)
 	)
 	LIST(APPEND lib-streamlabs-ipc_DEPS
 		advapi32
+		ole32
 	)
 ELSEIF(APPLE)
 	# MacOSX
