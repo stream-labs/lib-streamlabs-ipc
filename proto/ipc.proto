@@ -31,3 +31,9 @@ message Authenticate {
 	string password = 1;
 	string name = 2;
 }
+
+message AuthenticateReply {
+	string read_event = 1;
+	string write_event = 2;
+}
+

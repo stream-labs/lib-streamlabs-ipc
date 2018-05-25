@@ -18,6 +18,7 @@
 #pragma once
 #include "ipc.hpp"
 #include "os-namedsocket.hpp"
+#include "os-signal.hpp"
 #include <string>
 #include <vector>
 #include <map>
@@ -54,5 +55,7 @@ namespace ipc {
 		std::thread m_worker;
 		std::mutex m_lock;
 		static void worker_thread(client* ptr);
+		std::shared_ptr<os::signal> m_readSignal;
+		std::shared_ptr<os::signal> m_writeSignal;
 	};
 }

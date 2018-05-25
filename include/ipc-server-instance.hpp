@@ -18,6 +18,7 @@
 #pragma once
 #include "ipc-server.hpp"
 #include "os-namedsocket.hpp"
+#include "os-signal.hpp"
 #include <condition_variable>
 #include <memory>
 #include <mutex>
@@ -54,5 +55,7 @@ namespace ipc {
 		server* m_parent = nullptr;
 		os::ClientId_t m_clientId;
 		bool m_isAuthenticated = false;
+		std::shared_ptr<os::signal> m_readSignal;
+		std::shared_ptr<os::signal> m_writeSignal;
 	};
 }
