@@ -129,8 +129,11 @@ namespace os {
 		virtual bool good() = 0;
 		virtual bool bad();
 
-		// Reading
+		// Data
+		virtual size_t avail() = 0;
 		virtual size_t read_avail() = 0;
+
+		// Reading
 		virtual size_t read(char* buf, size_t length) = 0;
 		virtual size_t read(std::vector<char>& out) = 0;
 		virtual std::vector<char> read() = 0;

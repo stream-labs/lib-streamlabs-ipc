@@ -398,6 +398,12 @@ bool os::named_socket_connection_win::good() {
 	return true;
 }
 
+size_t os::named_socket_connection_win::avail() {
+	DWORD totalBytes = 0;
+	PeekNamedPipe(m_handle, NULL, NULL, NULL, &totalBytes, NULL);
+	return totalBytes;
+}
+
 size_t os::named_socket_connection_win::read_avail() {
 	DWORD availBytes = 0;
 	DWORD totalBytes = 0;
@@ -512,6 +518,7 @@ test_error:
 			// In case it didn't, just wait as normal.
 			goto resume_wait;
 		}
+
 		// In case it did, continue to success.
 		returnCode = os::error::Ok;
 		read_length = bytesRead;
@@ -519,6 +526,7 @@ test_error:
 	} else if (errorCode == ERROR_MORE_DATA) {
 		// ERROR_MORE_DATA means that there is additional data to be read.
 		GetOverlappedResult(m_handle, ov.get(), &bytesRead, false);
+
 		returnCode = os::error::MoreData;
 		read_length = bytesRead;
 		goto read_success;
@@ -594,8 +602,8 @@ size_t os::named_socket_connection_win::write(const char* buf, size_t length) {
 
 	DWORD waitTime = (DWORD)std::chrono::duration_cast<std::chrono::milliseconds>(
 		m_parent->get_send_timeout()).count();
-	res = WaitForSingleObjectEx(m_handle, waitTime, true);
-	if (res == WAIT_TIMEOUT) {
+	res = WaitForSingleObject(m_handle, waitTime);
+	if (res == WAIT_TIMEOUT || res == WAIT_IO_COMPLETION) {
 		if (!HasOverlappedIoCompleted(ov.get())) {
 			goto write_fail;
 		} else {
@@ -635,7 +643,7 @@ os::error os::named_socket_connection_win::write(char const* buffer, size_t cons
 	std::shared_ptr<OVERLAPPED> ov = dynamic_cast<named_socket_win*>(m_parent)->ovm.alloc();
 
 	SetLastError(ERROR_SUCCESS);
-	WriteFile(m_handle, buffer, (DWORD)length, &bytesWritten, ov.get());
+	WriteFile(m_handle, buffer, (DWORD)length, NULL, ov.get());
 
 write_test_error:
 	// Test for actual return code.
@@ -665,7 +673,7 @@ write_resume_wait:
 	// Now wait until we actually have a result available.
 	DWORD waitTime = (DWORD)std::chrono::duration_cast<std::chrono::milliseconds>(
 		m_parent->get_send_timeout()).count();
-	errorCode = WaitForSingleObjectEx(m_handle, waitTime, true);
+	errorCode = WaitForSingleObject(m_handle, waitTime);
 	if (errorCode == WAIT_TIMEOUT || errorCode == WAIT_IO_COMPLETION) {
 		if (!HasOverlappedIoCompleted(ov.get())) {
 			// If we timed out and it still hasn't completed, consider the request failed.

@@ -95,8 +95,11 @@ namespace os {
 		virtual bool eof() override;
 		virtual bool good() override;
 
-		// Reading
+		// Data
+		virtual size_t avail() override;
 		virtual size_t read_avail() override;
+
+		// Reading
 		virtual size_t read(char* buf, size_t length) override;
 		virtual size_t read(std::vector<char>& out) override;
 		virtual std::vector<char> read() override;
