@@ -68,6 +68,7 @@ namespace ipc {
 		private:
 		std::unique_ptr<os::named_socket> m_socket;
 		bool m_isInitialized = false;
+		std::string m_socketPath = "";
 
 		// Client management.
 		std::mutex m_clientLock;

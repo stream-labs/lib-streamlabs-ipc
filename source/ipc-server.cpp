@@ -17,9 +17,16 @@
 
 #include "ipc-server.hpp"
 #include "ipc.pb.h"
+#include <chrono>
+
+static const size_t buffer_size = 128 * 1024 * 1024;
 
 ipc::server::server() {
 	m_socket = os::named_socket::create();
+	m_socket->set_send_timeout(std::chrono::nanoseconds(1000000ull));
+	m_socket->set_receive_timeout(std::chrono::nanoseconds(1000000ull));
+	m_socket->set_receive_buffer_size(buffer_size);
+	m_socket->set_send_buffer_size(buffer_size);
 }
 
 ipc::server::~server() {
@@ -31,6 +38,7 @@ void ipc::server::initialize(std::string socketPath) {
 		throw std::exception("Failed to initialize socket.");
 	m_worker = std::thread(worker_main, this);
 	m_isInitialized = true;
+	m_socketPath = socketPath;
 }
 
 void ipc::server::finalize() {
@@ -73,7 +81,7 @@ bool ipc::server::client_call_function(os::ClientId_t cid, std::string cname, st
 		return false;
 	}
 	auto cls = m_classes.at(cname);
-	
+
 	auto fnc = cls->get_function(fname, args);
 	if (!fnc) {
 		errormsg = "Function '" + fname + "' not found in class '" + cname + "'.";
@@ -104,7 +112,7 @@ void ipc::server::worker_local() {
 				m_clients.insert(std::make_pair(conn->get_client_id(), instance));
 			}
 		}
-		
+
 		for (auto kv = m_clients.begin(); kv != m_clients.end(); kv++) {
 			if (!kv->second->m_socket->is_connected())
 				dcQueue.push(kv->first);
