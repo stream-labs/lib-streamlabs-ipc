@@ -29,11 +29,17 @@ namespace os {
 		// The buffer you passed is invalid.
 		InvalidBuffer,
 
-		// Buffer too small.
+		// Too small buffer, element count, etc.
 		BufferTooSmall,
+		TooSmall = BufferTooSmall,
+		TooTiny = BufferTooSmall,
+		TooFew = BufferTooSmall,
 		
-		// Buffer too large.
+		// Too large buffer, element count, etc.
 		BufferTooLarge,
+		TooLarge = BufferTooLarge,
+		TooBig = BufferTooLarge,
+		TooMany = BufferTooLarge,
 
 		// read() has more data available.
 		MoreData, 
@@ -43,6 +49,10 @@ namespace os {
 
 		// Disconnected
 		Disconnected,
+
+		// Abandoned Object, Ownership retrieved
+		Abandoned,
+
 
 	};
 
