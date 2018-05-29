@@ -296,8 +296,8 @@ void ipc::client::worker_thread(client* ptr) {
 
 		read_full_length = conn->read_avail();
 		read_buffer.resize(read_full_length);
-		read_full_length = conn->read(read_buffer);
-		if (read_full_length != read_buffer.size()) {
+		read_error = conn->read(read_buffer.data(), read_buffer.size(), read_length);
+		if (read_error != os::error::Ok) {
 		#ifdef _WIN32
 			Sleep(0);
 		#endif
