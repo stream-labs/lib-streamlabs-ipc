@@ -20,6 +20,7 @@
 void os::signal_win::create_security_descriptor() {
 	DWORD dwRes;
 
+#pragma region SIDs
 	// Create a well-known SID for the Everyone group.
 	if (!AllocateAndInitializeSid(&sd.SIDAuthWorld, 1,
 		SECURITY_WORLD_RID,
@@ -29,15 +30,15 @@ void os::signal_win::create_security_descriptor() {
 		return;
 	}
 
-	// Initialize an EXPLICIT_ACCESS structure for an ACE.
-	// The ACE will allow Everyone read access to the key.
-	ZeroMemory(&sd.ea, 2 * sizeof(EXPLICIT_ACCESS));
-	sd.ea[0].grfAccessPermissions = KEY_READ | SYNCHRONIZE | SPECIFIC_RIGHTS_ALL; // SPECIFIC_RIGHTS_ALL is required.
-	sd.ea[0].grfAccessMode = SET_ACCESS;
-	sd.ea[0].grfInheritance = NO_INHERITANCE;
-	sd.ea[0].Trustee.TrusteeForm = TRUSTEE_IS_SID;
-	sd.ea[0].Trustee.TrusteeType = TRUSTEE_IS_WELL_KNOWN_GROUP;
-	sd.ea[0].Trustee.ptstrName = (LPTSTR)sd.pEveryoneSID;
+	// Create a SID for the BUILTIN\AuthenticatedUsers group.
+	if (!AllocateAndInitializeSid(&sd.SIDAuthUsers, 2,
+		SECURITY_BUILTIN_DOMAIN_RID,
+		SECURITY_AUTHENTICATED_USER_RID,
+		0, 0, 0, 0, 0, 0,
+		&sd.pAuthenticatedUsersSID)) {
+		std::cerr << "AllocateAndInitializeSid Error" << GetLastError() << std::endl;
+		return;
+	}
 
 	// Create a SID for the BUILTIN\Administrators group.
 	if (!AllocateAndInitializeSid(&sd.SIDAuthNT, 2,
@@ -48,21 +49,92 @@ void os::signal_win::create_security_descriptor() {
 		std::cerr << "AllocateAndInitializeSid Error" << GetLastError() << std::endl;
 		return;
 	}
+#pragma endregion SIDs
+
+	ZeroMemory(&sd.ea, sizeof(sd.ea));
+
+	DWORD access = GENERIC_ALL | GENERIC_EXECUTE | GENERIC_READ | GENERIC_WRITE | KEY_ALL_ACCESS | SPECIFIC_RIGHTS_ALL | STANDARD_RIGHTS_ALL | SYNCHRONIZE;
+
+	// Initialize an EXPLICIT_ACCESS structure for an ACE.
+	// The ACE will allow Everyone read access to the key.
+	sd.ea[0].grfAccessPermissions = access;
+	sd.ea[0].grfAccessMode = SET_ACCESS;
+	sd.ea[0].grfInheritance = NO_INHERITANCE;
+	sd.ea[0].Trustee.TrusteeForm = TRUSTEE_IS_SID;
+	sd.ea[0].Trustee.TrusteeType = TRUSTEE_IS_WELL_KNOWN_GROUP;
+	sd.ea[0].Trustee.ptstrName = (LPTSTR)sd.pEveryoneSID;
 
 	// Initialize an EXPLICIT_ACCESS structure for an ACE.
 	// The ACE will allow the Administrators group full access to
 	// the key.
-	sd.ea[1].grfAccessPermissions = KEY_ALL_ACCESS | SPECIFIC_RIGHTS_ALL | STANDARD_RIGHTS_ALL;
+	sd.ea[1].grfAccessPermissions = access;
 	sd.ea[1].grfAccessMode = SET_ACCESS;
 	sd.ea[1].grfInheritance = NO_INHERITANCE;
 	sd.ea[1].Trustee.TrusteeForm = TRUSTEE_IS_SID;
 	sd.ea[1].Trustee.TrusteeType = TRUSTEE_IS_GROUP;
 	sd.ea[1].Trustee.ptstrName = (LPTSTR)sd.pAdminSID;
+	
+	// Initialize an EXPLICIT_ACCESS structure for an ACE.
+	// The ACE will allow the Administrators group full access to
+	// the key.
+	sd.ea[2].grfAccessPermissions = access;
+	sd.ea[2].grfAccessMode = SET_ACCESS;
+	sd.ea[2].grfInheritance = NO_INHERITANCE;
+	sd.ea[2].Trustee.TrusteeForm = TRUSTEE_IS_SID;
+	sd.ea[2].Trustee.TrusteeType = TRUSTEE_IS_GROUP;
+	sd.ea[2].Trustee.ptstrName = (LPTSTR)sd.pAdminSID;
+
+	size_t aclsize = sizeof(ACL) + sizeof(ACCESS_ALLOWED_ACE) * 3
+		+ GetLengthSid(sd.pEveryoneSID)
+		+ GetLengthSid(sd.pAuthenticatedUsersSID)
+		+ GetLengthSid(sd.pAdminSID);
+	sd.pACL = (PACL)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, aclsize);
+
+	// initialize the DACL
+	if (!InitializeAcl(sd.pACL, aclsize, ACL_REVISION)) {
+		std::cerr << "InitializeAcl() failed with error " << GetLastError() << std::endl;
+		return;
+	}
 
 	// Create a new ACL that contains the new ACEs.
-	dwRes = SetEntriesInAcl(2, sd.ea, NULL, &sd.pACL);
+	PACL newACL;
+	dwRes = SetEntriesInAcl(3, sd.ea, sd.pACL, &newACL);
 	if (ERROR_SUCCESS != dwRes) {
 		std::cerr << "SetEntriesInAcl Error" << GetLastError() << std::endl;
+		return;
+	}
+	if (newACL != sd.pACL) {
+		HeapFree(GetProcessHeap(), 0, sd.pACL);
+		sd.pACL = newACL;
+	}
+
+	// add the Authenticated Users group ACE to the DACL with
+	// GENERIC_READ, GENERIC_WRITE, and GENERIC_EXECUTE access
+	if (!AddAccessAllowedAce(sd.pACL, ACL_REVISION,
+		GENERIC_ALL,
+		sd.pEveryoneSID)) {
+		printf("AddAccessAllowedAce() failed with error %d/n",
+			GetLastError());
+		return;
+	}
+
+	// add the Authenticated Users group ACE to the DACL with
+	// GENERIC_READ, GENERIC_WRITE, and GENERIC_EXECUTE access
+	if (!AddAccessAllowedAce(sd.pACL, ACL_REVISION,
+		GENERIC_ALL,
+		sd.pAuthenticatedUsersSID)) {
+		printf("AddAccessAllowedAce() failed with error %d/n",
+			GetLastError());
+		return;
+	}
+
+	// add the Authenticated Users group ACE to the DACL with
+	// GENERIC_READ, GENERIC_WRITE, and GENERIC_EXECUTE access
+	if (!AddAccessAllowedAce(sd.pACL, ACL_REVISION,
+		GENERIC_ALL,
+		sd.pAdminSID)) {
+		printf("AddAccessAllowedAce() failed with error %d/n",
+			GetLastError());
 		return;
 	}
 
@@ -93,7 +165,7 @@ void os::signal_win::create_security_descriptor() {
 	// Initialize a security attributes structure.
 	sd.sa.nLength = sizeof(SECURITY_ATTRIBUTES);
 	sd.sa.lpSecurityDescriptor = sd.pSD;
-	sd.sa.bInheritHandle = FALSE;
+	sd.sa.bInheritHandle = TRUE;
 }
 
 void os::signal_win::destroy_security_descriptor() {
@@ -138,7 +210,7 @@ os::signal_win::signal_win(std::string name, bool initial_state /*= false*/, boo
 #endif
 
 	SetLastError(ERROR_SUCCESS);
-	handle = OpenEvent(EVENT_MODIFY_STATE, false, fullname.c_str());
+	handle = OpenEvent(EVENT_MODIFY_STATE | SYNCHRONIZE, false, fullname.c_str());
 	DWORD error = GetLastError();
 	if (handle) {
 		return;
@@ -185,6 +257,7 @@ os::error os::signal_win::wait(std::chrono::nanoseconds timeout) {
 	DWORD status = WaitForSingleObjectEx(handle, 
 		(DWORD)std::chrono::duration_cast<std::chrono::milliseconds>(timeout).count(),
 		false);
+	DWORD error = GetLastError();
 	switch (status) {
 		case WAIT_IO_COMPLETION:
 			return os::error::Error;
