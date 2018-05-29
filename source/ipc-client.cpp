@@ -67,7 +67,7 @@ bool ipc::client::authenticate() {
 #ifdef _WIN32
 	GUID guid;
 	CoCreateGuid(&guid);
-	std::vector<char> guid_buffer(8+8+8+8+4+1);
+	std::vector<char> guid_buffer(8 + 8 + 8 + 8 + 4 + 1);
 	snprintf(guid_buffer.data(), guid_buffer.size(), "%08X-%08X-%08X-%08X",
 		guid.Data1, guid.Data2, guid.Data3, *reinterpret_cast<unsigned long*>(guid.Data4));
 	signalname = std::string(guid_buffer.data(), guid_buffer.data() + guid_buffer.size());
@@ -282,14 +282,17 @@ void ipc::client::worker_thread(client* ptr) {
 
 	while ((!ptr->m_stopWorkers) && conn->good()) {
 		if (conn->read_avail() == 0) {
-			if (ptr->m_readSignal->wait(std::chrono::milliseconds(10)) != os::error::Ok) {
-			#ifdef _WIN32
-				Sleep(0);
-			#endif
-				continue;
+			switch (ptr->m_readSignal->wait(std::chrono::milliseconds(10))) {
+				default:
+				#ifdef _WIN32
+					Sleep(0);
+				#endif
+					continue;
+				case os::error::Ok:
+					break;
 			}
+			ptr->m_readSignal->clear();
 		}
-		ptr->m_readSignal->clear();
 
 		read_full_length = conn->read_avail();
 		read_buffer.resize(read_full_length);
