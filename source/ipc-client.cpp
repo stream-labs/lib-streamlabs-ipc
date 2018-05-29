@@ -21,6 +21,7 @@
 #include <sstream>
 #include <iomanip>
 #include <iostream>
+#include "os-signal.hpp"
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -230,7 +231,7 @@ std::vector<ipc::value> ipc::client::call_synchronous_helper(std::string cname, 
 	std::chrono::nanoseconds timeout) {
 	// Set up call reference data.
 	struct CallData {
-		std::condition_variable cv;
+		std::shared_ptr<os::signal> sgn = os::signal::create();
 		std::mutex mtx;
 		bool called = false;
 		std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
@@ -246,7 +247,7 @@ std::vector<ipc::value> ipc::client::call_synchronous_helper(std::string cname, 
 		std::copy(rval.begin(), rval.end(), std::back_inserter(cd.values));
 
 		cd.called = true;
-		cd.cv.notify_all();
+		cd.sgn->set();
 	#ifdef _WIN32
 		Sleep(0);
 	#endif
@@ -260,7 +261,7 @@ std::vector<ipc::value> ipc::client::call_synchronous_helper(std::string cname, 
 		return {};
 	}
 
-	cd.cv.wait_for(ulock, timeout, [&cd]() { return cd.called; });
+	cd.sgn->wait(std::chrono::nanoseconds(INFINITE * 1000000));
 	if (!cd.called) {
 		cancel(cbid);
 		return {};
