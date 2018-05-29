@@ -170,7 +170,6 @@ void ipc::server_instance::worker() {
 				}
 			}
 			/// Flush and give up time slice.
-			m_socket->flush();
 			if (m_isAuthenticated) {
 				m_writeSignal->set();
 			}
@@ -296,7 +295,6 @@ void ipc::server_instance::worker() {
 			write_buffer.reserve(m_parent->m_socket->get_send_buffer_size());
 		} else {
 			/// Flush and give up current time slice to any signaled threads.
-			m_socket->flush();
 			if (m_isAuthenticated) {
 				m_writeSignal->set();
 			}
