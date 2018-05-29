@@ -67,12 +67,10 @@ bool ipc::client::authenticate() {
 #ifdef _WIN32
 	GUID guid;
 	CoCreateGuid(&guid);
-	std::stringstream sstr;
-	sstr << std::hex << std::setw(8) << std::setfill('0') << guid.Data1 <<
-		"-" << std::hex << std::setw(8) << std::setfill('0') << guid.Data2 <<
-		"-" << std::hex << std::setw(8) << std::setfill('0') << guid.Data3 <<
-		"-" << std::hex << std::setw(8) << std::setfill('0') << *reinterpret_cast<unsigned long*>(guid.Data4);
-	signalname = sstr.str();
+	std::vector<char> guid_buffer(8+8+8+8+4+1);
+	snprintf(guid_buffer.data(), guid_buffer.size(), "%08X-%08X-%08X-%08X",
+		guid.Data1, guid.Data2, guid.Data3, *reinterpret_cast<unsigned long*>(guid.Data4));
+	signalname = std::string(guid_buffer.data(), guid_buffer.data() + guid_buffer.size());
 #endif
 	msg.set_name(signalname);
 
@@ -126,12 +124,11 @@ bool ipc::client::authenticate() {
 	if (!success) {
 		return false;
 	}
-
 	m_readSignal = os::signal::create(rpl.write_event());
 	m_writeSignal = os::signal::create(rpl.read_event());
 
-	m_worker = std::thread(worker_thread, this);
-	return false;
+	m_worker = std::thread(std::bind(worker_thread, this));
+	return true;
 }
 
 bool ipc::client::call(std::string cname, std::string fname, std::vector<ipc::value> args, call_return_t fn, void* data) {
@@ -261,7 +258,7 @@ std::vector<ipc::value> ipc::client::call_synchronous_helper(std::string cname, 
 		return {};
 	}
 
-	cd.sgn->wait(std::chrono::nanoseconds(INFINITE * 1000000));
+	cd.sgn->wait(std::chrono::nanoseconds(INFINITE * 1000000ull));
 	if (!cd.called) {
 		cancel(cbid);
 		return {};
