@@ -70,7 +70,7 @@ bool ipc::client::authenticate() {
 	sstr << std::hex << std::setw(8) << std::setfill('0') << guid.Data1 <<
 		"-" << std::hex << std::setw(8) << std::setfill('0') << guid.Data2 <<
 		"-" << std::hex << std::setw(8) << std::setfill('0') << guid.Data3 <<
-		"-" << std::hex << std::setw(8) << std::setfill('0') << reinterpret_cast<unsigned long>(guid.Data4);
+		"-" << std::hex << std::setw(8) << std::setfill('0') << *reinterpret_cast<unsigned long*>(guid.Data4);
 	signalname = sstr.str();
 #endif
 	msg.set_name(signalname);
@@ -121,7 +121,7 @@ bool ipc::client::authenticate() {
 		return false;
 	}
 
-	success = rpl.ParsePartialFromArray(buf.data(), buf.size());
+	success = rpl.ParsePartialFromArray(buf.data(), (int)buf.size());
 	if (!success) {
 		return false;
 	}
@@ -307,21 +307,19 @@ void ipc::client::worker_thread(client* ptr) {
 
 		// Process read message.
 		{
-			bool success = proc_pb_result.ParsePartialFromArray(read_buffer.data(), read_full_length);
+			bool success = proc_pb_result.ParsePartialFromArray(read_buffer.data(), (int)read_full_length);
 			if (!success) {
 				continue;
 			}
 
 			// Find the callback function.
 			std::pair<call_return_t, void*> cb;
-			{
-				std::unique_lock<std::mutex> ulock(ptr->m_lock);
-				auto cb2 = ptr->m_cb.find(proc_pb_result.timestamp());
-				if (cb2 == ptr->m_cb.end()) {
-					continue;
-				}
-				cb = cb2->second;
+			std::unique_lock<std::mutex> ulock(ptr->m_lock);
+			auto cb2 = ptr->m_cb.find(proc_pb_result.timestamp());
+			if (cb2 == ptr->m_cb.end()) {
+				continue;
 			}
+			cb = cb2->second;
 
 			// Decode return values or errors.
 			if (proc_pb_result.error().length() > 0) {
@@ -378,10 +376,8 @@ void ipc::client::worker_thread(client* ptr) {
 			cb.first(cb.second, proc_rval);
 
 			// Remove cb entry
-			{ // ToDo: Figure out better way of registering functions, perhaps even a way to have "events" across a IPC connection.
-				std::unique_lock<std::mutex> ulock(ptr->m_lock);
-				ptr->m_cb.erase(proc_pb_result.timestamp());
-			}
+			/// ToDo: Figure out better way of registering functions, perhaps even a way to have "events" across a IPC connection.
+			ptr->m_cb.erase(proc_pb_result.timestamp());
 		}
 	}
 
