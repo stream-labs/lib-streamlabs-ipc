@@ -85,7 +85,6 @@ bool ipc::client::authenticate() {
 
 		size_t temp = 0;
 		if (sock->write(buf.data(), buf.size(), temp) == os::error::Ok) {
-			sock->flush();
 		#ifdef _WIN32
 			Sleep(0);
 		#endif
@@ -207,7 +206,6 @@ bool ipc::client::call(std::string cname, std::string fname, std::vector<ipc::va
 
 		write_error = sock->write(buf.data(), buf.size(), write_length);
 		if ((write_error == os::error::Ok) && (write_length == buf.size())) {
-			sock->flush();
 			m_writeSignal->set();
 		#ifdef _WIN32
 			Sleep(0);
