@@ -191,6 +191,7 @@ static void function1(void* data, const int64_t id, const std::vector<ipc::value
 	for (size_t idx = 0; idx < args.size(); idx++) {
 		rval[idx] = args[idx];
 	}
+	rval.push_back(ipc::value(0));
 }
 
 int server(int argc, char* argv[]) {
@@ -256,19 +257,18 @@ int client(int argc, char* argv[]) {
 	size_t inbox = 0, outbox = 0, total = 1000;
 	blog("Attempting to make %llu calls...", total);
 
-	ClientCallData ccd;
-	ccd.inbox = &inbox;
-
 	auto tpstart = std::chrono::high_resolution_clock::now();
 	while ((inbox < total) || (outbox < total)) {
-		ccd.called = false;
-		std::unique_lock<std::mutex> ulock(ccd.mtx);
-		if (!socket->call("Default", "Function1", {}, client_call_handler, &ccd)) {
-			blog("Critical Failure: Could not call function.");
-			break;
+		auto rval = socket->call_synchronous_helper("Default", "Function1", {});
+		if (rval.size() == 0) {
+			if (rval[0].type == ipc::type::Null) {
+				blog("Critical Failure: Could not call function, error %s.", rval[0].value_str.c_str());
+			} else {
+				blog("Critical Failure: Could not call function.");
+			}
 		} else {
 			outbox++;
-			ccd.cv.wait(ulock, [&ccd]() { return ccd.called; });
+			inbox++;
 		}
 	}
 	auto tpend = std::chrono::high_resolution_clock::now();
