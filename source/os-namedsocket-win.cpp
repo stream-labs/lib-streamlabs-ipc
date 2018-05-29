@@ -708,6 +708,9 @@ write_fail:
 }
 
 os::error os::named_socket_connection_win::flush() {
+	if (!good()) {
+		return os::error::Disconnected;
+	}
 	SetLastError(ERROR_SUCCESS);
 	FlushFileBuffers(m_handle);
 	switch (GetLastError()) {
