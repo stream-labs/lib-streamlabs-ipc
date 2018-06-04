@@ -159,6 +159,7 @@ TARGET_LINK_LIBRARIES(${PROJECT_NAME}
 # Others
 ################################################################################
 IF(BUILD_TESTS)
+	ADD_SUBDIRECTORY(tests/shared)
 	ADD_SUBDIRECTORY(tests/os-namedsocket/raw-data)
 	ADD_SUBDIRECTORY(tests/os-namedsocket/read-no-sleep)
 	ADD_SUBDIRECTORY(tests/os-namedsocket/single-in-single-out)
