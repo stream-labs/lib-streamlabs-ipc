@@ -84,7 +84,7 @@ void os::signal_win::create_security_descriptor() {
 	sd.ea[2].Trustee.TrusteeType = TRUSTEE_IS_GROUP;
 	sd.ea[2].Trustee.ptstrName = (LPTSTR)sd.pAdminSID;
 
-	size_t aclsize = sizeof(ACL) + sizeof(ACCESS_ALLOWED_ACE) * 3
+	DWORD aclsize = sizeof(ACL) + sizeof(ACCESS_ALLOWED_ACE) * 3
 		+ GetLengthSid(sd.pEveryoneSID)
 		+ GetLengthSid(sd.pAuthenticatedUsersSID)
 		+ GetLengthSid(sd.pAdminSID);
@@ -270,6 +270,8 @@ os::error os::signal_win::wait(std::chrono::nanoseconds timeout) {
 		case WAIT_OBJECT_0:
 			return os::error::Ok;
 	}
+
+	return os::error::Error;
 }
 
 HANDLE os::signal_win::raw() {
