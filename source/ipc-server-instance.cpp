@@ -215,7 +215,7 @@ void ipc::server_instance::worker() {
 			///  avoid a race condition that would cause us to lose data to a read that timed out just before it was 
 			///  done.
 
-			success = proc_pb_auth.ParsePartialFromArray(read_buffer.data(), read_full_length);
+			success = proc_pb_auth.ParsePartialFromArray(read_buffer.data(), int(read_full_length));
 			if (!success) {
 				continue;
 			}
@@ -236,7 +236,7 @@ void ipc::server_instance::worker() {
 			}
 
 			write_buffer.resize(proc_reply_size);
-			success = proc_pb_auth_reply.SerializePartialToArray(write_buffer.data(), proc_reply_size);
+			success = proc_pb_auth_reply.SerializePartialToArray(write_buffer.data(), int(proc_reply_size));
 			if (!success) {
 				continue;
 			}
@@ -246,7 +246,7 @@ void ipc::server_instance::worker() {
 			// Client is authenticated.
 
 			// Parse
-			success = proc_pb_call.ParsePartialFromArray(read_buffer.data(), read_full_length);
+			success = proc_pb_call.ParsePartialFromArray(read_buffer.data(), int(read_full_length));
 			if (!success) {
 				continue;
 			}
@@ -281,7 +281,7 @@ void ipc::server_instance::worker() {
 			}
 
 			write_buffer.resize(proc_reply_size);
-			success = proc_pb_result.SerializePartialToArray(write_buffer.data(), proc_reply_size);
+			success = proc_pb_result.SerializePartialToArray(write_buffer.data(), int(proc_reply_size));
 			if (!success) {
 				continue;
 			}
