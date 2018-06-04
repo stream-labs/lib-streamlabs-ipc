@@ -4,56 +4,11 @@
 #include <chrono>
 #include <varargs.h>
 #include "os-namedsocket.hpp"
+#include "os-signal.hpp"
 #include <inttypes.h>
 #include <cstdarg>
 #include <map>
-
-#pragma region Logging
-std::chrono::high_resolution_clock hrc;
-std::chrono::high_resolution_clock::time_point tp = std::chrono::high_resolution_clock::now();
-
-inline std::string varlog(const char* format, va_list& args) {
-	size_t length = _vscprintf(format, args);
-	std::vector<char> buf = std::vector<char>(length + 1, '\0');
-	size_t written = vsprintf_s(buf.data(), buf.size(), format, args);
-	return std::string(buf.begin(), buf.begin() + length);
-}
-
-static void blog(const char* format, ...) {
-	va_list args;
-	va_start(args, format);
-	std::string text = varlog(format, args);
-	va_end(args);
-
-	auto timeSinceStart = (std::chrono::high_resolution_clock::now() - tp);
-	auto hours = std::chrono::duration_cast<std::chrono::hours>(timeSinceStart);
-	timeSinceStart -= hours;
-	auto minutes = std::chrono::duration_cast<std::chrono::minutes>(timeSinceStart);
-	timeSinceStart -= minutes;
-	auto seconds = std::chrono::duration_cast<std::chrono::seconds>(timeSinceStart);
-	timeSinceStart -= seconds;
-	auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(timeSinceStart);
-	timeSinceStart -= milliseconds;
-	auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(timeSinceStart);
-	timeSinceStart -= microseconds;
-	auto nanoseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(timeSinceStart);
-
-	std::vector<char> timebuf(65535, '\0');
-	std::string timeformat = "%.2d:%.2d:%.2d.%.3d.%.3d.%.3d:  %*s\n";// "%*s";
-	sprintf_s(
-		timebuf.data(),
-		timebuf.size(),
-		timeformat.c_str(),
-		hours.count(),
-		minutes.count(),
-		seconds.count(),
-		milliseconds.count(),
-		microseconds.count(),
-		nanoseconds.count(),
-		text.length(), text.c_str());
-	std::cout << timebuf.data();
-}
-#pragma endregion Logging
+#include <lib.h>
 
 #pragma region Windows
 #ifdef _WIN32
@@ -178,136 +133,11 @@ bool inline __fastcall is_equal(T a, T b, T edge) {
 	return (abs(a - b) <= edge);
 }
 
-class Timer {
-	std::map<std::chrono::nanoseconds, size_t> timings;
-	size_t calls = 0;
-
-	protected:
-	void track(std::chrono::nanoseconds dur) {
-		auto el = timings.find(dur);
-		if (el != timings.end()) {
-			el->second++;
-		} else {
-			timings.insert(std::make_pair(dur, 1));
-		}
-		calls++;
-	}
-
-	public:
-	Timer() {
-
-	}
-
-	~Timer() {
-
-	}
-
-	class Instance {
-		Timer* parent;
-		std::chrono::high_resolution_clock::time_point begin;
-
-		public:
-		inline __fastcall Instance(Timer* parent) : parent(parent) {
-			begin = std::chrono::high_resolution_clock::now();
-		}
-
-		inline __fastcall ~Instance() {
-			auto end = std::chrono::high_resolution_clock::now();
-			if (parent) {
-				auto dur = end - begin;
-				parent->track(std::chrono::duration_cast<std::chrono::nanoseconds>(dur));
-			}
-		}
-
-		void cancel() {
-			parent = nullptr;
-		}
-
-		void reparent(Timer* new_parent) {
-			parent = new_parent;
-		}
-	};
-
-	std::unique_ptr<Instance> inline __fastcall track() {
-		return std::make_unique<Instance>(this);
-	}
-
-	uint64_t count() {
-		return calls;
-	}
-
-	std::chrono::nanoseconds total() {
-		if (timings.size() == 0) {
-			return std::chrono::nanoseconds(0);
-		}
-
-		std::chrono::nanoseconds val = std::chrono::nanoseconds(0);
-		for (auto el : timings) {
-			val += el.first * el.second;
-		}
-		return val;
-	}
-
-	double_t average() {
-		if (timings.size() == 0) {
-			return 0;
-		}
-
-		double_t val = 0;
-		for (auto el : timings) {
-			val += el.first.count() * el.second;
-		}
-		return (val / calls);
-	}
-
-	std::chrono::nanoseconds percentile(double_t pct, bool by_time = false) {
-		if (timings.size() == 0) {
-			return std::chrono::nanoseconds(0);
-		}
-
-		// Should we gather a percentile by time, or by calls?
-		if (by_time) {
-			// By time, so find the largest and smallest value.
-			// This can be used for median, but not average.
-
-			std::chrono::nanoseconds smallest, largest;
-			smallest = timings.begin()->first;
-			largest = timings.rbegin()->first;
-
-			for (auto el : timings) {
-				double_t el_pct = (double_t((el.first - smallest).count()) / double_t(largest.count()));
-
-				if (is_equal(pct, el_pct, 0.0005)) {
-					return el.first;
-				}
-			}
-
-			return timings.rbegin()->first;
-		} else {
-			uint64_t curr_accu = 0;
-			if (is_equal(pct, 0.0, 0.0005)) {
-				return timings.begin()->first;
-			}
-
-			for (auto el : timings) {
-				uint64_t last_accu = curr_accu;
-				curr_accu += el.second;
-
-				double_t last_pct = double_t(last_accu) / double_t(calls);
-				double_t curr_pct = double_t(curr_accu) / double_t(calls);
-
-				if ((last_pct < pct) && ((curr_pct > pct) || is_equal(pct, curr_pct, 0.0005))) {
-					return el.first;
-				}
-			}
-
-			return timings.rbegin()->first;
-		}
-	}
-};
-
 #define CONN "HelloWorldIPC"
-#define CLIENTCOUNT 2
+#define CLIENTCOUNT 1
+
+#define CLIENTSIGNALNAME_R "HelloWorldIPC_R"
+#define CLIENTSIGNALNAME_W "HelloWorldIPC_W"
 
 #define FORMAT_TITLE   "%-16s | %8s | %12s | %12s | %12s | %12s | %12s"
 #define FORMAT_CONTENT "%-16s | %8llu | %12llu | %12llu | %12llu | %12llu | %12llu"
@@ -316,6 +146,12 @@ static int server(int argc, char* argv[]);
 static int client(int argc, char* argv[]);
 
 int main(int argc, char* argv[]) {
+	shared::logger::to_stderr(false);
+	shared::logger::to_stdout(true);
+	shared::logger::to_debug(true);
+	shared::logger::is_timestamp_relative_to_start(false);
+	shared::logger::log("Logging Started.");
+
 	if ((argc >= 2) || (strcmp(argv[0], "client") == 0)) {
 		client(argc, argv);
 	} else {
@@ -330,68 +166,61 @@ int serverInstanceThread(std::shared_ptr<os::named_socket_connection> ptr) {
 	size_t readLength = 0;
 	char storedChar = 0;
 
-	Timer tmrLoop;
-	Timer tmrReadAll, tmrReadSuccess;
-	Timer tmrWrite;
-	Timer tmrProcess;
+	shared::time::measure_timer tmrLoop;
+	shared::time::measure_timer tmrReadAll, tmrReadSuccess;
+	shared::time::measure_timer tmrWrite;
+	shared::time::measure_timer tmrProcess;
+
+	auto read_signal = os::signal::create(std::string(CLIENTSIGNALNAME_R));
+	auto write_signal = os::signal::create(std::string(CLIENTSIGNALNAME_W));
 
 	auto tmrLoopInst = tmrLoop.track();
 	while (ptr->good()) {
 		auto tmrProcessInst = tmrProcess.track();
 		auto tmrReadInst = tmrReadAll.track();
 		auto tmrReadSuccessInst = tmrReadSuccess.track();
-		os::error readError = ptr->read(&storedChar, 1, readLength);
-		if (readError == os::error::Ok) {
-			tmrReadInst.reset();
-			tmrReadSuccessInst.reset();
-
-			buf.resize(1);
-			buf[0] = storedChar;
-		} else if (readError == os::error::MoreData) {
-			tmrReadInst.reset();
-
-			avail = ptr->read_avail();
-			buf.resize(avail + readLength);
-
-			readError = ptr->read(buf.data() + 1, avail, readLength);
-			if (readError == os::error::Ok) {
-				tmrReadSuccessInst.reset();
-				buf[0] = storedChar;
-			} else {
+		if (ptr->read_avail() == 0) {
+			if (read_signal->wait(std::chrono::milliseconds(100)) != os::error::Ok) {
 				tmrReadSuccessInst->cancel();
+				tmrProcessInst->cancel();
 				continue;
 			}
-		} else if (readError != os::error::Ok) {
-			tmrReadSuccessInst->cancel();
-			tmrReadInst.reset();
-			tmrProcessInst->cancel();
-
-			//blog("%s", os::to_string(readError));
-			continue;
 		}
-		//blog("%llu: Message", ptr->get_client_id());
-
-		auto tmrWriteInst = tmrWrite.track();
-		size_t writeLength = ptr->write(buf);
-		if (writeLength != buf.size()) {
-			tmrWriteInst->cancel();
-			tmrProcessInst->cancel();
-			blog("%llu: Send Buffer full.", ptr->get_client_id());
-			continue;
+		size_t read_length = ptr->read_avail();
+		buf.resize(read_length);
+		os::error read_error = ptr->read(buf.data(), buf.size(), read_length);
+		switch (read_error) {
+			case os::error::Ok:
+			{
+				auto tmrWriteInst = tmrWrite.track();
+				size_t write_length = 0;
+				os::error write_error = ptr->write(buf.data(), buf.size(), write_length);
+				if (write_length != buf.size()) {
+					tmrWriteInst->cancel();
+					tmrProcessInst->cancel();
+					shared::logger::log("%llu: Send Buffer full.", ptr->get_client_id());
+					continue;
+				}
+				write_signal->set();
+				Sleep(0);
+				break;
+			}
+			default:
+				tmrReadSuccessInst->cancel();
+				tmrProcessInst->cancel();
+				break;
 		}
-		//blog("%llu: Message Reply", ptr->get_client_id());
-		ptr->flush();
-		Sleep(0);
+
 		tmrProcessInst.reset();
 	}
 	tmrLoopInst.reset();
 
-	blog("%4llu Timings",
+	shared::logger::log("%4llu Timings",
 		ptr->get_client_id());
-	blog(FORMAT_TITLE,
+	shared::logger::log(FORMAT_TITLE,
 		"Type", "Calls", "Total", "Average", "50th Pct", "99th Pct", "99.9th Pct");
-	blog("-----------------+----------+--------------+--------------+--------------+--------------+-------------");
-	blog(FORMAT_CONTENT,
+	shared::logger::log("-----------------+----------+--------------+--------------+--------------+--------------+-------------");
+	shared::logger::log(FORMAT_CONTENT,
 		"Loop",
 		tmrLoop.count(),
 		tmrLoop.total().count(),
@@ -399,7 +228,7 @@ int serverInstanceThread(std::shared_ptr<os::named_socket_connection> ptr) {
 		tmrLoop.percentile(0.50).count(),
 		tmrLoop.percentile(0.99).count(),
 		tmrLoop.percentile(0.999).count());
-	blog(FORMAT_CONTENT,
+	shared::logger::log(FORMAT_CONTENT,
 		"Read (All)",
 		tmrReadAll.count(),
 		tmrReadAll.total().count(),
@@ -407,7 +236,7 @@ int serverInstanceThread(std::shared_ptr<os::named_socket_connection> ptr) {
 		tmrReadAll.percentile(0.50).count(),
 		tmrReadAll.percentile(0.99).count(),
 		tmrReadAll.percentile(0.999).count());
-	blog(FORMAT_CONTENT,
+	shared::logger::log(FORMAT_CONTENT,
 		"Read (EC:OK)",
 		tmrReadSuccess.count(),
 		tmrReadSuccess.total().count(),
@@ -415,7 +244,7 @@ int serverInstanceThread(std::shared_ptr<os::named_socket_connection> ptr) {
 		tmrReadSuccess.percentile(0.50).count(),
 		tmrReadSuccess.percentile(0.99).count(),
 		tmrReadSuccess.percentile(0.999).count());
-	blog(FORMAT_CONTENT,
+	shared::logger::log(FORMAT_CONTENT,
 		"Write",
 		tmrWrite.count(),
 		tmrWrite.total().count(),
@@ -423,7 +252,7 @@ int serverInstanceThread(std::shared_ptr<os::named_socket_connection> ptr) {
 		tmrWrite.percentile(0.50).count(),
 		tmrWrite.percentile(0.99).count(),
 		tmrWrite.percentile(0.999).count());
-	blog(FORMAT_CONTENT,
+	shared::logger::log(FORMAT_CONTENT,
 		"Process",
 		tmrProcess.count(),
 		tmrProcess.total().count(),
@@ -431,13 +260,13 @@ int serverInstanceThread(std::shared_ptr<os::named_socket_connection> ptr) {
 		tmrProcess.percentile(0.50).count(),
 		tmrProcess.percentile(0.99).count(),
 		tmrProcess.percentile(0.999).count());
-	blog("");
+	shared::logger::log("");
 
 	return 0;
 }
 
 int server(int argc, char* argv[]) {
-	blog("Starting server...");
+	shared::logger::log("Starting server...");
 
 	std::unique_ptr<os::named_socket> socket = os::named_socket::create();
 	socket->set_receive_timeout(std::chrono::nanoseconds(1000000ull));
@@ -445,17 +274,17 @@ int server(int argc, char* argv[]) {
 	socket->set_send_buffer_size(128 * 1024 * 1024);
 	socket->set_receive_buffer_size(128 * 1024 * 1024);
 	if (!socket->listen(CONN, 8)) {
-		blog("Failed to start server.");
+		shared::logger::log("Failed to start server.");
 		std::cin.get();
 		return -1;
 	}
 
-	blog("Spawning %lld clients.", (int64_t)CLIENTCOUNT);
+	shared::logger::log("Spawning %lld clients.", (int64_t)CLIENTCOUNT);
 	for (size_t idx = 0; idx < CLIENTCOUNT; idx++) {
 		spawn(std::string(argv[0]), '"' + std::string(argv[0]) + '"' + " client", get_working_directory());
 	}
 
-	blog("Waiting for data...");
+	shared::logger::log("Waiting for data...");
 	bool doShutdown = false;
 	std::list<std::thread> instances;
 	while (!doShutdown) {
@@ -482,36 +311,8 @@ int server(int argc, char* argv[]) {
 	return 0;
 }
 
-void clientThread(std::shared_ptr<os::named_socket> socket, std::vector<char>* databuf, uint64_t* inbox, uint64_t* outbox, bool* stop) {
-	std::vector<char> buf;
-	size_t readLength = 0;
-	char storedChar = 0;
-	while (socket->get_connection()->good() && !*stop) {
-		os::error readError = socket->get_connection()->read(&storedChar, 1, readLength);
-		if (readError == os::error::Ok) {
-			buf.resize(1);
-			buf[0] = storedChar;
-		} else if (readError == os::error::MoreData) {
-			size_t avail = socket->get_connection()->read_avail();
-			buf.resize(avail + 1);
-			if (socket->get_connection()->read(buf.data() + 1, buf.size(), avail) != os::error::Ok) {
-				if (buf.size() != 10 + (*inbox % 20)) {
-					std::cout << "Size changes failure, should " << (10 + (*inbox % 20)) << " have " << buf.size() << std::endl;
-				}
-				std::cout << "Catastrophic failure" << std::endl;
-				break;
-			}
-			*inbox = *inbox + 1;
-			buf[0] = storedChar;
-		} else {
-			continue;
-		}
-	}
-	return;
-}
-
 int client(int argc, char* argv[]) {
-	blog("Starting client...");
+	shared::logger::log("Starting client...");
 
 	std::shared_ptr<os::named_socket> socket = os::named_socket::create();
 	socket->set_receive_timeout(std::chrono::nanoseconds(1000000ull));
@@ -519,78 +320,90 @@ int client(int argc, char* argv[]) {
 	socket->set_send_buffer_size(128 * 1024 * 1024);
 	socket->set_receive_buffer_size(128 * 1024 * 1024);
 	if (!socket->connect(CONN)) {
-		blog("Failed starting client.");
+		shared::logger::log("Failed starting client.");
 		return -1;
 	}
 
 	uint64_t inbox = 0;
 	uint64_t outbox = 0;
-	uint64_t total = 100000;
+	uint64_t total = 10000;
 	auto tpstart = std::chrono::high_resolution_clock::now();
 	std::vector<char> buf;
 	size_t readLength = 0;
 	char storedChar = 0;
 	bool stop = false;
 
-	Timer tmrLoop;
-	Timer tmrWrite;
-	Timer tmrReadAll, tmrReadSuccess;
-	Timer tmrProcess;
+	shared::time::measure_timer tmrLoop;
+	shared::time::measure_timer tmrWrite;
+	shared::time::measure_timer tmrReadAll, tmrReadSuccess;
+	shared::time::measure_timer tmrProcess;
 
 	std::vector<char> databuf;
-	const size_t maxsize = 1 * 128 * 1024;
+	const size_t maxsize = 1024;
 	databuf.resize(maxsize);
 	for (size_t n = 0; n < databuf.size(); n++) {
-		databuf[n] = (1 << n) * (n / 4) * (n * n);
+		databuf[n] = char((1 << n) * (n / 4) * (n * n) % 256);
 	}
 
-	std::thread worker = std::thread(clientThread, socket, &databuf, &inbox, &outbox, &stop);
+	auto write_signal = os::signal::create(std::string(CLIENTSIGNALNAME_R));
+	auto read_signal = os::signal::create(std::string(CLIENTSIGNALNAME_W));
 
 	auto tmrLoopInst = tmrLoop.track();
 	while (socket->get_connection()->good()) {
-		if (outbox < total) {
-			auto tmrProcessInst = tmrProcess.track();
-			auto tmrWriteInst = tmrWrite.track();
-			size_t temp;
-			if (socket->get_connection()->write(databuf.data(), 10 + (outbox % 20), temp) == os::error::Ok) {
-				tmrWriteInst.reset();
-				outbox++;
-				socket->get_connection()->flush();
-				Sleep(0);
-			} else {
-				blog("Write failed.");
-				tmrWriteInst->cancel();
-				tmrWriteInst.reset();
-				tmrProcessInst->cancel();
-				tmrProcessInst.reset();
-				continue;
-			}
-
-			tmrProcessInst.reset();
-		} else {
-			std::this_thread::sleep_for(std::chrono::milliseconds(100));
-		}
-
-		//blog("%llu %llu", outbox, inbox);
 		if (outbox == total) {
 			if (inbox == total) {
 				break;
 			}
 		}
+
+		if (outbox < total) {
+			auto tmrWriteInst = tmrWrite.track();
+			size_t temp;
+			if (socket->get_connection()->write(databuf.data(), 10 + (outbox % 20), temp) == os::error::Ok) {
+				tmrWriteInst.reset();
+				outbox++;
+				write_signal->set();
+				Sleep(0);
+			} else {
+				shared::logger::log("Write failed.");
+				tmrWriteInst->cancel();
+				continue;
+			}
+		}
+
+		if (inbox < total) {
+			auto tra = tmrReadAll.track();
+			auto trs = tmrReadSuccess.track();
+			if (socket->get_connection()->read_avail() == 0) {
+				if (read_signal->wait(std::chrono::milliseconds(1)) != os::error::Ok) {
+					trs->cancel();
+					continue;
+				}
+			}
+
+			size_t read_length = socket->get_connection()->read_avail();
+			buf.resize(read_length);
+			os::error readError = socket->get_connection()->read(buf.data(), buf.size(), read_length);
+			switch (readError) {
+				case os::error::Ok:
+					trs.reset();
+					inbox++;
+					break;
+				default:
+					trs->cancel();
+					break;
+			}
+		}
 	}
 	tmrLoopInst.reset();
-
-	stop = true;
-	if (worker.joinable())
-		worker.join();
-
+	
 	socket->close();
 	socket = nullptr;
 
-	blog(FORMAT_TITLE,
+	shared::logger::log(FORMAT_TITLE,
 		"Type", "Calls", "Total", "Average", "50th Pct", "99th Pct", "99.9th Pct");
-	blog("-----------------+----------+--------------+--------------+--------------+--------------+-------------");
-	blog(FORMAT_CONTENT,
+	shared::logger::log("-----------------+----------+--------------+--------------+--------------+--------------+-------------");
+	shared::logger::log(FORMAT_CONTENT,
 		"Loop",
 		tmrLoop.count(),
 		tmrLoop.total().count(),
@@ -598,7 +411,7 @@ int client(int argc, char* argv[]) {
 		tmrLoop.percentile(0.50).count(),
 		tmrLoop.percentile(0.99).count(),
 		tmrLoop.percentile(0.999).count());
-	blog(FORMAT_CONTENT,
+	shared::logger::log(FORMAT_CONTENT,
 		"Write",
 		tmrWrite.count(),
 		tmrWrite.total().count(),
@@ -606,7 +419,7 @@ int client(int argc, char* argv[]) {
 		tmrWrite.percentile(0.50).count(),
 		tmrWrite.percentile(0.99).count(),
 		tmrWrite.percentile(0.999).count());
-	blog(FORMAT_CONTENT,
+	shared::logger::log(FORMAT_CONTENT,
 		"Read (All)",
 		tmrReadAll.count(),
 		tmrReadAll.total().count(),
@@ -614,7 +427,7 @@ int client(int argc, char* argv[]) {
 		tmrReadAll.percentile(0.50).count(),
 		tmrReadAll.percentile(0.99).count(),
 		tmrReadAll.percentile(0.999).count());
-	blog(FORMAT_CONTENT,
+	shared::logger::log(FORMAT_CONTENT,
 		"Read (EC:OK)",
 		tmrReadSuccess.count(),
 		tmrReadSuccess.total().count(),
@@ -622,7 +435,7 @@ int client(int argc, char* argv[]) {
 		tmrReadSuccess.percentile(0.50).count(),
 		tmrReadSuccess.percentile(0.99).count(),
 		tmrReadSuccess.percentile(0.999).count());
-	blog(FORMAT_CONTENT,
+	shared::logger::log(FORMAT_CONTENT,
 		"Process",
 		tmrProcess.count(),
 		tmrProcess.total().count(),
@@ -630,7 +443,7 @@ int client(int argc, char* argv[]) {
 		tmrProcess.percentile(0.50).count(),
 		tmrProcess.percentile(0.99).count(),
 		tmrProcess.percentile(0.999).count());
-	blog("");
+	shared::logger::log("");
 
 	std::cin.get();
 	return 0;

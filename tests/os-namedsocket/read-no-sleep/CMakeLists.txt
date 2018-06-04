@@ -72,6 +72,7 @@ include_directories(
 	${PROJECT_SOURCE_DIR}
 	${PROJECT_SOURCE_DIR}
 	${lib-streamlabs-ipc_SOURCE_DIR}/include
+	${test-shared-library_SOURCE_DIR}
 )
 
 # Building
@@ -82,5 +83,6 @@ ADD_EXECUTABLE(${PROJECT_NAME}
 # Linking
 TARGET_LINK_LIBRARIES(${PROJECT_NAME}
 	lib-streamlabs-ipc
+	test-shared-library
 	${ipc-test_LIBRARIES}
 )
