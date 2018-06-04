@@ -314,7 +314,7 @@ os::named_socket_connection_win::named_socket_connection_win(os::named_socket* p
 	m_isServer = false;
 	size_t attempts = 0;
 	for (size_t attempt = 0; attempt < 5; attempt++) {
-		m_handle = CreateFile(pipeName, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
+		m_handle = CreateFile(pipeName, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED | FILE_FLAG_NO_BUFFERING | FILE_FLAG_WRITE_THROUGH, NULL);
 		if (m_handle != INVALID_HANDLE_VALUE)
 			break;
 		DWORD err = GetLastError();
@@ -389,8 +389,6 @@ bool os::named_socket_connection_win::eof() {
 }
 
 bool os::named_socket_connection_win::good() {
-	ULONG pid;
-
 	if (m_state != state::Connected) {
 		return false;
 	}
