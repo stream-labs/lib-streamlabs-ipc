@@ -188,7 +188,7 @@ os::signal_win::signal_win(bool initial_state /*= false*/, bool auto_reset /*= t
 	create_security_descriptor();
 
 	SetLastError(ERROR_SUCCESS);
-	handle = CreateEvent(&sd.sa, !auto_reset, initial_state, NULL);
+	handle = CreateSemaphore(&sd.sa, initial_state ? 1 : 0, 1, NULL);
 	switch (GetLastError()) {
 		case ERROR_ALREADY_EXISTS:
 			break;
@@ -210,14 +210,14 @@ os::signal_win::signal_win(std::string name, bool initial_state /*= false*/, boo
 #endif
 
 	SetLastError(ERROR_SUCCESS);
-	handle = OpenEvent(EVENT_MODIFY_STATE | SYNCHRONIZE, false, fullname.c_str());
+	handle = OpenSemaphore(SYNCHRONIZE | EVENT_MODIFY_STATE, FALSE, fullname.c_str());
 	DWORD error = GetLastError();
 	if (handle) {
 		return;
 	}
 
 	SetLastError(ERROR_SUCCESS);
-	handle = CreateEvent(&sd.sa, !auto_reset, initial_state, fullname.c_str());
+	handle = CreateSemaphore(&sd.sa, initial_state ? 1 : 0, 1, fullname.c_str());
 	error = GetLastError();
 	switch (GetLastError()) {
 		case ERROR_ALREADY_EXISTS:
@@ -234,23 +234,24 @@ os::signal_win::signal_win(std::string name, bool initial_state /*= false*/, boo
 }
 
 os::error os::signal_win::clear() {
-	BOOL success = ResetEvent(handle);
-	return (success ? os::error::Ok : os::error::Error);
+	return (wait(std::chrono::nanoseconds(0)) == os::error::Success) ? os::error::Success : os::error::Error;
 }
 
 os::error os::signal_win::set(bool state /*= true*/) {
-	BOOL success = 0;
 	if (state) {
-		success = SetEvent(handle);
+		return (ReleaseSemaphore(handle, 1, NULL) != 0) ? os::error::Success : os::error::Error;
 	} else {
-		success = ResetEvent(handle);
+		return clear();
 	}
-	return (success ? os::error::Ok : os::error::Error);
 }
 
 os::error os::signal_win::pulse() {
-	BOOL success = PulseEvent(handle);
-	return (success ? os::error::Ok : os::error::Error);
+	if (set(true) != os::error::Success) {
+		return os::error::Error;
+	}
+	Sleep(0);
+	set(false);
+	return os::error::Success;
 }
 
 os::error os::signal_win::wait(std::chrono::nanoseconds timeout) {
