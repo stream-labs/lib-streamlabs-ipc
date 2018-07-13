@@ -20,14 +20,14 @@ math(EXPR BITS "8*${CMAKE_SIZEOF_VOID_P}")
 ## Protobuf
 SET(Protobuf_USE_STATIC_LIBS ON)
 SET(Protobuf_SRC_ROOT_FOLDER		"${PROJECT_SOURCE_DIR}/third-party/protobuf")
-SET(Protobuf_INCLUDE_DIR			"${PROJECT_SOURCE_DIR}/third-party/protobuf/src")
-SET(Protobuf_LIBRARY_DEBUG			"${PROJECT_SOURCE_DIR}/third-party/protobuf/bin/Debug/libprotobufd.lib")
-SET(Protobuf_LIBRARY_RELEASE		"${PROJECT_SOURCE_DIR}/third-party/protobuf/bin/Release/libprotobuf.lib")
-SET(Protobuf_LITE_LIBRARY_DEBUG		"${PROJECT_SOURCE_DIR}/third-party/protobuf/bin/Debug/libprotobuf-lited.lib")
-SET(Protobuf_LITE_LIBRARY_RELEASE	"${PROJECT_SOURCE_DIR}/third-party/protobuf/bin/Release/libprotobuf-lite.lib")
-SET(Protobuf_PROTOC_EXECUTABLE		"${PROJECT_SOURCE_DIR}/third-party/protobuf/bin/Release/protoc.exe")
-SET(Protobuf_PROTOC_LIBRARY_DEBUG	"${PROJECT_SOURCE_DIR}/third-party/protobuf/bin/Debug/libprotocd.lib")
-SET(Protobuf_PROTOC_LIBRARY_RELEASE	"${PROJECT_SOURCE_DIR}/third-party/protobuf/bin/Release/libprotoc.lib")
+SET(Protobuf_INCLUDE_DIR			"${PROJECT_SOURCE_DIR}/third-party/protobuf/include")
+SET(Protobuf_LIBRARY_DEBUG			"${PROJECT_SOURCE_DIR}/third-party/protobuf/lib/libprotobufd.lib")
+SET(Protobuf_LIBRARY_RELEASE		"${PROJECT_SOURCE_DIR}/third-party/protobuf/lib/libprotobuf.lib")
+SET(Protobuf_LITE_LIBRARY_DEBUG		"${PROJECT_SOURCE_DIR}/third-party/protobuf/lib/libprotobuf-lited.lib")
+SET(Protobuf_LITE_LIBRARY_RELEASE	"${PROJECT_SOURCE_DIR}/third-party/protobuf/lib/libprotobuf-lite.lib")
+SET(Protobuf_PROTOC_EXECUTABLE		"${PROJECT_SOURCE_DIR}/third-party/protobuf/bin/protoc.exe")
+SET(Protobuf_PROTOC_LIBRARY_DEBUG	"${PROJECT_SOURCE_DIR}/third-party/protobuf/lib/libprotocd.lib")
+SET(Protobuf_PROTOC_LIBRARY_RELEASE	"${PROJECT_SOURCE_DIR}/third-party/protobuf/lib/libprotoc.lib")
 find_package(Protobuf REQUIRED)
 
 OPTION(BUILD_TESTS "Build lib-streamlabs-ipc Tests" OFF)
@@ -139,7 +139,6 @@ INCLUDE_DIRECTORIES(
 	${PROJECT_BINARY_DIR}
 )
 LINK_DIRECTORIES(
-	${Boost_LIBRARY_DIRS}
 )
 
 # Building
