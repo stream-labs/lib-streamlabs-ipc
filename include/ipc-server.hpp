@@ -27,6 +27,9 @@
 #include <thread>
 #include "source/os/windows/named-pipe.hpp"
 
+#undef min
+#undef max
+
 namespace ipc {
 	class server_instance;
 
