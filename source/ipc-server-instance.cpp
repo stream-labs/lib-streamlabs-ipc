@@ -17,8 +17,10 @@
 
 #include "ipc-server-instance.hpp"
 #include "ipc.pb.h"
-#include "os-error.hpp"
 #include <sstream>
+#include <functional>
+
+using namespace std::placeholders;
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -27,12 +29,13 @@
 
 ipc::server_instance::server_instance() {}
 
-ipc::server_instance::server_instance(ipc::server* owner, std::shared_ptr<os::named_socket_connection> conn) {
+ipc::server_instance::server_instance(ipc::server* owner, std::shared_ptr<os::windows::named_pipe> conn) {
 	m_parent = owner;
 	m_socket = conn;
-	m_clientId = m_socket->get_client_id();
+	m_clientId = 0;
+
 	m_stopWorkers = false;
-	m_worker = std::thread(worker_main, this);
+	m_worker = std::thread(std::bind(&server_instance::worker, this));
 }
 
 ipc::server_instance::~server_instance() {
@@ -43,7 +46,7 @@ ipc::server_instance::~server_instance() {
 }
 
 bool ipc::server_instance::is_alive() {
-	if (m_socket->bad())
+	if (!m_socket->is_connected())
 		return false;
 
 	if (m_stopWorkers)
@@ -129,13 +132,86 @@ void EncodeIPCToProtobuf(const ipc::value& v, ::Value* val) {
 }
 
 void ipc::server_instance::worker() {
-	// Variables
-	/// Reading
-	os::error read_error = os::error::Ok;
-	size_t read_length = 0;
-	size_t read_full_length = 0;
-	char read_buffer_temp = 0;
-	std::vector<char> read_buffer;
+	os::error ec = os::error::Success;
+
+	// Prepare Buffers
+	m_rbuf.reserve(65535);
+	m_wbuf.reserve(65535);
+
+	// Loop
+	while ((!m_stopWorkers) && m_socket->is_connected()) {
+		if (!m_rop || !m_rop->is_valid()) {
+			m_rbuf.resize(sizeof(ipc_size_t));
+			ec = m_socket->read(m_rbuf.data(), m_rbuf.size(), m_rop, std::bind(&server_instance::read_callback_init, this, _1, _2));
+			if (ec != os::error::Pending && ec != os::error::Success) {
+				if (ec == os::error::Disconnected) {
+					break;
+				} else {
+					throw std::exception("Unexpected error.");
+				}
+			}
+		}
+		if (!m_wop || !m_wop->is_valid()) {
+			if (m_write_queue.size() > 0) {
+				std::vector<char>& fbuf = m_write_queue.front();
+				ipc::make_sendable(m_wbuf, fbuf);
+				ec = m_socket->write(m_wbuf.data(), m_wbuf.size(), m_wop, std::bind(&server_instance::write_callback, this, _1, _2));
+				if (ec != os::error::Pending && ec != os::error::Success) {
+					if (ec == os::error::Disconnected) {
+						break;
+					} else {
+						throw std::exception("Unexpected error.");
+					}
+				}
+				m_write_queue.pop();
+			}
+		}
+
+		os::waitable * waits[] = { m_rop.get(), m_wop.get() };
+		size_t                      wait_index = -1;
+		for (size_t idx = 0; idx < 2; idx++) {
+			if (waits[idx] != nullptr) {
+				if (waits[idx]->wait(std::chrono::milliseconds(0)) == os::error::Success) {
+					wait_index = idx;
+					break;
+				}
+			}
+		}
+		if (wait_index == -1) {
+			os::error code = os::waitable::wait_any(waits, 2, wait_index, std::chrono::milliseconds(20));
+			if (code == os::error::TimedOut) {
+				continue;
+			} else if (code == os::error::Disconnected) {
+				break;
+			} else if (code == os::error::Error) {
+				throw std::exception("Error");
+			}
+		}
+	}
+}
+
+void ipc::server_instance::read_callback_init(os::error ec, size_t size) {
+	os::error ec2 = os::error::Success;
+
+	m_rop->invalidate();
+
+	if (ec == os::error::Success || ec == os::error::MoreData) {
+		ipc_size_t n_size = read_size(m_rbuf);
+		if (n_size != 0) {
+			m_rbuf.resize(n_size);
+			ec2 = m_socket->read(m_rbuf.data(), m_rbuf.size(), m_rop, std::bind(&server_instance::read_callback_msg, this, _1, _2));
+			if (ec2 != os::error::Pending && ec2 != os::error::Success) {
+				if (ec2 == os::error::Disconnected) {
+					return;
+				} else {
+					throw std::exception("Unexpected error.");
+				}
+			}
+		}
+	}
+}
+
+void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 	/// Processing
 	::Authenticate proc_pb_auth;
 	::AuthenticateReply proc_pb_auth_reply;
@@ -146,161 +222,117 @@ void ipc::server_instance::worker() {
 	ipc::value proc_tempval;
 	std::string proc_error;
 	size_t proc_reply_size = 0;
-	/// Writing
-	os::error write_error = os::error::Ok;
-	size_t write_length = 0;
 	std::vector<char> write_buffer;
-	std::queue<std::vector<char>> write_queue;
 
-	// Prepare Buffers
-	read_buffer.reserve(m_parent->m_socket->get_receive_buffer_size());
-	write_buffer.reserve(m_parent->m_socket->get_send_buffer_size());
+	m_rop->invalidate();
 
-	// Loop
-	while ((!m_stopWorkers) && m_socket->good()) {
-		// Attempt to clear the output queue.
-		if (write_queue.size() > 0) {
-			while ((write_queue.size() > 0) || (write_length != write_buffer.size())) {
-				auto& buf = write_queue.front();
-				write_error = m_socket->write(buf.data(), buf.size(), write_length);
-				if (write_error != os::error::Ok) {
-					break;
-				} else {
-					write_queue.pop();
-				}
-			}
-			/// Flush and give up time slice.
-			if (m_isAuthenticated) {
-				m_writeSignal->set();
-			}
-		#ifdef _WIN32
-			Sleep(0);
-		#endif
+	if (ec != os::error::Success) {
+		return;
+	}
+
+	bool success = false;
+	if (!m_isAuthenticated) {
+		// Client is not authenticated.
+		/// Authentication is required so that both sides know that the other is ready.
+
+		success = proc_pb_auth.ParsePartialFromArray(m_rbuf.data(), int(m_rbuf.size()));
+		if (!success) {
+			std::cerr << "Failed to parse Authenticate message." << std::endl;
+			return;
 		}
 
-		// Read Message
-		if (!m_isAuthenticated) {
-			if (m_socket->read_avail() == 0) {
-				std::this_thread::sleep_for(std::chrono::milliseconds(1));
-				continue;
+		proc_pb_auth_reply.Clear();
+		proc_pb_auth_reply.set_password(proc_pb_auth.password());
+
+		// Encode
+		proc_reply_size = proc_pb_auth_reply.ByteSizeLong();
+		if (proc_reply_size == 0) {
+			std::cerr << "Failed to encode AuthenticateReply message." << std::endl;
+			return;
+		}
+
+		write_buffer.resize(proc_reply_size);
+		success = proc_pb_auth_reply.SerializePartialToArray(write_buffer.data(), int(proc_reply_size));
+		if (!success) {
+			std::cerr << "Failed to serialize AuthenticateReply message." << std::endl;
+			return;
+		}
+
+		m_isAuthenticated = true;
+	} else {
+		// Client is authenticated.
+
+		// Parse
+		success = proc_pb_call.ParsePartialFromArray(m_rbuf.data(), int(m_rbuf.size()));
+		if (!success) {
+			std::cerr << "Failed to parse FunctionCall message." << std::endl;
+			return;
+		}
+
+		// Decode Arguments
+		proc_args.resize(proc_pb_call.arguments_size());
+		for (size_t n = 0; n < proc_args.size(); n++) {
+			DecodeProtobufToIPC(proc_pb_call.arguments((int)n), proc_tempval);
+			proc_args[n] = std::move(proc_tempval);
+		}
+
+		// Execute
+		proc_pb_result.Clear();
+		proc_pb_result.set_timestamp(proc_pb_call.timestamp());
+		proc_rval.resize(0);
+		success = m_parent->client_call_function(m_clientId,
+			proc_pb_call.classname(), proc_pb_call.functionname(),
+			proc_args, proc_rval, proc_error);
+		if (success) {
+			for (size_t n = 0; n < proc_rval.size(); n++) {
+				::Value* rv = proc_pb_result.add_value();
+				EncodeIPCToProtobuf(proc_rval[n], rv);
 			}
 		} else {
-			if (m_socket->read_avail() == 0) {
-				switch (m_readSignal->wait(std::chrono::milliseconds(10))) {
-					case os::error::Error:
-					case os::error::Abandoned:
-					case os::error::TimedOut:
-					#ifdef _WIN32
-						Sleep(0);
-					#endif
-						continue;
-				}
-			}
-			m_readSignal->clear();
+			proc_pb_result.set_error(proc_error);
 		}
 
-		read_full_length = m_socket->read_avail();
-		read_buffer.resize(read_full_length);
-		read_error = m_socket->read(read_buffer.data(), read_full_length, read_length);
-		if (read_error != os::error::Ok) {
-			continue;
+		// Encode
+		proc_reply_size = proc_pb_result.ByteSizeLong();
+		if (proc_reply_size == 0) {
+			std::cerr << "Failed to encode FunctionResult message." << std::endl;
+			return;
 		}
 
-		// Decode the new message.
-		bool success = false;
-		if (!m_isAuthenticated) {
-			// Client is not authenticated.
-
-			/// Authentication is required so the two sides have an event to actually wait on. This is necessary to 
-			///  avoid a race condition that would cause us to lose data to a read that timed out just before it was 
-			///  done.
-
-			success = proc_pb_auth.ParsePartialFromArray(read_buffer.data(), int(read_full_length));
-			if (!success) {
-				continue;
-			}
-
-			std::string read_event_name = "Global\\" + proc_pb_auth.name() + "_r";
-			std::string write_event_name = "Global\\" + proc_pb_auth.name() + "_w";
-			m_readSignal = os::signal::create(read_event_name);
-			m_writeSignal = os::signal::create(write_event_name);
-
-			proc_pb_auth_reply.Clear();
-			proc_pb_auth_reply.set_read_event(read_event_name);
-			proc_pb_auth_reply.set_write_event(write_event_name);
-
-			// Encode
-			proc_reply_size = proc_pb_auth_reply.ByteSizeLong();
-			if (proc_reply_size == 0) {
-				continue;
-			}
-
-			write_buffer.resize(proc_reply_size);
-			success = proc_pb_auth_reply.SerializePartialToArray(write_buffer.data(), int(proc_reply_size));
-			if (!success) {
-				continue;
-			}
-
-			m_isAuthenticated = true;
-		} else {
-			// Client is authenticated.
-
-			// Parse
-			success = proc_pb_call.ParsePartialFromArray(read_buffer.data(), int(read_full_length));
-			if (!success) {
-				continue;
-			}
-
-			// Decode Arguments
-			proc_args.resize(proc_pb_call.arguments_size());
-			for (size_t n = 0; n < proc_args.size(); n++) {
-				DecodeProtobufToIPC(proc_pb_call.arguments((int)n), proc_tempval);
-				proc_args[n] = std::move(proc_tempval);
-			}
-
-			// Execute
-			proc_pb_result.Clear();
-			proc_pb_result.set_timestamp(proc_pb_call.timestamp());
-			proc_rval.resize(0);
-			success = m_parent->client_call_function(m_clientId,
-				proc_pb_call.classname(), proc_pb_call.functionname(),
-				proc_args, proc_rval, proc_error);
-			if (success) {
-				for (size_t n = 0; n < proc_rval.size(); n++) {
-					::Value* rv = proc_pb_result.add_value();
-					EncodeIPCToProtobuf(proc_rval[n], rv);
-				}
-			} else {
-				proc_pb_result.set_error(proc_error);
-			}
-
-			// Encode
-			proc_reply_size = proc_pb_result.ByteSizeLong();
-			if (proc_reply_size == 0) {
-				continue;
-			}
-
-			write_buffer.resize(proc_reply_size);
-			success = proc_pb_result.SerializePartialToArray(write_buffer.data(), int(proc_reply_size));
-			if (!success) {
-				continue;
-			}
-		}
-
-		// Write new output.
-		write_error = m_socket->write(write_buffer.data(), write_buffer.size(), write_length);
-		if ((write_error != os::error::Ok) || (write_length != write_buffer.size())) {
-			// Failed to write? Put it into the queue.
-			write_queue.push(std::move(write_buffer));
-			write_buffer.reserve(m_parent->m_socket->get_send_buffer_size());
-		} else {
-			/// Flush and give up current time slice to any signaled threads.
-			if (m_isAuthenticated) {
-				m_writeSignal->set();
-			}
-		#ifdef _WIN32
-			Sleep(0);
-		#endif
+		write_buffer.resize(proc_reply_size);
+		success = proc_pb_result.SerializePartialToArray(write_buffer.data(), int(proc_reply_size));
+		if (!success) {
+			std::cerr << "Failed to serialize FunctionResult message." << std::endl;
+			return;
 		}
 	}
+
+	if (write_buffer.size() != 0) {
+		if ((!m_wop || !m_wop->is_valid()) && (m_write_queue.size() == 0)) {
+			ipc::make_sendable(m_wbuf, write_buffer);
+			os::error ec2 = m_socket->write(m_wbuf.data(), m_wbuf.size(), m_wop, std::bind(&server_instance::write_callback, this, _1, _2));
+			if (ec2 != os::error::Success && ec2 != os::error::Pending) {
+				if (ec2 == os::error::Disconnected) {
+					return;
+				} else {
+					throw std::exception("Unexpected Error");
+				}
+			}
+		} else {
+			m_write_queue.push(std::move(write_buffer));
+		}
+	}
+}
+
+void ipc::server_instance::write_callback(os::error ec, size_t size) {
+	m_wop->invalidate();
+	// Do we need to do anything here? Not really.
+
+	// Uncomment this to give up the rest of the time slice to the next thread.
+	// Not recommended since we do this anyway with the next wait.	
+	/*
+	#ifdef _WIN32
+		Sleep(0);
+	#endif
+	*/
 }

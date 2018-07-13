@@ -21,6 +21,18 @@
 #include <vector>
 
 namespace ipc {
+	typedef uint32_t ipc_size_t;
+
+	inline void make_sendable(std::vector<char>& out, std::vector<char> const& in) {
+		out.resize(in.size() + sizeof(ipc_size_t));
+		memcpy(out.data() + sizeof(ipc_size_t), in.data(), in.size());
+		reinterpret_cast<ipc_size_t&>(out[0]) = ipc_size_t(in.size());
+	}
+
+	inline ipc_size_t read_size(std::vector<char> const& in) {
+		return reinterpret_cast<const ipc_size_t&>(in[0]);
+	}
+
 	class base {
 		public:
 		static std::string make_unique_id(std::string name, std::vector<type> parameters);

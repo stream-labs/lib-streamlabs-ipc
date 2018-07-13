@@ -19,23 +19,52 @@
 #include "ipc.hpp"
 #include "ipc-class.hpp"
 #include "ipc-server-instance.hpp"
-#include "os-namedsocket.hpp"
 #include <list>
 #include <map>
 #include <mutex>
 #include <queue>
 #include <string>
 #include <thread>
+#include "source/os/windows/named-pipe.hpp"
 
 namespace ipc {
 	class server_instance;
 
-	typedef bool(*server_connect_handler_t)(void*, os::ClientId_t);
-	typedef void(*server_disconnect_handler_t)(void*, os::ClientId_t);
-	typedef void(*server_message_handler_t)(void*, os::ClientId_t, const std::vector<char>&);
+	typedef bool(*server_connect_handler_t)(void*, int64_t);
+	typedef void(*server_disconnect_handler_t)(void*, int64_t);
+	typedef void(*server_message_handler_t)(void*, int64_t, const std::vector<char>&);
 
 	class server {
-		friend class server_instance;
+		bool m_isInitialized = false;
+
+		// Functions		
+		std::map<std::string, std::shared_ptr<ipc::collection>> m_classes;
+
+		// Socket
+		size_t backlog = 4;
+		std::mutex m_sockets_mtx;
+		std::list<std::shared_ptr<os::windows::named_pipe>> m_sockets;
+		std::string m_socketPath = "";
+
+		// Client management.
+		std::mutex m_clients_mtx;
+		std::map<std::shared_ptr<os::windows::named_pipe>, std::shared_ptr<server_instance>> m_clients;
+
+		// Event Handlers
+		std::pair<server_connect_handler_t, void*> m_handlerConnect;
+		std::pair<server_disconnect_handler_t, void*> m_handlerDisconnect;
+		std::pair<server_message_handler_t, void*> m_handlerMessage;
+
+		// Worker
+		struct {
+			std::thread worker;
+			bool stop = false;
+		} m_watcher;
+
+		void watcher();
+
+		void spawn_client(std::shared_ptr<os::windows::named_pipe> socket);
+		void kill_client(std::shared_ptr<os::windows::named_pipe> socket);
 
 		public:
 		server();
@@ -55,29 +84,9 @@ namespace ipc {
 		bool register_collection(std::shared_ptr<ipc::collection> cls);
 
 		protected: // Client -> Server
-		bool client_call_function(os::ClientId_t cid, std::string cname, std::string fname, 
+		bool client_call_function(int64_t cid, std::string cname, std::string fname,
 			std::vector<ipc::value>& args, std::vector<ipc::value>& rval, std::string& errormsg);
 
-		private: // Threading
-		std::thread m_worker;
-		bool m_stopWorker = false;
-
-		static void worker_main(server* ptr);
-		void worker_local();
-
-		private:
-		std::unique_ptr<os::named_socket> m_socket;
-		bool m_isInitialized = false;
-		std::string m_socketPath = "";
-
-		// Client management.
-		std::mutex m_clientLock;
-		std::map<os::ClientId_t, std::shared_ptr<server_instance>> m_clients;
-		std::map<std::string, std::shared_ptr<ipc::collection>> m_classes;
-
-		// Event Handlers
-		std::pair<server_connect_handler_t, void*> m_handlerConnect;
-		std::pair<server_disconnect_handler_t, void*> m_handlerDisconnect;
-		std::pair<server_message_handler_t, void*> m_handlerMessage;
+		friend class server_instance;
 	};
 }

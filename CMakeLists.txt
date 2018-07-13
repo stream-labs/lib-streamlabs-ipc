@@ -55,13 +55,6 @@ SET(lib-streamlabs-ipc_SOURCES
 	"${PROJECT_SOURCE_DIR}/include/ipc-server-instance.hpp"
 	"${PROJECT_SOURCE_DIR}/source/ipc-value.cpp"
 	"${PROJECT_SOURCE_DIR}/include/ipc-value.hpp"
-	"${PROJECT_SOURCE_DIR}/include/os-error.hpp"
-	"${PROJECT_SOURCE_DIR}/source/os-namedsocket.cpp"
-	"${PROJECT_SOURCE_DIR}/include/os-namedsocket.hpp"
-	"${PROJECT_SOURCE_DIR}/source/os-signal.cpp"
-	"${PROJECT_SOURCE_DIR}/include/os-signal.hpp"
-	"${PROJECT_SOURCE_DIR}/source/os-signal-win.cpp"
-	"${PROJECT_SOURCE_DIR}/include/os-signal-win.hpp"
 	"${PROJECT_SOURCE_DIR}/include/util.h"
 )
 SET(Protobuf_IMPORT_DIRS
@@ -95,18 +88,13 @@ IF(WIN32)
 	add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 	
 	LIST(APPEND lib-streamlabs-ipc_SOURCES
-		"${PROJECT_SOURCE_DIR}/include/os-namedsocket-win.hpp"
-		"${PROJECT_SOURCE_DIR}/source/os-namedsocket-win.cpp"
 	)
 	LIST(APPEND lib-streamlabs-ipc_DEPS
-		advapi32
-		ole32
 	)
 ELSEIF(APPLE)
 	# MacOSX
 
 	LIST(APPEND lib-streamlabs-ipc_SOURCES
-		"${PROJECT_SOURCE_DIR}/source/os-namedsocket-mac.cpp"
 	)
 	LIST(APPEND lib-streamlabs-ipc_DEPS
 	)
@@ -114,7 +102,6 @@ ELSEIF("${CMAKE_SYSTEM_NAME}" MATCHES "Linux")
 	# Linux
 	
 	LIST(APPEND lib-streamlabs-ipc_SOURCES
-		"${PROJECT_SOURCE_DIR}/source/os-namedsocket-linux.cpp"
 	)
 	LIST(APPEND lib-streamlabs-ipc_DEPS
 	)
@@ -122,7 +109,6 @@ ELSEIF("${CMAKE_SYSTEM_NAME}" MATCHES "FreeBSD")
 	# FreeBSD
 	
 	LIST(APPEND lib-streamlabs-ipc_SOURCES
-		"${PROJECT_SOURCE_DIR}/source/os-namedsocket-freebsd.cpp"
 	)
 	LIST(APPEND lib-streamlabs-ipc_DEPS
 	)
@@ -139,6 +125,7 @@ INCLUDE_DIRECTORIES(
 	${PROJECT_SOURCE_DIR}/source
 	${PROJECT_SOURCE_DIR}/include
 	${PROJECT_SOURCE_DIR}/third-party/boost/
+	${PROJECT_SOURCE_DIR}/third-party/lib-datalane/
 	${Protobuf_INCLUDE_DIRS}
 	${PROJECT_BINARY_DIR}
 )
@@ -163,9 +150,6 @@ TARGET_LINK_LIBRARIES(${PROJECT_NAME}
 ################################################################################
 IF(BUILD_TESTS)
 	ADD_SUBDIRECTORY(tests/shared)
-	ADD_SUBDIRECTORY(tests/os-namedsocket/raw-data)
-	ADD_SUBDIRECTORY(tests/os-namedsocket/read-no-sleep)
-	ADD_SUBDIRECTORY(tests/os-namedsocket/single-in-single-out)
 	ADD_SUBDIRECTORY(tests/ipc/simple-multi-client)
 	ADD_SUBDIRECTORY(tests/ipc/synchronous-call)
 ENDIF(BUILD_TESTS)

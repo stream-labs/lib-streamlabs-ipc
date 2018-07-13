@@ -33,7 +33,6 @@ message Authenticate {
 }
 
 message AuthenticateReply {
-	string read_event = 1;
-	string write_event = 2;
+	string password = 1;
 }
 

@@ -17,14 +17,13 @@
 
 #pragma once
 #include "ipc-server.hpp"
-#include "os-namedsocket.hpp"
-#include "os-signal.hpp"
 #include <condition_variable>
 #include <memory>
 #include <mutex>
 #include <queue>
 #include <thread>
 #include <vector>
+#include "source/os/windows/named-pipe.hpp"
 
 namespace ipc {
 	class server;
@@ -34,7 +33,7 @@ namespace ipc {
 
 		public:
 		server_instance();
-		server_instance(server* owner, std::shared_ptr<os::named_socket_connection> conn);
+		server_instance(server* owner, std::shared_ptr<os::windows::named_pipe> conn);
 		~server_instance();
 		
 		bool is_alive();
@@ -44,18 +43,19 @@ namespace ipc {
 		std::thread m_worker;
 
 		void worker();
-		static void worker_main(server_instance* ptr) {
-			ptr->worker();
-		};
+		void read_callback_init(os::error ec, size_t size);
+		void read_callback_msg(os::error ec, size_t size);
+		void write_callback(os::error ec, size_t size);		
 		
 		protected:
-		std::shared_ptr<os::named_socket_connection> m_socket;
+		std::shared_ptr<os::windows::named_pipe> m_socket;
+		std::shared_ptr<os::async_op> m_wop, m_rop;
+		std::vector<char> m_wbuf, m_rbuf;
+		std::queue<std::vector<char>> m_write_queue;
 
 		private:
 		server* m_parent = nullptr;
-		os::ClientId_t m_clientId;
+		int64_t m_clientId;
 		bool m_isAuthenticated = false;
-		std::shared_ptr<os::signal> m_readSignal;
-		std::shared_ptr<os::signal> m_writeSignal;
 	};
 }

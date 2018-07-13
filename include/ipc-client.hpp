@@ -17,8 +17,6 @@
 
 #pragma once
 #include "ipc.hpp"
-#include "os-namedsocket.hpp"
-#include "os-signal.hpp"
 #include <string>
 #include <vector>
 #include <map>
@@ -26,11 +24,30 @@
 #include <queue>
 #include <thread>
 #include <vector>
+#include "source/os/windows/named-pipe.hpp"
 
 namespace ipc {
 	typedef void(*call_return_t)(const void* data, const std::vector<ipc::value>& rval);
 
 	class client {
+		std::unique_ptr<os::windows::named_pipe> m_socket;
+		std::shared_ptr<os::async_op> m_wop, m_rop;
+		std::vector<char> m_wbuf, m_rbuf;
+
+		bool m_authenticated = false;
+		std::mutex m_lock;
+		std::map<int64_t, std::pair<call_return_t, void*>> m_cb;
+
+		// Threading
+		struct {
+			std::thread worker;
+			bool stop = false;
+		} m_watcher;
+		
+		void worker();
+		void read_callback_init(os::error ec, size_t size);
+		void read_callback_msg(os::error ec, size_t size);
+
 		public:
 		client(std::string socketPath);
 		virtual ~client();
@@ -44,18 +61,5 @@ namespace ipc {
 		// Temporary helper
 		std::vector<ipc::value> call_synchronous_helper(std::string cname, std::string fname, std::vector<ipc::value> args,
 			std::chrono::nanoseconds timeout = std::chrono::milliseconds(5000000000));
-
-		private:
-		std::unique_ptr<os::named_socket> m_socket;
-		bool m_authenticated = false;
-		std::map<int64_t, std::pair<call_return_t, void*>> m_cb;
-
-		private: // Threading
-		bool m_stopWorkers = false;
-		std::thread m_worker;
-		std::mutex m_lock;
-		static void worker_thread(client* ptr);
-		std::shared_ptr<os::signal> m_readSignal;
-		std::shared_ptr<os::signal> m_writeSignal;
 	};
 }

@@ -18,37 +18,148 @@
 #include "ipc-server.hpp"
 #include "ipc.pb.h"
 #include <chrono>
+#include "source/os/error.hpp"
+#include "source/os/tags.hpp"
 
 static const size_t buffer_size = 128 * 1024 * 1024;
 
+void ipc::server::watcher() {
+	os::error ec;
+
+	struct pending_accept {
+		std::shared_ptr<os::async_op> op;
+		std::chrono::high_resolution_clock::time_point start;
+	};
+
+	std::map<std::shared_ptr<os::windows::named_pipe>, pending_accept> pa_map;
+
+	while (!m_watcher.stop) {
+		{ // Always try to keep sockets in a connected state.
+			std::unique_lock<std::mutex> ul(m_sockets_mtx);
+			for (std::shared_ptr<os::windows::named_pipe> socket : m_sockets) {
+				if (!socket->is_connected()) {
+					if (!pa_map.count(socket)) {
+						pending_accept pa;
+						pa.start = std::chrono::high_resolution_clock::now();
+						ec = socket->accept(pa.op, nullptr);
+						if (ec == os::error::Success) {
+							pa_map.insert_or_assign(socket, pa);
+						}
+					} else { // Client is no longer there, kill.
+						kill_client(socket);
+					}
+				} else {
+					std::unique_lock<std::mutex> ul(m_clients_mtx);
+					if (!m_clients.count(socket)) {
+						ul.unlock();
+						ul.release();
+						spawn_client(socket);
+					}
+				}
+			}
+		}
+
+		// Wait for sockets to connect.
+		std::vector<os::waitable*> waits;
+		std::vector<std::shared_ptr<os::windows::named_pipe>> idx_to_socket;
+		for (auto kv : pa_map) {
+			waits.push_back(kv.second.op.get());
+			idx_to_socket.push_back(kv.first);
+		}
+
+		if (waits.size() == 0) {
+			std::this_thread::sleep_for(std::chrono::milliseconds(20));
+			continue;
+		}
+
+		size_t idx = -1;
+		ec = os::waitable::wait_any(waits, idx, std::chrono::milliseconds(20));
+		if (ec == os::error::TimedOut) {
+			continue;
+		} else if (ec == os::error::Success) {
+			pending_accept pa;
+			auto kv = pa_map.find(idx_to_socket[idx]);
+			if (kv != pa_map.end()) {
+				pa_map.erase(idx_to_socket[idx]);
+				// New client, spawn.
+				spawn_client(idx_to_socket[idx]);
+			}
+		} else {
+			// Unknown error.
+		}
+	}
+}
+
+void ipc::server::spawn_client(std::shared_ptr<os::windows::named_pipe> socket) {
+	std::unique_lock<std::mutex> ul(m_clients_mtx);
+	std::shared_ptr<ipc::server_instance> client = std::make_shared<ipc::server_instance>(this, socket);
+	if (m_handlerConnect.first) {
+		m_handlerConnect.first(m_handlerConnect.second, 0);
+	}
+	m_clients.insert_or_assign(socket, client);
+}
+
+void ipc::server::kill_client(std::shared_ptr<os::windows::named_pipe> socket) {
+	std::unique_lock<std::mutex> ul(m_clients_mtx);
+	if (m_handlerDisconnect.first) {
+		m_handlerDisconnect.first(m_handlerDisconnect.second, 0);
+	}
+	m_clients.erase(socket);
+}
+
 ipc::server::server() {
-	m_socket = os::named_socket::create();
-	m_socket->set_send_timeout(std::chrono::nanoseconds(1000000ull));
-	m_socket->set_receive_timeout(std::chrono::nanoseconds(1000000ull));
-	m_socket->set_receive_buffer_size(buffer_size);
-	m_socket->set_send_buffer_size(buffer_size);
+	// Start Watcher
+	m_watcher.stop = false;
+	m_watcher.worker = std::thread(std::bind(&ipc::server::watcher, this));
 }
 
 ipc::server::~server() {
 	finalize();
+
+	m_watcher.stop = true;
+	if (m_watcher.worker.joinable()) {
+		m_watcher.worker.join();
+	}
 }
 
 void ipc::server::initialize(std::string socketPath) {
-	if (!m_socket->listen(socketPath, 4))
-		throw std::exception("Failed to initialize socket.");
-	m_worker = std::thread(worker_main, this);
+	// Start a few sockets.
+
+	try {
+		std::unique_lock<std::mutex> ul(m_sockets_mtx);
+		m_sockets.insert(m_sockets.end(), 
+			std::make_shared<os::windows::named_pipe>(os::create_only, socketPath, 255,
+				os::windows::pipe_type::Byte, os::windows::pipe_read_mode::Byte, true));
+		for (size_t idx = 1; idx < backlog; idx++) {
+			m_sockets.insert(m_sockets.end(), 
+				std::make_shared<os::windows::named_pipe>(os::create_only, socketPath, 255,
+					os::windows::pipe_type::Byte, os::windows::pipe_read_mode::Byte, false));
+		}
+	} catch (std::exception e) {
+		throw e;
+	}
+
 	m_isInitialized = true;
 	m_socketPath = socketPath;
 }
 
 void ipc::server::finalize() {
-	if (m_isInitialized) {
-		m_stopWorker = true;
-		if (m_worker.joinable())
-			m_worker.join();
-		m_clients.clear();
-		m_socket->close();
+	if (!m_isInitialized) {
+		return;
 	}
+
+	// Lock sockets mutex so that watcher pauses.
+	std::unique_lock<std::mutex> ul(m_sockets_mtx);
+
+	{ // Kill/Disconnect any clients
+		for (auto kv : m_clients) {
+			kill_client(kv.first);
+		}
+		m_clients.clear();
+	}
+
+	// Kill any remaining sockets
+	m_sockets.clear();
 }
 
 void ipc::server::set_connect_handler(server_connect_handler_t handler, void* data) {
@@ -75,7 +186,7 @@ bool ipc::server::register_collection(std::shared_ptr<ipc::collection> cls) {
 	return true;
 }
 
-bool ipc::server::client_call_function(os::ClientId_t cid, std::string cname, std::string fname, std::vector<ipc::value>& args, std::vector<ipc::value>& rval, std::string& errormsg) {
+bool ipc::server::client_call_function(int64_t cid, std::string cname, std::string fname, std::vector<ipc::value>& args, std::vector<ipc::value>& rval, std::string& errormsg) {
 	if (m_classes.count(cname) == 0) {
 		errormsg = "Class '" + cname + "' is not registered.";
 		return false;
@@ -91,40 +202,4 @@ bool ipc::server::client_call_function(os::ClientId_t cid, std::string cname, st
 	fnc->call(cid, args, rval);
 
 	return true;
-}
-
-void ipc::server::worker_main(server* ptr) {
-	ptr->worker_local();
-}
-
-void ipc::server::worker_local() {
-	std::queue<os::ClientId_t> dcQueue;
-	while (m_stopWorker == false) {
-		std::shared_ptr<os::named_socket_connection> conn = m_socket->accept().lock();
-		if (conn) {
-			bool allow = true;
-			if (m_handlerConnect.first != nullptr)
-				allow = m_handlerConnect.first(m_handlerConnect.second, conn->get_client_id());
-
-			if (allow && conn->connect()) {
-				std::unique_lock<std::mutex> ulock(m_clientLock);
-				std::shared_ptr<server_instance> instance = std::make_shared<server_instance>(this, conn);
-				m_clients.insert(std::make_pair(conn->get_client_id(), instance));
-			}
-		}
-
-		for (auto kv = m_clients.begin(); kv != m_clients.end(); kv++) {
-			if (!kv->second->m_socket->is_connected())
-				dcQueue.push(kv->first);
-		}
-		while (dcQueue.size() > 0) {
-			os::ClientId_t id = dcQueue.front();
-			if (m_handlerDisconnect.first != nullptr)
-				m_handlerDisconnect.first(m_handlerDisconnect.second, id);
-			m_clients.erase(id);
-			dcQueue.pop();
-		}
-
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
-	}
 }
