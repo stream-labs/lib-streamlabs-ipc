@@ -1,0 +1,3 @@
+[submodule "third-party/lib-datalane"]
+	path = third-party/lib-datalane
+	url = git@github.com:Xaymar/lib-datalane.git

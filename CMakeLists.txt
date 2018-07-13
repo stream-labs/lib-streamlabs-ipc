@@ -32,6 +32,9 @@ find_package(Protobuf REQUIRED)
 
 OPTION(BUILD_TESTS "Build lib-streamlabs-ipc Tests" OFF)
 
+#lib-datalane
+ADD_SUBDIRECTORY(third-party/lib-datalane)
+
 ################################################################################
 # Code
 ################################################################################
@@ -78,6 +81,7 @@ SET(lib-streamlabs-ipc_DEPS
 	"${PROJECT_SOURCE_DIR}/package.json"
 )
 SET(lib-streamlabs-ipc_LIBRARIES
+	lib-datalane
 )
 
 # Project
