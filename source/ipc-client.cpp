@@ -187,9 +187,12 @@ void ipc::client::read_callback_msg(os::error ec, size_t size) {
 	// Remove cb entry
 	/// ToDo: Figure out better way of registering functions, perhaps even a way to have "events" across a IPC connection.
 	m_cb.erase(proc_pb_result.timestamp());
+
+	callsig.signal();
 }
 
 ipc::client::client(std::string socketPath) {
+	callsig.signal();
 	m_socket = std::make_unique<os::windows::named_pipe>(os::open_only, socketPath, os::windows::pipe_read_mode::Byte);
 }
 
@@ -205,6 +208,7 @@ bool ipc::client::authenticate() {
 	os::error ec = os::error::Success;
 	::Authenticate msg;
 	::AuthenticateReply rpl;
+	std::shared_ptr<os::async_op> wop;
 
 	if (!m_socket)
 		return false;
@@ -222,18 +226,18 @@ bool ipc::client::authenticate() {
 	}
 
 	ipc::make_sendable(m_wbuf, buf);
-	ec = m_socket->write(m_wbuf.data(), m_wbuf.size(), m_wop, nullptr);
+	ec = m_socket->write(m_wbuf.data(), m_wbuf.size(), wop, nullptr);
 	if (ec != os::error::Success && ec != os::error::Pending) {
-		m_wop->invalidate();
+		wop->invalidate();
 		return false;
 	}
 
-	ec = m_wop->wait(std::chrono::milliseconds(5000));
+	ec = wop->wait(std::chrono::milliseconds(5000));
 	if (ec != os::error::Success) {
-		m_wop->invalidate();
+		wop->invalidate();
 		return false;
 	}
-	m_wop->invalidate();
+	wop->invalidate();
 
 	m_rbuf.resize(sizeof(ipc_size_t));
 	ec = m_socket->read(m_rbuf.data(), m_rbuf.size(), m_rop, nullptr);
@@ -288,9 +292,12 @@ bool ipc::client::call(std::string cname, std::string fname, std::vector<ipc::va
 	static uint64_t timestamp = 0;
 	::FunctionCall msg;
 	os::error ec;
+	std::shared_ptr<os::async_op> wop;
 
 	if (!m_socket)
 		return false;
+
+	callsig.wait();
 
 	{
 		std::unique_lock<std::mutex> ulock(mtx);
@@ -333,6 +340,7 @@ bool ipc::client::call(std::string cname, std::string fname, std::vector<ipc::va
 
 	std::vector<char> buf(msg.ByteSizeLong());
 	if (!msg.SerializePartialToArray(buf.data(), (int)buf.size())) {
+		callsig.signal();
 		return false;
 	}
 
@@ -343,8 +351,9 @@ bool ipc::client::call(std::string cname, std::string fname, std::vector<ipc::va
 	}
 
 	ipc::make_sendable(m_wbuf, buf);
-	ec = m_socket->write(m_wbuf.data(), m_wbuf.size(), m_wop, nullptr);
+	ec = m_socket->write(m_wbuf.data(), m_wbuf.size(), wop, nullptr);
 	if (ec != os::error::Success && ec != os::error::Pending) {
+		callsig.signal();
 		cancel(cbid);
 		if (ec == os::error::Disconnected) {
 			return false;
@@ -353,13 +362,17 @@ bool ipc::client::call(std::string cname, std::string fname, std::vector<ipc::va
 		}
 	}
 
-	ec = m_wop->wait(std::chrono::milliseconds(5000));
+	ec = wop->wait(std::chrono::milliseconds(0));
 	if (ec != os::error::Success) {
-		cancel(cbid);
-		if (ec == os::error::Disconnected) {
-			return false;
-		} else {
-			throw std::exception("Unexpected Error");
+		ec = wop->wait(std::chrono::milliseconds(5000));
+		if (ec != os::error::Success) {
+			callsig.signal();
+			cancel(cbid);
+			if (ec == os::error::Disconnected) {
+				return false;
+			} else {
+				throw std::exception("Unexpected Error");
+			}
 		}
 	}
 

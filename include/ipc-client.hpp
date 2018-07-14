@@ -25,14 +25,17 @@
 #include <thread>
 #include <vector>
 #include "source/os/windows/named-pipe.hpp"
+#include "source/os/windows/semaphore.hpp"
+#include <shared_mutex>
 
 namespace ipc {
 	typedef void(*call_return_t)(const void* data, const std::vector<ipc::value>& rval);
 
 	class client {
 		std::unique_ptr<os::windows::named_pipe> m_socket;
-		std::shared_ptr<os::async_op> m_wop, m_rop;
+		std::shared_ptr<os::async_op> m_rop;
 		std::vector<char> m_wbuf, m_rbuf;
+		os::windows::semaphore callsig;
 
 		bool m_authenticated = false;
 		std::mutex m_lock;
