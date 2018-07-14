@@ -2,38 +2,61 @@ cmake_minimum_required(VERSION 3.5)
 project(lib-streamlabs-ipc)
 
 ################################################################################
-# System & Utilities
+# CMake Initialize
 ################################################################################
-# Detect Libary Suffix
-IF(WIN32)
-	SET(libExtension ".dll")
-ELSEIF(APPLE)
-	SET(libExtension ".dylib")
-ELSE()
-    SET(libExtension ".so")
-ENDIF()
+set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR} "${PROJECT_SOURCE_DIR}/cmake")
+
+# DownloadProject
+INCLUDE(DownloadProject)
 
 # Detect Architecture (Bitness)
 math(EXPR BITS "8*${CMAKE_SIZEOF_VOID_P}")
 
-# Find Third-Party Dependencies
-## Protobuf
-SET(Protobuf_USE_STATIC_LIBS ON)
-SET(Protobuf_SRC_ROOT_FOLDER		"${PROJECT_SOURCE_DIR}/third-party/protobuf")
-SET(Protobuf_INCLUDE_DIR			"${PROJECT_SOURCE_DIR}/third-party/protobuf/include")
-SET(Protobuf_LIBRARY_DEBUG			"${PROJECT_SOURCE_DIR}/third-party/protobuf/lib/libprotobufd.lib")
-SET(Protobuf_LIBRARY_RELEASE		"${PROJECT_SOURCE_DIR}/third-party/protobuf/lib/libprotobuf.lib")
-SET(Protobuf_LITE_LIBRARY_DEBUG		"${PROJECT_SOURCE_DIR}/third-party/protobuf/lib/libprotobuf-lited.lib")
-SET(Protobuf_LITE_LIBRARY_RELEASE	"${PROJECT_SOURCE_DIR}/third-party/protobuf/lib/libprotobuf-lite.lib")
-SET(Protobuf_PROTOC_EXECUTABLE		"${PROJECT_SOURCE_DIR}/third-party/protobuf/bin/protoc.exe")
-SET(Protobuf_PROTOC_LIBRARY_DEBUG	"${PROJECT_SOURCE_DIR}/third-party/protobuf/lib/libprotocd.lib")
-SET(Protobuf_PROTOC_LIBRARY_RELEASE	"${PROJECT_SOURCE_DIR}/third-party/protobuf/lib/libprotoc.lib")
-find_package(Protobuf REQUIRED)
+# Windows
+IF(WIN32)
+	# Detect Visual Studio Version
+	STRING(REGEX REPLACE "^Visual Studio [0-9]+ ([0-9]+)(| Win64)$" "\\1" VS_YEAR "${CMAKE_GENERATOR}")
+ENDIF()
 
-OPTION(BUILD_TESTS "Build lib-streamlabs-ipc Tests" OFF)
+################################################################################
+# Dependencies
+################################################################################
+
+# Protobuf
+SET(protobuf_url "")
+IF(WIN32)
+	IF("${VS_YEAR}" EQUAL "2015")
+		SET(protobuf_url "https://github.com/stream-labs/protobuf/releases/download/v3.6.0.1/protobuf_2015.tar.gz")
+	ELSEIF("${VS_YEAR}" EQUAL "2017")
+		SET(protobuf_url "https://github.com/stream-labs/protobuf/releases/download/v3.6.0.1/protobuf_2017.tar.gz")
+	ENDIF()
+	MESSAGE(STATUS "Visual Studio ${VS_YEAR} requires Protobuf binary '${protobuf_url}'.")
+ENDIF()
+download_project(PROJ protobuf URL ${protobuf_url} UPDATE_DISCONNECTED 1)
+
+SET(Protobuf_USE_STATIC_LIBS ON)
+SET(Protobuf_SRC_ROOT_FOLDER		"${protobuf_SOURCE_DIR}")
+SET(Protobuf_INCLUDE_DIR			"${protobuf_SOURCE_DIR}/include")
+SET(Protobuf_LIBRARY_DEBUG			"${protobuf_SOURCE_DIR}/lib/libprotobufd.lib")
+SET(Protobuf_LIBRARY_RELEASE		"${protobuf_SOURCE_DIR}/lib/libprotobuf.lib")
+SET(Protobuf_LITE_LIBRARY_DEBUG		"${protobuf_SOURCE_DIR}/lib/libprotobuf-lited.lib")
+SET(Protobuf_LITE_LIBRARY_RELEASE	"${protobuf_SOURCE_DIR}/lib/libprotobuf-lite.lib")
+SET(Protobuf_PROTOC_LIBRARY_DEBUG	"${protobuf_SOURCE_DIR}/lib/libprotocd.lib")
+SET(Protobuf_PROTOC_LIBRARY_RELEASE	"${protobuf_SOURCE_DIR}/lib/libprotoc.lib")
+SET(Protobuf_PROTOC_EXECUTABLE		"${protobuf_SOURCE_DIR}/bin/protoc.exe")
+find_package(Protobuf REQUIRED)
 
 #lib-datalane
 ADD_SUBDIRECTORY(third-party/lib-datalane)
+SET(lib-datalane_BUILD_STATIC ON CACHE BOOL "" FORCE)
+SET(lib-datalane_BUILD_MODULE OFF CACHE BOOL "" FORCE)
+SET(lib-datalane_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
+SET(lib-datalane_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+
+################################################################################
+# Settings
+################################################################################
+OPTION(lib-streamlabs-ipc_BUILD_TESTS "Build lib-streamlabs-ipc Tests" OFF)
 
 ################################################################################
 # Code
@@ -81,7 +104,7 @@ SET(lib-streamlabs-ipc_LIBRARIES
 source_group("Data Files" FILES $lib-streamlabs-ipc_DATA)
 
 ################################################################################
-# Platform Dependencies
+# Platform Code
 ################################################################################
 IF(WIN32)
 	# Windows
@@ -142,15 +165,14 @@ ADD_LIBRARY(${PROJECT_NAME} STATIC
 TARGET_LINK_LIBRARIES(${PROJECT_NAME}
 	${lib-streamlabs-ipc_LIBRARIES}
 	${Protobuf_LIBRARIES}
-	${Boost_LIBRARIES}
 )
 
 ################################################################################
 # Others
 ################################################################################
-IF(BUILD_TESTS)
+IF(lib-streamlabs-ipc_BUILD_TESTS)
 	ADD_SUBDIRECTORY(tests/shared)
 	ADD_SUBDIRECTORY(tests/ipc/simple-multi-client)
 	ADD_SUBDIRECTORY(tests/ipc/synchronous-call)
-ENDIF(BUILD_TESTS)
+ENDIF(lib-streamlabs-ipc_BUILD_TESTS)
 
