@@ -52,23 +52,16 @@ void ipc::client::worker() {
 			}
 		}
 
-		os::waitable * waits[] = { m_rop.get() };
-		size_t                      wait_index = -1;
-		for (size_t idx = 0; idx < 1; idx++) {
-			if (waits[idx] != nullptr) {
-				if (waits[idx]->wait(std::chrono::milliseconds(0)) == os::error::Success) {
-					wait_index = idx;
-					break;
-				}
-			}
-		}
-		if (wait_index == -1) {
-			os::error code = os::waitable::wait_any(waits, 1, wait_index, std::chrono::milliseconds(20));
-			if (code == os::error::TimedOut) {
+		ec = m_rop->wait(std::chrono::milliseconds(0));
+		if (ec == os::error::Success) {
+			continue;
+		} else {
+			ec = m_rop->wait(std::chrono::milliseconds(20));
+			if (ec == os::error::TimedOut) {
 				continue;
-			} else if (code == os::error::Disconnected) {
+			} else if (ec == os::error::Disconnected) {
 				break;
-			} else if (code == os::error::Error) {
+			} else if (ec == os::error::Error) {
 				throw std::exception("Error");
 			}
 		}
@@ -205,6 +198,7 @@ bool ipc::client::authenticate() {
 	os::error ec = os::error::Success;
 	::Authenticate msg;
 	::AuthenticateReply rpl;
+	std::shared_ptr<os::async_op> write_op, read_op;
 
 	if (!m_socket)
 		return false;
@@ -222,47 +216,47 @@ bool ipc::client::authenticate() {
 	}
 
 	ipc::make_sendable(m_wbuf, buf);
-	ec = m_socket->write(m_wbuf.data(), m_wbuf.size(), m_wop, nullptr);
+	ec = m_socket->write(m_wbuf.data(), m_wbuf.size(), write_op, nullptr);
 	if (ec != os::error::Success && ec != os::error::Pending) {
-		m_wop->invalidate();
+		write_op->invalidate();
 		return false;
 	}
 
-	ec = m_wop->wait(std::chrono::milliseconds(5000));
+	ec = write_op->wait(std::chrono::milliseconds(5000));
 	if (ec != os::error::Success) {
-		m_wop->invalidate();
+		write_op->invalidate();
 		return false;
 	}
-	m_wop->invalidate();
+	write_op->invalidate();
 
 	m_rbuf.resize(sizeof(ipc_size_t));
-	ec = m_socket->read(m_rbuf.data(), m_rbuf.size(), m_rop, nullptr);
+	ec = m_socket->read(m_rbuf.data(), m_rbuf.size(), read_op, nullptr);
 	if (ec != os::error::Success && ec != os::error::Pending) {
-		m_rop->invalidate();
+		read_op->invalidate();
 		return false;
 	}
 
-	ec = m_rop->wait(std::chrono::milliseconds(5000));
+	ec = read_op->wait(std::chrono::milliseconds(5000));
 	if (ec != os::error::Success) {
-		m_rop->invalidate();
+		read_op->invalidate();
 		return false;
 	}
-	m_rop->invalidate();
+	read_op->invalidate();
 
 	ipc_size_t size = ipc::read_size(m_rbuf);
 	m_rbuf.resize(size);
-	ec = m_socket->read(m_rbuf.data(), m_rbuf.size(), m_rop, nullptr);
+	ec = m_socket->read(m_rbuf.data(), m_rbuf.size(), read_op, nullptr);
 	if (ec != os::error::Success && ec != os::error::Pending) {
-		m_rop->invalidate();
+		read_op->invalidate();
 		return false;
 	}
 
-	ec = m_rop->wait(std::chrono::milliseconds(5000));
+	ec = read_op->wait(std::chrono::milliseconds(5000));
 	if (ec != os::error::Success) {
-		m_rop->invalidate();
+		read_op->invalidate();
 		return false;
 	}
-	m_rop->invalidate();
+	read_op->invalidate();
 
 	if (!rpl.ParsePartialFromArray(buf.data(), (int)buf.size())) {
 		return false;
@@ -288,6 +282,7 @@ bool ipc::client::call(std::string cname, std::string fname, std::vector<ipc::va
 	static uint64_t timestamp = 0;
 	::FunctionCall msg;
 	os::error ec;
+	std::shared_ptr<os::async_op> write_op;
 
 	if (!m_socket)
 		return false;
@@ -343,7 +338,7 @@ bool ipc::client::call(std::string cname, std::string fname, std::vector<ipc::va
 	}
 
 	ipc::make_sendable(m_wbuf, buf);
-	ec = m_socket->write(m_wbuf.data(), m_wbuf.size(), m_wop, nullptr);
+	ec = m_socket->write(m_wbuf.data(), m_wbuf.size(), write_op, nullptr);
 	if (ec != os::error::Success && ec != os::error::Pending) {
 		cancel(cbid);
 		if (ec == os::error::Disconnected) {
@@ -353,9 +348,10 @@ bool ipc::client::call(std::string cname, std::string fname, std::vector<ipc::va
 		}
 	}
 
-	ec = m_wop->wait(std::chrono::milliseconds(5000));
+	ec = write_op->wait(std::chrono::milliseconds(5000));
 	if (ec != os::error::Success) {
 		cancel(cbid);
+		write_op->cancel();
 		if (ec == os::error::Disconnected) {
 			return false;
 		} else {

@@ -31,7 +31,7 @@ namespace ipc {
 
 	class client {
 		std::unique_ptr<os::windows::named_pipe> m_socket;
-		std::shared_ptr<os::async_op> m_wop, m_rop;
+		std::shared_ptr<os::async_op> m_rop;
 		std::vector<char> m_wbuf, m_rbuf;
 
 		bool m_authenticated = false;
