@@ -19,23 +19,77 @@
 #include "ipc-value.hpp"
 #include <string>
 #include <vector>
+#include <functional>
+#include <stdarg.h>
 
 namespace ipc {
-	typedef uint32_t ipc_size_t;
+	typedef uint64_t ipc_size_t;
+	typedef uint32_t ipc_size_real_t;
+	typedef std::function<void(void* data, const char* fmt, va_list args)> log_callback_t;
 
 	inline void make_sendable(std::vector<char>& out, std::vector<char> const& in) {
 		out.resize(in.size() + sizeof(ipc_size_t));
 		memcpy(out.data() + sizeof(ipc_size_t), in.data(), in.size());
-		reinterpret_cast<ipc_size_t&>(out[0]) = ipc_size_t(in.size());
+		out[0] = 0xDE;
+		out[1] = 0xAD;
+		out[2] = 0xBE; out[3] = 0xEF;
+		reinterpret_cast<ipc_size_real_t&>(out[sizeof(ipc_size_real_t)]) = ipc_size_real_t(in.size());
 	}
 
 	inline ipc_size_t read_size(std::vector<char> const& in) {
-		return reinterpret_cast<const ipc_size_t&>(in[0]);
+		return reinterpret_cast<const ipc_size_real_t&>(in[sizeof(ipc_size_real_t)]);
 	}
+
+	void set_log_callback(log_callback_t cb, void* data);
+
+	void log(const char* fmt, ...);
+
+	std::string vectortohex(const std::vector<char>&);
 
 	class base {
 		public:
 		static std::string make_unique_id(std::string name, std::vector<type> parameters);
 		
 	};
+
+	namespace message {
+		struct function_call {
+			ipc::value uid = ipc::value(0ull);
+			ipc::value class_name = ipc::value("");
+			ipc::value function_name = ipc::value("");
+			std::vector<ipc::value> arguments;
+
+			size_t size();
+			size_t serialize(std::vector<char>& buf, size_t offset);
+			size_t deserialize(std::vector<char>& buf, size_t offset);
+		};
+
+		struct function_reply {
+			ipc::value uid = ipc::value(0ull);
+			std::vector<ipc::value> values;
+			ipc::value error = ipc::value("");
+
+			size_t size();
+			size_t serialize(std::vector<char>& buf, size_t offset);
+			size_t deserialize(std::vector<char>& buf, size_t offset);
+		};
+
+		struct authenticate {
+			ipc::value name = ipc::value("");
+			ipc::value password = ipc::value("");
+
+			size_t size();
+			size_t serialize(std::vector<char>& buf, size_t offset);
+			size_t deserialize(std::vector<char>& buf, size_t offset);
+		};
+
+		struct authenticate_reply {
+			ipc::value auth = ipc::value(false);
+
+			size_t size();
+			size_t serialize(std::vector<char>& buf, size_t offset);
+			size_t deserialize(std::vector<char>& buf, size_t offset);
+		};
+
+	}
 }
