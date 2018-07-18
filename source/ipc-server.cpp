@@ -100,7 +100,6 @@ void ipc::server::spawn_client(std::shared_ptr<os::windows::named_pipe> socket) 
 }
 
 void ipc::server::kill_client(std::shared_ptr<os::windows::named_pipe> socket) {
-	std::unique_lock<std::mutex> ul(m_clients_mtx);
 	if (m_handlerDisconnect.first) {
 		m_handlerDisconnect.first(m_handlerDisconnect.second, 0);
 	}
@@ -127,11 +126,11 @@ void ipc::server::initialize(std::string socketPath) {
 
 	try {
 		std::unique_lock<std::mutex> ul(m_sockets_mtx);
-		m_sockets.insert(m_sockets.end(), 
+		m_sockets.insert(m_sockets.end(),
 			std::make_shared<os::windows::named_pipe>(os::create_only, socketPath, 255,
 				os::windows::pipe_type::Byte, os::windows::pipe_read_mode::Byte, true));
 		for (size_t idx = 1; idx < backlog; idx++) {
-			m_sockets.insert(m_sockets.end(), 
+			m_sockets.insert(m_sockets.end(),
 				std::make_shared<os::windows::named_pipe>(os::create_only, socketPath, 255,
 					os::windows::pipe_type::Byte, os::windows::pipe_read_mode::Byte, false));
 		}
@@ -152,10 +151,10 @@ void ipc::server::finalize() {
 	std::unique_lock<std::mutex> ul(m_sockets_mtx);
 
 	{ // Kill/Disconnect any clients
-		for (auto kv : m_clients) {
-			kill_client(kv.first);
+		std::unique_lock<std::mutex> ul(m_clients_mtx);
+		while (m_clients.size() > 0) {
+			kill_client(m_clients.begin()->first);
 		}
-		m_clients.clear();
 	}
 
 	// Kill any remaining sockets
