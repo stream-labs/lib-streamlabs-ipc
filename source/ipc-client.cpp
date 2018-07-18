@@ -20,6 +20,7 @@
 #include <iomanip>
 #include <iostream>
 #include <functional>
+#include <iterator>
 #include "source/os/error.hpp"
 #include "source/os/tags.hpp"
 #include "source/os/windows/semaphore.hpp"
