@@ -22,30 +22,6 @@ ENDIF()
 # Dependencies
 ################################################################################
 
-# Protobuf
-SET(protobuf_url "")
-IF(WIN32)
-	IF("${VS_YEAR}" EQUAL "2015")
-		SET(protobuf_url "https://github.com/stream-labs/protobuf/releases/download/v3.6.0.1/protobuf_2015.tar.gz")
-	ELSEIF("${VS_YEAR}" EQUAL "2017")
-		SET(protobuf_url "https://github.com/stream-labs/protobuf/releases/download/v3.6.0.1/protobuf_2017.tar.gz")
-	ENDIF()
-	MESSAGE(STATUS "Visual Studio ${VS_YEAR} requires Protobuf binary '${protobuf_url}'.")
-ENDIF()
-download_project(PROJ protobuf URL ${protobuf_url} UPDATE_DISCONNECTED 1)
-
-SET(Protobuf_USE_STATIC_LIBS ON)
-SET(Protobuf_SRC_ROOT_FOLDER		"${protobuf_SOURCE_DIR}")
-SET(Protobuf_INCLUDE_DIR			"${protobuf_SOURCE_DIR}/include")
-SET(Protobuf_LIBRARY_DEBUG			"${protobuf_SOURCE_DIR}/lib/libprotobufd.lib")
-SET(Protobuf_LIBRARY_RELEASE		"${protobuf_SOURCE_DIR}/lib/libprotobuf.lib")
-SET(Protobuf_LITE_LIBRARY_DEBUG		"${protobuf_SOURCE_DIR}/lib/libprotobuf-lited.lib")
-SET(Protobuf_LITE_LIBRARY_RELEASE	"${protobuf_SOURCE_DIR}/lib/libprotobuf-lite.lib")
-SET(Protobuf_PROTOC_LIBRARY_DEBUG	"${protobuf_SOURCE_DIR}/lib/libprotocd.lib")
-SET(Protobuf_PROTOC_LIBRARY_RELEASE	"${protobuf_SOURCE_DIR}/lib/libprotoc.lib")
-SET(Protobuf_PROTOC_EXECUTABLE		"${protobuf_SOURCE_DIR}/bin/protoc.exe")
-find_package(Protobuf REQUIRED)
-
 #lib-datalane
 ADD_SUBDIRECTORY(third-party/lib-datalane)
 SET(lib-datalane_BUILD_STATIC ON CACHE BOOL "" FORCE)
@@ -181,8 +157,6 @@ ENDIF()
 ################################################################################
 # Building
 ################################################################################
-# Protobuf
-protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${lib-streamlabs-ipc_PROTOBUF})
 
 # Directories
 INCLUDE_DIRECTORIES(
@@ -190,7 +164,6 @@ INCLUDE_DIRECTORIES(
 	${PROJECT_SOURCE_DIR}/include
 	${PROJECT_SOURCE_DIR}/third-party/boost/
 	${PROJECT_SOURCE_DIR}/third-party/lib-datalane/
-	${Protobuf_INCLUDE_DIRS}
 	${PROJECT_BINARY_DIR}
 )
 LINK_DIRECTORIES(
@@ -199,13 +172,11 @@ LINK_DIRECTORIES(
 # Building
 ADD_LIBRARY(${PROJECT_NAME} STATIC
 	${lib-streamlabs-ipc_SOURCES}
-	${PROTO_SRCS} ${PROTO_HDRS}
 )
 
 # Linking
 TARGET_LINK_LIBRARIES(${PROJECT_NAME}
 	${lib-streamlabs-ipc_LIBRARIES}
-	${Protobuf_LIBRARIES}
 )
 
 ################################################################################

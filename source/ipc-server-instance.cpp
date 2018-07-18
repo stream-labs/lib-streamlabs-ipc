@@ -16,7 +16,6 @@
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110 - 1301, USA.
 
 #include "ipc-server-instance.hpp"
-#include "ipc.pb.h"
 #include <sstream>
 #include <functional>
 
@@ -53,82 +52,6 @@ bool ipc::server_instance::is_alive() {
 		return false;
 
 	return true;
-}
-
-void DecodeProtobufToIPC(const ::Value& v, ipc::value& val) {
-	switch (v.value_case()) {
-		case Value::ValueCase::kValBool:
-			val.type = ipc::type::Int32; // ToDo: Add Bool type
-			val.value_union.i32 = v.val_bool() ? 1 : 0;
-			break;
-		case Value::ValueCase::kValFloat:
-			val.type = ipc::type::Float;
-			val.value_union.fp32 = v.val_float();
-			break;
-		case Value::ValueCase::kValDouble:
-			val.type = ipc::type::Double;
-			val.value_union.fp64 = v.val_double();
-			break;
-		case Value::ValueCase::kValInt32:
-			val.type = ipc::type::Int32;
-			val.value_union.i32 = v.val_int32();
-			break;
-		case Value::ValueCase::kValInt64:
-			val.type = ipc::type::Int64;
-			val.value_union.i64 = v.val_int64();
-			break;
-		case Value::ValueCase::kValUint32:
-			val.type = ipc::type::UInt32;
-			val.value_union.ui32 = v.val_uint32();
-			break;
-		case Value::ValueCase::kValUint64:
-			val.type = ipc::type::UInt64;
-			val.value_union.ui64 = v.val_uint64();
-			break;
-		case Value::ValueCase::kValString:
-			val.type = ipc::type::String;
-			val.value_str = v.val_string();
-			break;
-		case Value::ValueCase::kValBinary:
-			val.type = ipc::type::Binary;
-			val.value_bin.resize(v.val_binary().size());
-			memcpy(val.value_bin.data(), v.val_binary().data(), val.value_bin.size());
-			break;
-		default:
-			val.type = ipc::type::Null;
-			break;
-	}
-}
-void EncodeIPCToProtobuf(const ipc::value& v, ::Value* val) {
-	switch (v.type) {
-		case ipc::type::Float:
-			val->set_val_float(v.value_union.fp32);
-			break;
-		case ipc::type::Double:
-			val->set_val_double(v.value_union.fp64);
-			break;
-		case ipc::type::Int32:
-			val->set_val_int32(v.value_union.i32);
-			break;
-		case ipc::type::Int64:
-			val->set_val_int64(v.value_union.i64);
-			break;
-		case ipc::type::UInt32:
-			val->set_val_uint32(v.value_union.ui32);
-			break;
-		case ipc::type::UInt64:
-			val->set_val_uint64(v.value_union.ui64);
-			break;
-		case ipc::type::String:
-			val->set_val_string(v.value_str);
-			break;
-		case ipc::type::Binary:
-			val->set_val_binary(v.value_bin.data(), v.value_bin.size());
-			break;
-		case ipc::type::Null:
-		default:
-			break;
-	}
 }
 
 void ipc::server_instance::worker() {

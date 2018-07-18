@@ -16,7 +16,6 @@
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110 - 1301, USA.
 
 #include "ipc-server.hpp"
-#include "ipc.pb.h"
 #include <chrono>
 #include "source/os/error.hpp"
 #include "source/os/tags.hpp"
