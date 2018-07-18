@@ -32,7 +32,6 @@ namespace ipc {
 	class client {
 		std::unique_ptr<os::windows::named_pipe> m_socket;
 		std::shared_ptr<os::async_op> m_rop;
-		std::vector<char> m_wbuf, m_rbuf;
 
 		bool m_authenticated = false;
 		std::mutex m_lock;
@@ -42,6 +41,7 @@ namespace ipc {
 		struct {
 			std::thread worker;
 			bool stop = false;
+			std::vector<char> buf;
 		} m_watcher;
 		
 		void worker();
