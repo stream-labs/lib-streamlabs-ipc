@@ -416,7 +416,6 @@ std::vector<ipc::value> ipc::client::call_synchronous_helper(std::string cname, 
 	// Set up call reference data.
 	struct CallData {
 		std::shared_ptr<os::windows::semaphore> sgn = std::make_shared<os::windows::semaphore>();
-		std::mutex mtx;
 		bool called = false;
 		std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
 
@@ -433,8 +432,6 @@ std::vector<ipc::value> ipc::client::call_synchronous_helper(std::string cname, 
 		cd.called = true;
 		cd.sgn->signal();
 	};
-
-	std::unique_lock<std::mutex> ulock(cd.mtx);
 
 	int64_t cbid = 0;
 	bool success = call(cname, fname, std::move(args), cb, &cd, cbid);
