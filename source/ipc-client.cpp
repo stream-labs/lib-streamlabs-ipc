@@ -26,7 +26,6 @@
 #include "source/os/windows/semaphore.hpp"
 
 #ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <Objbase.h>
 #endif
@@ -386,22 +385,15 @@ bool ipc::client::call(std::string cname, std::string fname, std::vector<ipc::va
 	ec = m_socket->write(outbuf.data(), outbuf.size(), write_op, nullptr);
 	if (ec != os::error::Success && ec != os::error::Pending) {
 		cancel(cbid);
-		if (ec == os::error::Disconnected) {
-			return false;
-		} else {
-			throw std::exception("Unexpected Error");
-		}
+		write_op->cancel();
+		return false;
 	}
 
 	ec = write_op->wait(std::chrono::milliseconds(5000));
 	if (ec != os::error::Success) {
 		cancel(cbid);
 		write_op->cancel();
-		if (ec == os::error::Disconnected) {
-			return false;
-		} else {
-			throw std::exception("Unexpected Error");
-		}
+		return false;
 	}
 
 #ifdef _DEBUG
