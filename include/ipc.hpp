@@ -30,9 +30,10 @@ namespace ipc {
 	inline void make_sendable(std::vector<char>& out, std::vector<char> const& in) {
 		out.resize(in.size() + sizeof(ipc_size_t));
 		memcpy(out.data() + sizeof(ipc_size_t), in.data(), in.size());
-		out[0] = 0xDE;
-		out[1] = 0xAD;
-		out[2] = 0xBE; out[3] = 0xEF;
+		out[0] = 0;
+		out[1] = 1;
+		out[2] = 2;
+		out[3] = 3;
 		reinterpret_cast<ipc_size_real_t&>(out[sizeof(ipc_size_real_t)]) = ipc_size_real_t(in.size());
 	}
 
