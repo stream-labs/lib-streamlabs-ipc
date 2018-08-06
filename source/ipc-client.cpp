@@ -239,7 +239,7 @@ bool ipc::client::authenticate() {
 		return false;
 	}
 
-	ec = write_op->wait(std::chrono::milliseconds(5000));
+	ec = write_op->wait(std::chrono::milliseconds(15000));
 	if (ec != os::error::Success) {
 		write_op->invalidate();
 		return false;
@@ -253,7 +253,7 @@ bool ipc::client::authenticate() {
 		return false;
 	}
 
-	ec = read_op->wait(std::chrono::milliseconds(5000));
+	ec = read_op->wait(std::chrono::milliseconds(15000));
 	if (ec != os::error::Success) {
 		read_op->invalidate();
 		return false;
@@ -268,7 +268,7 @@ bool ipc::client::authenticate() {
 		return false;
 	}
 
-	ec = read_op->wait(std::chrono::milliseconds(5000));
+	ec = read_op->wait(std::chrono::milliseconds(15000));
 	if (ec != os::error::Success) {
 		read_op->invalidate();
 		return false;
@@ -389,7 +389,7 @@ bool ipc::client::call(std::string cname, std::string fname, std::vector<ipc::va
 		return false;
 	}
 
-	ec = write_op->wait(std::chrono::milliseconds(5000));
+	ec = write_op->wait(std::chrono::milliseconds(15000));
 	if (ec != os::error::Success) {
 		cancel(cbid);
 		write_op->cancel();
