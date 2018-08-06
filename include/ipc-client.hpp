@@ -60,6 +60,6 @@ namespace ipc {
 
 		// Temporary helper
 		std::vector<ipc::value> call_synchronous_helper(std::string cname, std::string fname, std::vector<ipc::value> args,
-			std::chrono::nanoseconds timeout = std::chrono::milliseconds(5000));
+			std::chrono::nanoseconds timeout = std::chrono::milliseconds(15000));
 	};
 }
