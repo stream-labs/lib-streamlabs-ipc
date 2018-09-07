@@ -26,33 +26,45 @@ void ipc::server::watcher() {
 	os::error ec;
 
 	struct pending_accept {
+		server* parent;
 		std::shared_ptr<os::async_op> op;
+		std::shared_ptr<os::windows::named_pipe> socket;
 		std::chrono::high_resolution_clock::time_point start;
+
+		void accept_client_cb(os::error ec, size_t length) {
+			if (ec == os::error::Connected) {
+				// A client has connected, so spawn a new client.
+				parent->spawn_client(socket);
+			}
+			op->invalidate();
+		}
 	};
 
 	std::map<std::shared_ptr<os::windows::named_pipe>, pending_accept> pa_map;
 
 	while (!m_watcher.stop) {
-		{ // Always try to keep sockets in a connected state.
+		// Verify the state of sockets.
+		{
 			std::unique_lock<std::mutex> ul(m_sockets_mtx);
-			for (std::shared_ptr<os::windows::named_pipe> socket : m_sockets) {
-				if (!socket->is_connected()) {
-					if (!pa_map.count(socket)) {
-						pending_accept pa;
-						pa.start = std::chrono::high_resolution_clock::now();
-						ec = socket->accept(pa.op, nullptr);
-						if (ec == os::error::Success) {
-							pa_map.insert_or_assign(socket, pa);
-						}
-					} else { // Client is no longer there, kill.
+			for (auto socket : m_sockets) {
+				auto pending = pa_map.find(socket);
+				auto client = m_clients.find(socket);
+
+				if (client != m_clients.end()) {
+					if (!socket->is_connected()) {
+						// Client died.
+						client = m_clients.end();
 						kill_client(socket);
 					}
-				} else {
-					std::unique_lock<std::mutex> ul(m_clients_mtx);
-					if (!m_clients.count(socket)) {
-						ul.unlock();
-						ul.release();
-						spawn_client(socket);
+				} else if (pending == pa_map.end()) {
+					pending_accept pa;
+					pa.parent = this;
+					pa.start = std::chrono::high_resolution_clock::now();
+					pa.socket = socket;
+					ec = socket->accept(pa.op, std::bind(&pending_accept::accept_client_cb, &pa, std::placeholders::_1, std::placeholders::_2));
+					if (ec == os::error::Success) {
+						// There was no client waiting to connect, but there might be one in the future.
+						pa_map.insert_or_assign(socket, pa);
 					}
 				}
 			}
@@ -75,13 +87,11 @@ void ipc::server::watcher() {
 		ec = os::waitable::wait_any(waits, idx, std::chrono::milliseconds(20));
 		if (ec == os::error::TimedOut) {
 			continue;
-		} else if (ec == os::error::Success) {
+		} else if (ec == os::error::Connected) {
 			pending_accept pa;
 			auto kv = pa_map.find(idx_to_socket[idx]);
 			if (kv != pa_map.end()) {
 				pa_map.erase(idx_to_socket[idx]);
-				// New client, spawn.
-				spawn_client(idx_to_socket[idx]);
 			}
 		} else {
 			// Unknown error.
