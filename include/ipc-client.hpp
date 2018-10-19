@@ -17,6 +17,7 @@
 
 #pragma once
 #include "ipc.hpp"
+#include "ipc-class.hpp"
 #include <string>
 #include <vector>
 #include <map>
@@ -37,6 +38,9 @@ namespace ipc {
 		std::mutex m_lock;
 		std::map<int64_t, std::pair<call_return_t, void*>> m_cb;
 
+		// Functions
+		std::map<std::string, std::shared_ptr<ipc::collection>> m_classes;
+
 		// Threading
 		struct {
 			std::thread worker;
@@ -47,6 +51,17 @@ namespace ipc {
 		void worker();
 		void read_callback_init(os::error ec, size_t size);
 		void read_callback_msg(os::error ec, size_t size);
+		void handle_fnc_call();
+		void handle_fnc_reply();
+
+		private:
+		bool server_call_function(
+		    int64_t                  cid,
+		    std::string              cname,
+		    std::string              fname,
+		    std::vector<ipc::value>& args,
+		    std::vector<ipc::value>& rval,
+		    std::string&             errormsg);
 
 		public:
 		client(std::string socketPath);
@@ -57,6 +72,10 @@ namespace ipc {
 		bool call(std::string cname, std::string fname, std::vector<ipc::value> args, call_return_t fn, void* data, int64_t& cbid);
 
 		bool cancel(int64_t const& id);
+
+		public: // Functionality
+		bool register_collection(ipc::collection cls);
+		bool register_collection(std::shared_ptr<ipc::collection> cls);
 
 		// Temporary helper
 		std::vector<ipc::value> call_synchronous_helper(std::string cname, std::string fname, std::vector<ipc::value> args,

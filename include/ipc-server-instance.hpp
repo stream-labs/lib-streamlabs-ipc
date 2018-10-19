@@ -27,6 +27,7 @@
 
 namespace ipc {
 	class server;
+	typedef void (*call_return_t)(const void* data, const std::vector<ipc::value>& rval);
 
 	class server_instance {
 		friend class server;
@@ -45,13 +46,27 @@ namespace ipc {
 		void worker();
 		void read_callback_init(os::error ec, size_t size);
 		void read_callback_msg(os::error ec, size_t size);
-		void write_callback(os::error ec, size_t size);		
-		
+		void write_callback(os::error ec, size_t size);	
+		void handle_fnc_call(std::vector<char>& writeBuffer);
+		void handle_fnc_reply();
+
+		public:
+		bool cancel(int64_t const& id);
+		bool call(
+		    std::string             cname,
+		    std::string             fname,
+		    std::vector<ipc::value> args,
+		    call_return_t           fn,
+		    void*                   data,
+		    int64_t&                cbid);
+
 		protected:
 		std::shared_ptr<os::windows::named_pipe> m_socket;
 		std::shared_ptr<os::async_op> m_wop, m_rop;
 		std::vector<char> m_wbuf, m_rbuf;
 		std::queue<std::vector<char>> m_write_queue;
+		std::map<int64_t, std::pair<call_return_t, void*>> m_cb;
+		std::mutex                                         m_lock;
 
 		private:
 		server* m_parent = nullptr;

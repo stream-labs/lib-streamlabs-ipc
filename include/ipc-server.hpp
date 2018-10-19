@@ -83,6 +83,20 @@ namespace ipc {
 		bool register_collection(ipc::collection cls);
 		bool register_collection(std::shared_ptr<ipc::collection> cls);
 
+		public: // Server -> Client(*) communication
+		std::vector<ipc::value> call_synchronous_helper(
+		    std::shared_ptr<os::windows::named_pipe>	client,
+		    std::string									cname,
+		    std::string									fname,
+		    std::vector<ipc::value>						args,
+		    std::chrono::nanoseconds					timeout = 
+			std::chrono::milliseconds(15000));
+		std::vector<ipc::value> call_synchronous_broadcast_helper(
+		    std::string              cname,
+		    std::string              fname,
+		    std::vector<ipc::value>  args,
+		    std::chrono::nanoseconds timeout = std::chrono::milliseconds(15000));
+
 		protected: // Client -> Server
 		bool client_call_function(int64_t cid, std::string cname, std::string fname,
 			std::vector<ipc::value>& args, std::vector<ipc::value>& rval, std::string& errormsg);

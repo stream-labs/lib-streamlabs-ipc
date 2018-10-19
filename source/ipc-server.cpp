@@ -19,6 +19,8 @@
 #include <chrono>
 #include "source/os/error.hpp"
 #include "source/os/tags.hpp"
+#include "ipc-server-instance.hpp"
+#include "source/os/windows/semaphore.hpp"
 
 static const size_t buffer_size = 128 * 1024 * 1024;
 
@@ -192,6 +194,68 @@ bool ipc::server::register_collection(std::shared_ptr<ipc::collection> cls) {
 
 	m_classes.insert(std::make_pair(cls->get_name(), cls));
 	return true;
+}
+
+std::vector<ipc::value> ipc::server::call_synchronous_helper(
+    std::shared_ptr<os::windows::named_pipe>	client,
+    std::string									cname,
+    std::string									fname,
+    std::vector<ipc::value>						args,
+    std::chrono::nanoseconds					timeout)
+{
+	// TODO: To be implemented
+
+	return {};
+}
+
+std::vector<ipc::value> ipc::server::call_synchronous_broadcast_helper(
+    std::string              cname,
+    std::string              fname,
+    std::vector<ipc::value>  args,
+    std::chrono::nanoseconds timeout)
+{
+	// Probably use an input callback to handle each client return
+
+	// For each client
+	for (auto& client : m_clients)
+	{
+		// Set up call reference data.
+		struct CallData
+		{
+			std::shared_ptr<os::windows::semaphore>        sgn    = std::make_shared<os::windows::semaphore>();
+			bool                                           called = false;
+			std::chrono::high_resolution_clock::time_point start  = std::chrono::high_resolution_clock::now();
+
+			std::vector<ipc::value> values;
+		} cd;
+
+		auto cb = [](const void* data, const std::vector<ipc::value>& rval) {
+			CallData& cd = const_cast<CallData&>(*static_cast<const CallData*>(data));
+
+			// This copies the data off of the reply thread to the main thread.
+			cd.values.reserve(rval.size());
+			std::copy(rval.begin(), rval.end(), std::back_inserter(cd.values));
+
+			cd.called = true;
+			cd.sgn->signal();
+		};
+		
+		int64_t cbid    = 0;
+		bool    success = client.second->call(cname, fname, std::move(args), cb, &cd, cbid);
+		if (!success) {
+			return {};
+		}
+
+		cd.sgn->wait(timeout);
+		if (!cd.called) {
+			client.second->cancel(cbid);
+			return {};
+		}
+	}
+	
+	// return std::move(cd.values);
+
+	return {};
 }
 
 bool ipc::server::client_call_function(int64_t cid, std::string cname, std::string fname, std::vector<ipc::value>& args, std::vector<ipc::value>& rval, std::string& errormsg) {
