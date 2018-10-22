@@ -33,6 +33,8 @@ namespace ipc {
 	typedef bool(*server_connect_handler_t)(void*, int64_t);
 	typedef void(*server_disconnect_handler_t)(void*, int64_t);
 	typedef void(*server_message_handler_t)(void*, int64_t, const std::vector<char>&);
+	typedef void (
+	    *server_client_broadcast_handler_t)(std::shared_ptr<os::windows::named_pipe>, const std::vector<ipc::value>&);
 
 	class server {
 		bool m_isInitialized = false;
@@ -51,9 +53,9 @@ namespace ipc {
 		std::map<std::shared_ptr<os::windows::named_pipe>, std::shared_ptr<server_instance>> m_clients;
 
 		// Event Handlers
-		std::pair<server_connect_handler_t, void*> m_handlerConnect;
-		std::pair<server_disconnect_handler_t, void*> m_handlerDisconnect;
-		std::pair<server_message_handler_t, void*> m_handlerMessage;
+		std::pair<server_connect_handler_t, void*>			m_handlerConnect;
+		std::pair<server_disconnect_handler_t, void*>		m_handlerDisconnect;
+		std::pair<server_message_handler_t, void*>			m_handlerMessage;
 
 		// Worker
 		struct {
@@ -91,10 +93,11 @@ namespace ipc {
 		    std::vector<ipc::value>						args,
 		    std::chrono::nanoseconds					timeout = 
 			std::chrono::milliseconds(15000));
-		std::vector<ipc::value> call_synchronous_broadcast_helper(
+		void call_synchronous_broadcast_helper(
 		    std::string              cname,
 		    std::string              fname,
 		    std::vector<ipc::value>  args,
+		    server_client_broadcast_handler_t clientCallback, 
 		    std::chrono::nanoseconds timeout = std::chrono::milliseconds(15000));
 
 		protected: // Client -> Server

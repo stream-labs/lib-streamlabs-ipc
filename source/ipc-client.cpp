@@ -38,6 +38,10 @@ void ipc::client::worker() {
 	os::error ec = os::error::Success;
 	std::vector<ipc::value> proc_rval;
 
+	// Prepare Buffers
+	m_watcher.readBuf.reserve(65535);
+	m_watcher.writeBuf.reserve(65535);
+
 	while (m_socket->is_connected() && !m_watcher.stop) {
 		if (!m_rop || !m_rop->is_valid()) {
 			m_watcher.readBuf.resize(sizeof(ipc_size_t));
@@ -52,7 +56,6 @@ void ipc::client::worker() {
 		}
 		if (!m_wop || !m_wop->is_valid()) {
 			if (m_write_queue.size() > 0) {
-				m_watcher.writeBuf.resize(sizeof(ipc_size_t));
 				std::vector<char>& fbuf = m_write_queue.front();
 				ipc::make_sendable(m_watcher.writeBuf, fbuf);
 #ifdef _DEBUG
@@ -160,8 +163,7 @@ void ipc::client::read_callback_msg(os::error ec, size_t size) {
 
 void ipc::client::write_callback(os::error ec, size_t size) {
 	m_wop->invalidate();
-	m_rop->invalidate();
-
+	// m_rop->invalidate();
 }
 
 void ipc::client::handle_fnc_call()
@@ -341,9 +343,6 @@ void ipc::client::handle_fnc_reply()
 	ipc::message::function_reply    fnc_reply_msg;
 
 	m_rop->invalidate();
-
-	// I need to check if this is a function_reply or a function_call, in case it's a function_call I need to call the method and answer the server
-	bool is_fnc_call = ipc::message::is_function_call(m_watcher.readBuf, 0);
 
 	try {
 		fnc_reply_msg.deserialize(m_watcher.readBuf, 0);
