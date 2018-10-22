@@ -196,7 +196,7 @@ bool ipc::server::register_collection(std::shared_ptr<ipc::collection> cls) {
 	return true;
 }
 
-std::vector<ipc::value> ipc::server::call_synchronous_helper(
+void ipc::server::call_synchronous_helper(
     std::shared_ptr<os::windows::named_pipe>	client,
     std::string									cname,
     std::string									fname,
@@ -205,7 +205,7 @@ std::vector<ipc::value> ipc::server::call_synchronous_helper(
 {
 	auto& clientInfo = m_clients.find(client);
 	if (clientInfo == m_clients.end()) {
-		return {};
+		return;
 	}
 
 	// Set up call reference data.
@@ -232,23 +232,16 @@ std::vector<ipc::value> ipc::server::call_synchronous_helper(
 	int64_t cbid    = 0;
 	bool    success = clientInfo->second->call(cname, fname, std::move(args), cb, &cd, cbid);
 	if (!success) {
-		return {};
+		return;
 	}
 
-	cd.sgn->wait(timeout);
-	if (!cd.called) {
-		clientInfo->second->cancel(cbid);
-		return {};
-	}
-
-	return std::move(cd.values);
+	// We don't wait for an answer
 }
 
 void ipc::server::call_synchronous_broadcast_helper(
     std::string                       cname,
     std::string                       fname,
     std::vector<ipc::value>           args,
-    server_client_broadcast_handler_t clientCallback,
     std::chrono::nanoseconds          timeout)
 {
 	// For each client
@@ -276,26 +269,12 @@ void ipc::server::call_synchronous_broadcast_helper(
 		};
 		
 		int64_t cbid    = 0;
-		bool    success = client.second->call(cname, fname, std::move(args), cb, &cd, cbid);
+		bool    success = client.second->call(cname, fname, args, cb, &cd, cbid);
 		if (!success) {
-			if (clientCallback) {
-				clientCallback(client.first, {});
-			}
 			continue;
 		}
 
-		cd.sgn->wait(timeout);
-		if (!cd.called) {
-			client.second->cancel(cbid);
-			if (clientCallback) {
-				clientCallback(client.first, {});
-			}
-			continue;
-		}
-
-		if (clientCallback) {
-			clientCallback(client.first, cd.values);
-		}
+		// We don't wait for an answer
 	}
 }
 

@@ -210,7 +210,8 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 		if (is_fnc_call) {
 			handle_fnc_call(write_buffer);
 		} else {
-			handle_fnc_reply();
+			// We don't handle function replies
+			// handle_fnc_reply();
 		}
 	}
 

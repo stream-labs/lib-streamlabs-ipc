@@ -33,8 +33,6 @@ namespace ipc {
 	typedef bool(*server_connect_handler_t)(void*, int64_t);
 	typedef void(*server_disconnect_handler_t)(void*, int64_t);
 	typedef void(*server_message_handler_t)(void*, int64_t, const std::vector<char>&);
-	typedef void (
-	    *server_client_broadcast_handler_t)(std::shared_ptr<os::windows::named_pipe>, const std::vector<ipc::value>&);
 
 	class server {
 		bool m_isInitialized = false;
@@ -86,7 +84,7 @@ namespace ipc {
 		bool register_collection(std::shared_ptr<ipc::collection> cls);
 
 		public: // Server -> Client(*) communication
-		std::vector<ipc::value> call_synchronous_helper(
+		void call_synchronous_helper(
 		    std::shared_ptr<os::windows::named_pipe>	client,
 		    std::string									cname,
 		    std::string									fname,
@@ -97,7 +95,6 @@ namespace ipc {
 		    std::string              cname,
 		    std::string              fname,
 		    std::vector<ipc::value>  args,
-		    server_client_broadcast_handler_t clientCallback, 
 		    std::chrono::nanoseconds timeout = std::chrono::milliseconds(15000));
 
 		protected: // Client -> Server
