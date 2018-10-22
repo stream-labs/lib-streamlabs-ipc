@@ -239,7 +239,12 @@ bool ipc::client::authenticate() {
 		return false;
 	}
 
-	ec = write_op->wait(std::chrono::milliseconds(15000));
+	// DO NOT TIMEOUT: the frontend is not able to handle that at the moment,
+	// Every timeout will result in a very bad desync between the frontend
+	// and the backend.
+	// Shot term solution: increase all timeouts to 150min
+	// Long term solution: remove all timeouts
+	ec = write_op->wait(std::chrono::minutes(150));
 	if (ec != os::error::Success) {
 		write_op->invalidate();
 		return false;
@@ -253,7 +258,12 @@ bool ipc::client::authenticate() {
 		return false;
 	}
 
-	ec = read_op->wait(std::chrono::milliseconds(15000));
+	// DO NOT TIMEOUT: the frontend is not able to handle that at the moment,
+	// Every timeout will result in a very bad desync between the frontend
+	// and the backend.
+	// Shot term solution: increase all timeouts to 150min
+	// Long term solution: remove all timeouts
+	ec = read_op->wait(std::chrono::minutes(150));
 	if (ec != os::error::Success) {
 		read_op->invalidate();
 		return false;
@@ -268,7 +278,12 @@ bool ipc::client::authenticate() {
 		return false;
 	}
 
-	ec = read_op->wait(std::chrono::milliseconds(15000));
+	// DO NOT TIMEOUT: the frontend is not able to handle that at the moment,
+	// Every timeout will result in a very bad desync between the frontend
+	// and the backend.
+	// Shot term solution: increase all timeouts to 150min
+	// Long term solution: remove all timeouts
+	ec = read_op->wait(std::chrono::minutes(150));
 	if (ec != os::error::Success) {
 		read_op->invalidate();
 		return false;
@@ -385,11 +400,16 @@ bool ipc::client::call(std::string cname, std::string fname, std::vector<ipc::va
 	ec = m_socket->write(outbuf.data(), outbuf.size(), write_op, nullptr);
 	if (ec != os::error::Success && ec != os::error::Pending) {
 		cancel(cbid);
-		write_op->cancel();
+		//write_op->cancel();
 		return false;
 	}
 
-	ec = write_op->wait(std::chrono::milliseconds(15000));
+	// DO NOT TIMEOUT: the frontend is not able to handle that at the moment,
+	// Every timeout will result in a very bad desync between the frontend
+	// and the backend.
+	// Shot term solution: increase all timeouts to 150min
+	// Long term solution: remove all timeouts
+	ec = write_op->wait(std::chrono::minutes(150));
 	if (ec != os::error::Success) {
 		cancel(cbid);
 		write_op->cancel();
