@@ -40,8 +40,8 @@ void ipc::client::worker() {
 
 	while (m_socket->is_connected() && !m_watcher.stop) {
 		if (!m_rop || !m_rop->is_valid()) {
-			m_watcher.buf.resize(sizeof(ipc_size_t));
-			ec = m_socket->read(m_watcher.buf.data(), m_watcher.buf.size(), m_rop, std::bind(&client::read_callback_init, this, _1, _2));
+			m_watcher.readBuf.resize(sizeof(ipc_size_t));
+			ec = m_socket->read(m_watcher.readBuf.data(), m_watcher.readBuf.size(), m_rop, std::bind(&client::read_callback_init, this, _1, _2));
 			if (ec != os::error::Pending && ec != os::error::Success) {
 				if (ec == os::error::Disconnected) {
 					break;
@@ -50,17 +50,49 @@ void ipc::client::worker() {
 				}
 			}
 		}
+		if (!m_wop || !m_wop->is_valid()) {
+			if (m_write_queue.size() > 0) {
+				m_watcher.writeBuf.resize(sizeof(ipc_size_t));
+				std::vector<char>& fbuf = m_write_queue.front();
+				ipc::make_sendable(m_watcher.writeBuf, fbuf);
+#ifdef _DEBUG
+				ipc::log("????????: Sending %llu bytes...", m_watcher.writeBuf.size());
+				std::string hex_msg = ipc::vectortohex(m_watcher.writeBuf);
+				ipc::log("????????: %.*s.", hex_msg.size(), hex_msg.data());
+#endif
+				ec = m_socket->write(
+				    m_watcher.writeBuf.data(),
+				    m_watcher.writeBuf.size(),
+				    m_wop,
+				    std::bind(&client::write_callback, this, _1, _2));
+				if (ec != os::error::Pending && ec != os::error::Success) {
+					if (ec == os::error::Disconnected) {
+						break;
+					} else {
+						throw std::exception("Unexpected error.");
+					}
+				}
+				m_write_queue.pop();
+			}
+		}
 
-		ec = m_rop->wait(std::chrono::milliseconds(0));
-		if (ec == os::error::Success) {
-			continue;
-		} else {
-			ec = m_rop->wait(std::chrono::milliseconds(20));
-			if (ec == os::error::TimedOut) {
+		os::waitable* waits[]    = {m_rop.get(), m_wop.get()};
+		size_t        wait_index = -1;
+		for (size_t idx = 0; idx < 2; idx++) {
+			if (waits[idx] != nullptr) {
+				if (waits[idx]->wait(std::chrono::milliseconds(0)) == os::error::Success) {
+					wait_index = idx;
+					break;
+				}
+			}
+		}
+		if (wait_index == -1) {
+			os::error code = os::waitable::wait_any(waits, 2, wait_index, std::chrono::milliseconds(20));
+			if (code == os::error::TimedOut) {
 				continue;
-			} else if (ec == os::error::Disconnected) {
+			} else if (code == os::error::Disconnected) {
 				break;
-			} else if (ec == os::error::Error) {
+			} else if (code == os::error::Error) {
 				throw std::exception("Error");
 			}
 		}
@@ -87,14 +119,14 @@ void ipc::client::read_callback_init(os::error ec, size_t size) {
 	m_rop->invalidate();
 
 	if (ec == os::error::Success || ec == os::error::MoreData) {
-		ipc_size_t n_size = read_size(m_watcher.buf);
+		ipc_size_t n_size = read_size(m_watcher.readBuf);
 #ifdef _DEBUG
-		std::string hex_msg = ipc::vectortohex(m_watcher.buf);
+		std::string hex_msg = ipc::vectortohex(m_watcher.readBuf);
 		ipc::log("(read) ????????: %.*s => %llu", hex_msg.size(), hex_msg.data(), n_size);
 #endif
 		if (n_size != 0) {
-			m_watcher.buf.resize(n_size);
-			ec2 = m_socket->read(m_watcher.buf.data(), m_watcher.buf.size(), m_rop, std::bind(&client::read_callback_msg, this, _1, _2));
+			m_watcher.readBuf.resize(n_size);
+			ec2 = m_socket->read(m_watcher.readBuf.data(), m_watcher.readBuf.size(), m_rop, std::bind(&client::read_callback_msg, this, _1, _2));
 			if (ec2 != os::error::Pending && ec2 != os::error::Success) {
 				if (ec2 == os::error::Disconnected) {
 					return;
@@ -114,16 +146,22 @@ void ipc::client::read_callback_msg(os::error ec, size_t size) {
 
 #ifdef _DEBUG
 	ipc::log("(read) ????????: Deserializing Function Reply, ec = %lld, size = %llu", (int64_t)ec, (uint64_t)size);
-	std::string hex_msg = ipc::vectortohex(m_watcher.buf);
+	std::string hex_msg = ipc::vectortohex(m_watcher.readBuf);
 	ipc::log("(read) ????????: %.*s.", hex_msg.size(), hex_msg.data());
 #endif
 
-	bool is_fnc_call = ipc::message::is_function_call(m_watcher.buf, 0);
+	bool is_fnc_call = ipc::message::is_function_call(m_watcher.readBuf, 0);
 	if (is_fnc_call) {
 		handle_fnc_call();
 	} else {
 		handle_fnc_reply();
 	}
+}
+
+void ipc::client::write_callback(os::error ec, size_t size) {
+	m_wop->invalidate();
+	m_rop->invalidate();
+
 }
 
 void ipc::client::handle_fnc_call()
@@ -134,14 +172,13 @@ void ipc::client::handle_fnc_call()
 	ipc::message::function_reply fnc_reply_msg;
 	std::vector<char>            write_buffer;
 	bool                         success = false;
-	std::shared_ptr<os::async_op> write_op;
 
 #ifdef _DEBUG
 	ipc::log("????????: Authenticated Client, attempting deserialize of Function Call message.");
 #endif
 
 	try {
-		fnc_call_msg.deserialize(m_watcher.buf, 0);
+		fnc_call_msg.deserialize(m_watcher.readBuf, 0);
 	} catch (std::exception e) {
 		ipc::log("????????: Deserialization of Function Call message failed with error %s.", e.what());
 		return;
@@ -267,35 +304,29 @@ void ipc::client::handle_fnc_call()
 	ipc::log("%8llu: %.*s.", fnc_call_msg.uid.value_union.ui64, hex_msg.size(), hex_msg.data());
 #endif
 
-	// TODO: This part needs some atention, it's different from the server code and doesn't have a decent
-	// write_op handling
 	if (write_buffer.size() != 0) {
-		ipc::make_sendable(m_watcher.buf, write_buffer);
+		if ((!m_wop || !m_wop->is_valid()) && (m_write_queue.size() == 0)) {
+			ipc::make_sendable(m_watcher.writeBuf, write_buffer);
 #ifdef _DEBUG
-		ipc::log("????????: Sending %llu bytes...", m_watcher.buf.size());
-		std::string hex_msg = ipc::vectortohex(m_watcher.buf);
-		ipc::log("????????: %.*s.", hex_msg.size(), hex_msg.data());
+			ipc::log("????????: Sending %llu bytes...", m_watcher.writeBuf.size());
+			std::string hex_msg = ipc::vectortohex(m_watcher.writeBuf);
+			ipc::log("????????: %.*s.", hex_msg.size(), hex_msg.data());
 #endif
-		os::error ec2 = m_socket->write(
-		    m_watcher.buf.data(),
-		    m_watcher.buf.size(),
-		    write_op,
-			nullptr);
-		if (ec2 != os::error::Success && ec2 != os::error::Pending) {
-			if (ec2 == os::error::Disconnected) {
-				return;
-			} else {
-				throw std::exception("Unexpected Error");
+			os::error ec2 = m_socket->write(
+			    m_watcher.writeBuf.data(),
+			    m_watcher.writeBuf.size(),
+			    m_wop,
+			    std::bind(&client::write_callback, this, _1, _2));
+			if (ec2 != os::error::Success && ec2 != os::error::Pending) {
+				if (ec2 == os::error::Disconnected) {
+					return;
+				} else {
+					throw std::exception("Unexpected Error");
+				}
 			}
+		} else {
+			m_write_queue.push(std::move(write_buffer));
 		}
-
-		ec2 = write_op->wait(std::chrono::milliseconds(15000));
-		if (ec2 != os::error::Success) {
-			write_op->invalidate();
-			return;
-		}
-		write_op->invalidate();
-		
 	} else {
 #ifdef _DEBUG
 		ipc::log("????????: No Output, continuing as if nothing happened.");
@@ -312,10 +343,10 @@ void ipc::client::handle_fnc_reply()
 	m_rop->invalidate();
 
 	// I need to check if this is a function_reply or a function_call, in case it's a function_call I need to call the method and answer the server
-	bool is_fnc_call = ipc::message::is_function_call(m_watcher.buf, 0);
+	bool is_fnc_call = ipc::message::is_function_call(m_watcher.readBuf, 0);
 
 	try {
-		fnc_reply_msg.deserialize(m_watcher.buf, 0);
+		fnc_reply_msg.deserialize(m_watcher.readBuf, 0);
 	} catch (std::exception e) {
 		ipc::log("Deserialize failed with error %s.", e.what());
 		throw e;
