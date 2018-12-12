@@ -103,7 +103,7 @@ size_t ipc::message::function_call::size() {
 		+ uid.size() /* timestamp */
 		+ class_name.size()
 		+ function_name.size()
-		+ sizeof(uint8_t) /* arguments */;
+		+ sizeof(uint32_t) /* arguments */;
 	for (ipc::value& v : arguments) {
 		size += v.size();
 	}
@@ -123,8 +123,8 @@ size_t ipc::message::function_call::serialize(std::vector<char>& buf, size_t off
 	noffset += class_name.serialize(buf, noffset);
 	noffset += function_name.serialize(buf, noffset);
 
-	reinterpret_cast<uint8_t&>(buf[noffset]) = (uint8_t)arguments.size();
-	noffset += sizeof(uint8_t);
+	reinterpret_cast<uint32_t&>(buf[noffset]) = (uint32_t)arguments.size();
+	noffset += sizeof(uint32_t);
 
 	for (ipc::value& v : arguments) {
 		noffset += v.serialize(buf, noffset);
@@ -148,8 +148,8 @@ size_t ipc::message::function_call::deserialize(std::vector<char>& buf, size_t o
 	noffset += class_name.deserialize(buf, noffset);
 	noffset += function_name.deserialize(buf, noffset);
 
-	uint8_t cnt = reinterpret_cast<uint8_t&>(buf[noffset]);
-	noffset += sizeof(uint8_t);
+	uint32_t cnt = reinterpret_cast<uint32_t&>(buf[noffset]);
+	noffset += sizeof(uint32_t);
 	this->arguments.resize(cnt);
 	for (size_t idx = 0; idx < cnt; idx++) {
 		noffset += this->arguments[idx].deserialize(buf, noffset);
@@ -162,7 +162,7 @@ size_t ipc::message::function_reply::size() {
 	size_t size = sizeof(size_t)
 		+ uid.size() /* timestamp */
 		+ error.size() /* error */
-		+ sizeof(uint8_t) /* values */;
+		+ sizeof(uint32_t) /* values */;
 	for (ipc::value& v : values) {
 		size += v.size();
 	}
@@ -181,8 +181,8 @@ size_t ipc::message::function_reply::serialize(std::vector<char>& buf, size_t of
 	noffset += uid.serialize(buf, noffset);
 	noffset += error.serialize(buf, noffset);
 
-	reinterpret_cast<uint8_t&>(buf[noffset]) = (uint8_t)this->values.size();
-	noffset += sizeof(uint8_t);
+	reinterpret_cast<uint32_t&>(buf[noffset]) = (uint32_t)this->values.size();
+	noffset += sizeof(uint32_t);
 	for (ipc::value& v : values) {
 		noffset += v.serialize(buf, noffset);
 	}
@@ -204,8 +204,8 @@ size_t ipc::message::function_reply::deserialize(std::vector<char>& buf, size_t 
 	noffset += uid.deserialize(buf, noffset);
 	noffset += error.deserialize(buf, noffset);
 
-	uint8_t cnt = reinterpret_cast<uint8_t&>(buf[noffset]);
-	noffset += sizeof(uint8_t);
+	uint32_t cnt = reinterpret_cast<uint32_t&>(buf[noffset]);
+	noffset += sizeof(uint32_t);
 	this->values.resize(cnt);
 	for (size_t idx = 0; idx < cnt; idx++) {
 		noffset += this->values[idx].deserialize(buf, noffset);

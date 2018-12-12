@@ -62,7 +62,7 @@ ipc::value::value(float p_value) {
 }
 
 size_t ipc::value::size() {
-	size_t size = sizeof(uint8_t);
+	size_t size = sizeof(uint32_t);
 	switch (this->type) {
 		case type::Int32:
 			size += sizeof(int32_t);
@@ -101,8 +101,8 @@ size_t ipc::value::serialize(std::vector<char>& buf, size_t offset) {
 		throw std::exception("Value serialization failed, buffer too small");
 	}
 	size_t noffset = offset;
-	reinterpret_cast<uint8_t&>(buf[noffset]) = (uint8_t)this->type;
-	noffset += sizeof(uint8_t);
+	reinterpret_cast<uint32_t&>(buf[noffset]) = (uint32_t)this->type;
+	noffset += sizeof(uint32_t);
 	switch (this->type) {
 		case type::Int32:
 			reinterpret_cast<int32_t&>(buf[noffset]) = this->value_union.i32;
@@ -149,11 +149,11 @@ size_t ipc::value::serialize(std::vector<char>& buf, size_t offset) {
 }
 
 size_t ipc::value::deserialize(const std::vector<char>& buf, size_t offset) {
-	if ((buf.size() - offset) < sizeof(uint8_t)) {
+	if ((buf.size() - offset) < sizeof(uint32_t)) {
 		throw std::exception("Buffer too small");
 	}
 	this->type = (ipc::type)buf[offset];
-	size_t noffset = offset + sizeof(uint8_t);
+	size_t   noffset = offset + sizeof(uint32_t);
 	uint32_t length;
 	switch (this->type) {
 		case type::Int32:
