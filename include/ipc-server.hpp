@@ -25,6 +25,7 @@
 #include <queue>
 #include <string>
 #include <thread>
+#include <functional>
 #include "source/os/windows/named-pipe.hpp"
 
 namespace ipc {
@@ -33,8 +34,11 @@ namespace ipc {
 	typedef bool(*server_connect_handler_t)(void*, int64_t);
 	typedef void(*server_disconnect_handler_t)(void*, int64_t);
 	typedef void(*server_message_handler_t)(void*, int64_t, const std::vector<char>&);
+	typedef void(*server_pre_callback_t)(std::string, std::string, const std::vector<ipc::value>&, void*);
+	typedef void(*server_post_callback_t)(std::string, std::string, const std::vector<ipc::value>&, void*);
 
-	class server {
+	class server
+	{
 		bool m_isInitialized = false;
 
 		// Functions		
@@ -51,9 +55,11 @@ namespace ipc {
 		std::map<std::shared_ptr<os::windows::named_pipe>, std::shared_ptr<server_instance>> m_clients;
 
 		// Event Handlers
-		std::pair<server_connect_handler_t, void*> m_handlerConnect;
+		std::pair<server_connect_handler_t, void*>    m_handlerConnect;
 		std::pair<server_disconnect_handler_t, void*> m_handlerDisconnect;
-		std::pair<server_message_handler_t, void*> m_handlerMessage;
+		std::pair<server_message_handler_t, void*>    m_handlerMessage;
+		std::pair<server_pre_callback_t, void*>       m_preCallback;
+		std::pair<server_post_callback_t, void*>      m_postCallback;
 
 		// Worker
 		struct {
@@ -78,6 +84,8 @@ namespace ipc {
 		void set_connect_handler(server_connect_handler_t handler, void* data);
 		void set_disconnect_handler(server_disconnect_handler_t handler, void* data);
 		void set_message_handler(server_message_handler_t handler, void* data);
+		void set_pre_callback(server_pre_callback_t handler, void* data);
+		void set_post_callback(server_post_callback_t handler, void* data);
 
 		public: // Functionality
 		bool register_collection(ipc::collection cls);

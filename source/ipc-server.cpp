@@ -182,6 +182,14 @@ void ipc::server::set_message_handler(server_message_handler_t handler, void* da
 	m_handlerMessage = std::make_pair(handler, data);
 }
 
+void ipc::server::set_pre_callback(server_pre_callback_t handler, void* data) {
+	m_preCallback = std::make_pair(handler, data);
+}
+
+void ipc::server::set_post_callback(server_post_callback_t handler, void* data) {
+	m_postCallback = std::make_pair(handler, data);
+}
+
 bool ipc::server::register_collection(ipc::collection cls) {
 	return register_collection(std::make_shared<ipc::collection>(cls));
 }
@@ -207,7 +215,15 @@ bool ipc::server::client_call_function(int64_t cid, std::string cname, std::stri
 		return false;
 	}
 
+	if (m_preCallback.first) {
+		m_preCallback.first(cname, fname, args, m_preCallback.second);
+	}
+
 	fnc->call(cid, args, rval);
+
+	if (m_postCallback.first) {
+		m_postCallback.first(cname, fname, rval, m_postCallback.second);
+	}
 
 	return true;
 }
