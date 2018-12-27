@@ -21,7 +21,7 @@
 #include <vector>
 
 namespace ipc {
-	enum class type {
+	enum class type : uint32_t{
 		Null,
 		Float,
 		Double,
