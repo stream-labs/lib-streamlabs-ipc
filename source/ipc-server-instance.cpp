@@ -161,14 +161,14 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 	}
 
 	bool success = false;
-	
+
 #ifdef _DEBUG
 	ipc::log("????????: Authenticated Client, attempting deserialize of Function Call message.");
 #endif
 
 	try {
 		fnc_call_msg.deserialize(m_rbuf, 0);
-	} catch (std::exception e) {
+	} catch (std::exception & e) {
 		ipc::log("????????: Deserialization of Function Call message failed with error %s.", e.what());
 		return;
 	}
@@ -216,7 +216,7 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 		success = m_parent->client_call_function(m_clientId,
 			fnc_call_msg.class_name.value_str, fnc_call_msg.function_name.value_str,
 			fnc_call_msg.arguments, proc_rval, proc_error);
-	} catch (std::exception e) {
+	} catch (std::exception & e) {
 		ipc::log("%8llu: Unexpected exception during client call, error %s.",
 			fnc_call_msg.uid.value_union.ui64, e.what());
 		throw e;
@@ -259,6 +259,9 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 			case type::Binary:
 				ipc::log("\t%llu: (Binary)", idx);
 				break;
+			case type::Null:
+				ipc::log("\t%llu: Null", idx);
+				break;
 		}
 	}
 #endif
@@ -267,7 +270,7 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 	write_buffer.resize(fnc_reply_msg.size());
 	try {
 		fnc_reply_msg.serialize(write_buffer, 0);
-	} catch (std::exception e) {
+	} catch (std::exception & e) {
 		ipc::log("%8llu: Serialization of Function Reply message failed with error %s.",
 			fnc_call_msg.uid.value_union.ui64, e.what());
 		return;

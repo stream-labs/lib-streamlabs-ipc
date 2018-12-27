@@ -52,7 +52,7 @@ namespace ipc {
 		client(std::string socketPath);
 		virtual ~client();
 
-		bool call(std::string cname, std::string fname, std::vector<ipc::value> args, call_return_t fn, void* data, int64_t& cbid);
+		bool call(const std::string& cname, const std::string& fname, std::vector<ipc::value> args, call_return_t fn, void* data, int64_t& cbid);
 
 		bool cancel(int64_t const& id);
 
