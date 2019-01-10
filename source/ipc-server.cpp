@@ -20,8 +20,6 @@
 #include "source/os/error.hpp"
 #include "source/os/tags.hpp"
 
-static const size_t buffer_size = 128 * 1024 * 1024;
-
 void ipc::server::watcher() {
 	os::error ec;
 
