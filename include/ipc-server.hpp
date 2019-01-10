@@ -80,7 +80,6 @@ namespace ipc {
 		void set_message_handler(server_message_handler_t handler, void* data);
 
 		public: // Functionality
-		bool register_collection(ipc::collection cls);
 		bool register_collection(std::shared_ptr<ipc::collection> cls);
 
 		protected: // Client -> Server

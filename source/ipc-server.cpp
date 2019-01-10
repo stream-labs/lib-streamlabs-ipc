@@ -180,10 +180,6 @@ void ipc::server::set_message_handler(server_message_handler_t handler, void* da
 	m_handlerMessage = std::make_pair(handler, data);
 }
 
-bool ipc::server::register_collection(ipc::collection cls) {
-	return register_collection(std::make_shared<ipc::collection>(cls));
-}
-
 bool ipc::server::register_collection(std::shared_ptr<ipc::collection> cls) {
 	if (m_classes.count(cls->get_name()) > 0)
 		return false;
