@@ -32,8 +32,6 @@
 
 using namespace std::placeholders;
 
-static const size_t buffer_size = 128 * 1024 * 1024;
-
 void ipc::client::worker() {
 	os::error ec = os::error::Success;
 	std::vector<ipc::value> proc_rval;
