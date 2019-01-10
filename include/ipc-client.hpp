@@ -57,13 +57,6 @@ namespace ipc {
 
 		bool cancel(int64_t const& id);
 
-		// Temporary helper
-		// DO NOT TIMEOUT: the frontend is not able to handle that at the moment,
-		// Every timeout will result in a very bad desync between the frontend
-		// and the backend.
-		// Shot term solution: increase all timeouts to 150min
-		// Long term solution: remove all timeouts
-		std::vector<ipc::value> call_synchronous_helper(std::string cname, std::string fname, std::vector<ipc::value> args,
-			std::chrono::nanoseconds timeout = std::chrono::minutes(150));
+		std::vector<ipc::value> call_synchronous_helper(std::string cname, std::string fname, std::vector<ipc::value> args);
 	};
 }

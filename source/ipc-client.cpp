@@ -333,8 +333,7 @@ bool ipc::client::call(std::string cname, std::string fname, std::vector<ipc::va
 	return true;
 }
 
-std::vector<ipc::value> ipc::client::call_synchronous_helper(std::string cname, std::string fname, std::vector<ipc::value> args,
-	std::chrono::nanoseconds timeout) {
+std::vector<ipc::value> ipc::client::call_synchronous_helper(std::string cname, std::string fname, std::vector<ipc::value> args) {
 	// Set up call reference data.
 	struct CallData {
 		std::shared_ptr<os::windows::semaphore> sgn = std::make_shared<os::windows::semaphore>();
@@ -361,7 +360,7 @@ std::vector<ipc::value> ipc::client::call_synchronous_helper(std::string cname, 
 		return {};
 	}
 
-	cd.sgn->wait(timeout);
+	cd.sgn->wait();
 	if (!cd.called) {
 		cancel(cbid);
 		return {};
