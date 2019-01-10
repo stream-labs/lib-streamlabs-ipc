@@ -309,12 +309,7 @@ bool ipc::client::call(std::string cname, std::string fname, std::vector<ipc::va
 		return false;
 	}
 
-	// DO NOT TIMEOUT: the frontend is not able to handle that at the moment,
-	// Every timeout will result in a very bad desync between the frontend
-	// and the backend.
-	// Shot term solution: increase all timeouts to 150min
-	// Long term solution: remove all timeouts
-	ec = write_op->wait(std::chrono::minutes(150));
+	ec = write_op->wait();
 	if (ec != os::error::Success) {
 		cancel(cbid);
 		write_op->cancel();
