@@ -322,13 +322,4 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 void ipc::server_instance::write_callback(os::error ec, size_t size) {
 	m_wop->invalidate();
 	m_rop->invalidate();
-	// Do we need to do anything here? Not really.
-
-	// Uncomment this to give up the rest of the time slice to the next thread.
-	// Not recommended since we do this anyway with the next wait.	
-	/*
-	#ifdef _WIN32
-		Sleep(0);
-	#endif
-	*/
 }
