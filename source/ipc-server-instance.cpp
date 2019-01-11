@@ -56,13 +56,10 @@ bool ipc::server_instance::is_alive() {
 void ipc::server_instance::worker() {
 	os::error ec = os::error::Success;
 
-	// Prepare Buffers
-	m_rbuf.reserve(65535);
-	m_wbuf.reserve(65535);
-
 	// Loop
 	while ((!m_stopWorkers) && m_socket->is_connected()) {
 		if (!m_rop || !m_rop->is_valid()) {
+			size_t testSize = sizeof(ipc_size_t);
 			m_rbuf.resize(sizeof(ipc_size_t));
 			ec = m_socket->read(m_rbuf.data(), m_rbuf.size(), m_rop, std::bind(&server_instance::read_callback_init, this, _1, _2));
 			if (ec != os::error::Pending && ec != os::error::Success) {
