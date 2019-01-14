@@ -148,8 +148,6 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 
 	ipc::message::function_call fnc_call_msg;
 	ipc::message::function_reply fnc_reply_msg;
-	ipc::message::authenticate auth_msg;
-	ipc::message::authenticate_reply auth_reply_msg;
 
 #ifdef _DEBUG
 	{
