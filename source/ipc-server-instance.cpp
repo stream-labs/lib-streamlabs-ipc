@@ -164,9 +164,7 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 	}
 
 	bool success = false;
-
-	// Client is authenticated.
-
+	
 #ifdef _DEBUG
 	ipc::log("????????: Authenticated Client, attempting deserialize of Function Call message.");
 #endif
