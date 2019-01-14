@@ -80,20 +80,6 @@ void ipc::server::watcher() {
 			std::this_thread::sleep_for(std::chrono::milliseconds(20));
 			continue;
 		}
-
-		size_t idx = -1;
-		ec = os::waitable::wait_any(waits, idx, std::chrono::milliseconds(20));
-		if (ec == os::error::TimedOut) {
-			continue;
-		} else if (ec == os::error::Connected) {
-			pending_accept pa;
-			auto kv = pa_map.find(idx_to_socket[idx]);
-			if (kv != pa_map.end()) {
-				pa_map.erase(idx_to_socket[idx]);
-			}
-		} else {
-			// Unknown error.
-		}
 	}
 }
 
