@@ -19,10 +19,9 @@
 #include <sstream>
 #include <functional>
 
-using namespace std::placeholders;
-
 #ifdef _WIN32
 #include <windows.h>
+using namespace std::placeholders;
 #endif
 
 ipc::server_instance::server_instance() {}
