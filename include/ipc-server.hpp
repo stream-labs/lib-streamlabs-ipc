@@ -25,7 +25,7 @@
 #include <queue>
 #include <string>
 #include <thread>
-#include "source/os/windows/named-pipe.hpp"
+#include "../source/windows/named-pipe.hpp"
 
 namespace ipc {
 	class server_instance;

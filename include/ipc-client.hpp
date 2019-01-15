@@ -24,7 +24,7 @@
 #include <queue>
 #include <thread>
 #include <vector>
-#include "source/os/windows/named-pipe.hpp"
+#include "../source/windows/named-pipe.hpp"
 
 namespace ipc {
 	typedef void(*call_return_t)(const void* data, const std::vector<ipc::value>& rval);

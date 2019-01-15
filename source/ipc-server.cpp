@@ -17,8 +17,8 @@
 
 #include "ipc-server.hpp"
 #include <chrono>
-#include "source/os/error.hpp"
-#include "source/os/tags.hpp"
+#include "../include/error.hpp"
+#include "../include/tags.hpp"
 
 void ipc::server::watcher() {
 	os::error ec;

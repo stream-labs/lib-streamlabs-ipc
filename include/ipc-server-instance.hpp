@@ -23,7 +23,7 @@
 #include <queue>
 #include <thread>
 #include <vector>
-#include "source/os/windows/named-pipe.hpp"
+#include "../source/windows/named-pipe.hpp"
 
 namespace ipc {
 	class server;

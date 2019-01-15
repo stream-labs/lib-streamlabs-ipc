@@ -21,9 +21,9 @@
 #include <iostream>
 #include <functional>
 #include <iterator>
-#include "source/os/error.hpp"
-#include "source/os/tags.hpp"
-#include "source/os/windows/semaphore.hpp"
+#include "../include/error.hpp"
+#include "../include/tags.hpp"
+#include "windows/semaphore.hpp"
 
 #ifdef _WIN32
 #include <windows.h>
