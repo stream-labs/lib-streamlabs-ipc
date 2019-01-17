@@ -24,7 +24,7 @@
 #include <queue>
 #include <thread>
 #include <vector>
-#include "source/os/windows/named-pipe.hpp"
+#include "../source/windows/named-pipe.hpp"
 
 namespace ipc {
 	typedef void(*call_return_t)(const void* data, const std::vector<ipc::value>& rval);
@@ -52,19 +52,10 @@ namespace ipc {
 		client(std::string socketPath);
 		virtual ~client();
 
-		bool authenticate();
-		bool call(std::string cname, std::string fname, std::vector<ipc::value> args, call_return_t fn, void* data);
 		bool call(std::string cname, std::string fname, std::vector<ipc::value> args, call_return_t fn, void* data, int64_t& cbid);
 
 		bool cancel(int64_t const& id);
 
-		// Temporary helper
-		// DO NOT TIMEOUT: the frontend is not able to handle that at the moment,
-		// Every timeout will result in a very bad desync between the frontend
-		// and the backend.
-		// Shot term solution: increase all timeouts to 150min
-		// Long term solution: remove all timeouts
-		std::vector<ipc::value> call_synchronous_helper(std::string cname, std::string fname, std::vector<ipc::value> args,
-			std::chrono::nanoseconds timeout = std::chrono::minutes(150));
+		std::vector<ipc::value> call_synchronous_helper(std::string cname, std::string fname, std::vector<ipc::value> args);
 	};
 }

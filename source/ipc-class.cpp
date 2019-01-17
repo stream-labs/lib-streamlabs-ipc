@@ -38,37 +38,6 @@ bool ipc::collection::register_function(std::shared_ptr<ipc::function> func) {
 	return true;
 }
 
-bool ipc::collection::unregister_function(std::shared_ptr<ipc::function> func) {
-	std::string fnId = func->get_unique_name();
-	return m_functions.erase(fnId) != 0;
-}
-
-bool ipc::collection::has_function(const std::string& name) {
-	return get_function(name) != nullptr;
-}
-
-bool ipc::collection::has_function(const std::string& name, const std::vector<ipc::type>& params) {
-	return get_function(name, params) != nullptr;
-}
-
-bool ipc::collection::has_function(const std::string& name, const std::vector<ipc::value>& params) {
-	return get_function(name, params) != nullptr;
-}
-
-size_t ipc::collection::count_functions() {
-	return m_functions.size();
-}
-
-std::shared_ptr<ipc::function> ipc::collection::get_function(const size_t& idx) {
-	if (m_functions.size() <= idx)
-		return nullptr;
-
-	auto ptr = m_functions.begin();
-	for (size_t n = 0; n < idx; n++, ptr++) {
-	}
-	return ptr->second;
-}
-
 std::shared_ptr<ipc::function> ipc::collection::get_function(const std::string& name, const std::vector<ipc::type>& params) {
 	std::string fnId = ipc::base::make_unique_id(name, params);
 	if (m_functions.count(fnId) == 0)
@@ -83,8 +52,4 @@ std::shared_ptr<ipc::function> ipc::collection::get_function(const std::string& 
 		argts.push_back(v.type);
 	}
 	return get_function(name, argts);
-}
-
-std::shared_ptr<ipc::function> ipc::collection::get_function(const std::string& name) {
-	return get_function(name, std::vector<ipc::type>());
 }

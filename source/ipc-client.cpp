@@ -21,9 +21,9 @@
 #include <iostream>
 #include <functional>
 #include <iterator>
-#include "source/os/error.hpp"
-#include "source/os/tags.hpp"
-#include "source/os/windows/semaphore.hpp"
+#include "../include/error.hpp"
+#include "../include/tags.hpp"
+#include "windows/semaphore.hpp"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -31,8 +31,6 @@
 #endif
 
 using namespace std::placeholders;
-
-static const size_t buffer_size = 128 * 1024 * 1024;
 
 void ipc::client::worker() {
 	os::error ec = os::error::Success;
@@ -64,6 +62,10 @@ void ipc::client::worker() {
 				throw std::exception("Error");
 			}
 		}
+	}
+
+	if (!m_socket->is_connected()) {
+		std::string test = "test";
 	}
 
 	// Call any remaining callbacks.
@@ -197,6 +199,9 @@ void ipc::client::read_callback_msg(os::error ec, size_t size) {
 
 ipc::client::client(std::string socketPath) {
 	m_socket = std::make_unique<os::windows::named_pipe>(os::open_only, socketPath, os::windows::pipe_read_mode::Byte);
+
+	m_watcher.stop   = false;
+	m_watcher.worker = std::thread(std::bind(&client::worker, this));
 }
 
 ipc::client::~client() {
@@ -205,106 +210,6 @@ ipc::client::~client() {
 		m_watcher.worker.join();
 	}
 	m_socket = nullptr;
-}
-
-bool ipc::client::authenticate() {
-	os::error ec = os::error::Success;
-	std::shared_ptr<os::async_op> write_op, read_op;
-	ipc::message::authenticate auth_msg;
-	ipc::message::authenticate_reply auth_reply_msg;
-	std::vector<char> outbuf;
-
-	if (!m_socket)
-		return false;
-
-	if (m_authenticated)
-		return true;
-
-	// Build Message
-	auth_msg.password = ipc::value("Hello World"); // Eventually will be used.
-	auth_msg.name = ipc::value("");
-
-	std::vector<char> buf(auth_msg.size());
-	try {
-		auth_msg.serialize(buf, 0);
-	} catch (std::exception e) {
-		ipc::log("Failed to serialize, error %s.", e.what());
-		throw e;
-	}
-
-	ipc::make_sendable(outbuf, buf);
-	ec = m_socket->write(outbuf.data(), outbuf.size(), write_op, nullptr);
-	if (ec != os::error::Success && ec != os::error::Pending) {
-		write_op->invalidate();
-		return false;
-	}
-
-	// DO NOT TIMEOUT: the frontend is not able to handle that at the moment,
-	// Every timeout will result in a very bad desync between the frontend
-	// and the backend.
-	// Shot term solution: increase all timeouts to 150min
-	// Long term solution: remove all timeouts
-	ec = write_op->wait(std::chrono::minutes(150));
-	if (ec != os::error::Success) {
-		write_op->invalidate();
-		return false;
-	}
-	write_op->invalidate();
-
-	buf.resize(sizeof(ipc_size_t));
-	ec = m_socket->read(buf.data(), buf.size(), read_op, nullptr);
-	if (ec != os::error::Success && ec != os::error::Pending) {
-		read_op->invalidate();
-		return false;
-	}
-
-	// DO NOT TIMEOUT: the frontend is not able to handle that at the moment,
-	// Every timeout will result in a very bad desync between the frontend
-	// and the backend.
-	// Shot term solution: increase all timeouts to 150min
-	// Long term solution: remove all timeouts
-	ec = read_op->wait(std::chrono::minutes(150));
-	if (ec != os::error::Success) {
-		read_op->invalidate();
-		return false;
-	}
-	read_op->invalidate();
-
-	ipc_size_t size = ipc::read_size(buf);
-	buf.resize(size);
-	ec = m_socket->read(buf.data(), buf.size(), read_op, nullptr);
-	if (ec != os::error::Success && ec != os::error::Pending) {
-		read_op->invalidate();
-		return false;
-	}
-
-	// DO NOT TIMEOUT: the frontend is not able to handle that at the moment,
-	// Every timeout will result in a very bad desync between the frontend
-	// and the backend.
-	// Shot term solution: increase all timeouts to 150min
-	// Long term solution: remove all timeouts
-	ec = read_op->wait(std::chrono::minutes(150));
-	if (ec != os::error::Success) {
-		read_op->invalidate();
-		return false;
-	}
-	read_op->invalidate();
-
-	try {
-		auth_reply_msg.deserialize(buf, 0);
-	} catch (std::exception e) {
-		ipc::log("Failed to deserialize, error %s.", e.what());
-		throw e;
-	}
-
-	m_watcher.stop = false;
-	m_watcher.worker = std::thread(std::bind(&client::worker, this));
-	return true;
-}
-
-bool ipc::client::call(std::string cname, std::string fname, std::vector<ipc::value> args, call_return_t fn, void* data) {
-	int64_t test = 0;
-	return call(cname, fname, args, fn, data, test);
 }
 
 bool ipc::client::cancel(int64_t const& id) {
@@ -404,12 +309,7 @@ bool ipc::client::call(std::string cname, std::string fname, std::vector<ipc::va
 		return false;
 	}
 
-	// DO NOT TIMEOUT: the frontend is not able to handle that at the moment,
-	// Every timeout will result in a very bad desync between the frontend
-	// and the backend.
-	// Shot term solution: increase all timeouts to 150min
-	// Long term solution: remove all timeouts
-	ec = write_op->wait(std::chrono::minutes(150));
+	ec = write_op->wait();
 	if (ec != os::error::Success) {
 		cancel(cbid);
 		write_op->cancel();
@@ -423,8 +323,7 @@ bool ipc::client::call(std::string cname, std::string fname, std::vector<ipc::va
 	return true;
 }
 
-std::vector<ipc::value> ipc::client::call_synchronous_helper(std::string cname, std::string fname, std::vector<ipc::value> args,
-	std::chrono::nanoseconds timeout) {
+std::vector<ipc::value> ipc::client::call_synchronous_helper(std::string cname, std::string fname, std::vector<ipc::value> args) {
 	// Set up call reference data.
 	struct CallData {
 		std::shared_ptr<os::windows::semaphore> sgn = std::make_shared<os::windows::semaphore>();
@@ -451,7 +350,7 @@ std::vector<ipc::value> ipc::client::call_synchronous_helper(std::string cname, 
 		return {};
 	}
 
-	cd.sgn->wait(timeout);
+	cd.sgn->wait();
 	if (!cd.called) {
 		cancel(cbid);
 		return {};

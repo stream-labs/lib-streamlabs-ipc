@@ -65,11 +65,6 @@ std::string ipc::base::make_unique_id(std::string name, std::vector<type> parame
 static ipc::log_callback_t g_cb;
 static void* g_cb_data;
 
-void ipc::set_log_callback(log_callback_t cb, void* data) {
-	g_cb = cb;
-	g_cb_data = data;
-}
-
 void ipc::log(const char* fmt, ...) {
 	va_list args;
 	va_start(args, fmt);
@@ -210,81 +205,6 @@ size_t ipc::message::function_reply::deserialize(std::vector<char>& buf, size_t 
 	for (size_t idx = 0; idx < cnt; idx++) {
 		noffset += this->values[idx].deserialize(buf, noffset);
 	}
-
-	return noffset - offset;
-}
-
-size_t ipc::message::authenticate::size() {
-	size_t size = sizeof(size_t)
-		+ name.size()
-		+ password.size();
-	return size;
-}
-
-size_t ipc::message::authenticate::serialize(std::vector<char>& buf, size_t offset) {
-	if ((buf.size() - offset) < size()) {
-		throw std::exception("Buffer too small");
-	}
-	size_t noffset = offset;
-
-	reinterpret_cast<size_t&>(buf[noffset]) = size();
-	noffset += sizeof(size_t);
-
-	noffset += name.serialize(buf, noffset);
-	noffset += password.serialize(buf, noffset);
-
-	return noffset - offset;
-}
-
-size_t ipc::message::authenticate::deserialize(std::vector<char>& buf, size_t offset) {
-	if ((buf.size() - offset) < sizeof(size_t)) {
-		throw std::exception("Buffer too small");
-	}
-
-	size_t size = reinterpret_cast<const size_t&>(buf[offset]);
-	if ((buf.size() - offset) < size) {
-		throw std::exception("Buffer too small");
-	}
-	size_t noffset = offset + sizeof(size_t);
-
-	noffset += name.deserialize(buf, noffset);
-	noffset += password.deserialize(buf, noffset);
-
-	return noffset - offset;
-}
-
-size_t ipc::message::authenticate_reply::size() {
-	size_t size = sizeof(size_t)
-		+ auth.size();
-	return size;
-}
-
-size_t ipc::message::authenticate_reply::serialize(std::vector<char>& buf, size_t offset) {
-	if ((buf.size() - offset) < size()) {
-		throw std::exception("Buffer too small");
-	}
-	size_t noffset = offset;
-
-	reinterpret_cast<size_t&>(buf[noffset]) = size();
-	noffset += sizeof(size_t);
-
-	noffset += auth.serialize(buf, noffset);
-
-	return noffset - offset;
-}
-
-size_t ipc::message::authenticate_reply::deserialize(std::vector<char>& buf, size_t offset) {
-	if ((buf.size() - offset) < sizeof(size_t)) {
-		throw std::exception("Buffer too small");
-	}
-
-	size_t size = reinterpret_cast<const size_t&>(buf[offset]);
-	if ((buf.size() - offset) < size) {
-		throw std::exception("Buffer too small");
-	}
-	size_t noffset = offset + sizeof(size_t);
-
-	noffset += auth.deserialize(buf, noffset);
 
 	return noffset - offset;
 }

@@ -23,7 +23,7 @@
 #include <queue>
 #include <thread>
 #include <vector>
-#include "source/os/windows/named-pipe.hpp"
+#include "../source/windows/named-pipe.hpp"
 
 namespace ipc {
 	class server;
@@ -56,6 +56,5 @@ namespace ipc {
 		private:
 		server* m_parent = nullptr;
 		int64_t m_clientId;
-		bool m_isAuthenticated = false;
 	};
 }

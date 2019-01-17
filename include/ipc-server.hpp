@@ -25,7 +25,7 @@
 #include <queue>
 #include <string>
 #include <thread>
-#include "source/os/windows/named-pipe.hpp"
+#include "../source/windows/named-pipe.hpp"
 
 namespace ipc {
 	class server_instance;
@@ -80,7 +80,6 @@ namespace ipc {
 		void set_message_handler(server_message_handler_t handler, void* data);
 
 		public: // Functionality
-		bool register_collection(ipc::collection cls);
 		bool register_collection(std::shared_ptr<ipc::collection> cls);
 
 		protected: // Client -> Server

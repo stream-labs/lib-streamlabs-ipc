@@ -35,15 +35,6 @@ namespace ipc {
 		function(std::string name);
 		virtual ~function();
 
-		/** Get the proper name for this function.
-		 * 
-		 * Retrieves the actual name of the function used during creation,
-		 * useful for overloading functions.
-		 * 
-		 * @return A std::string containing the name of the function.
-		 */
-		std::string get_name();
-
 		/** Get the unique name for this function used to identify it.
 		 * 
 		 * This produces a similar result to what native compilers do to allow
@@ -52,27 +43,6 @@ namespace ipc {
 		 * @return A std::string containing the unique name of the function.
 		 */
 		std::string get_unique_name();
-
-		/** Amount of Parameters for this function.
-		 * 
-		 * Returns the number of parameters that this function has for use with GetParameterType().
-		 * 
-		 * @return Amount of parameters as size_t.
-		 */
-		size_t count_parameters();
-
-		/** Retrieve parameter by index.
-		 * 
-		 * 
-		 * 
-		 * @return IPC::Type that this parameter has.
-		 */
-		ipc::type get_parameter_type(size_t index);
-
-		/** Assign Call Handler
-		 * 
-		 */
-		void set_call_handler(call_handler_t ptr, void* data);
 
 		/** Call this function
 		*
