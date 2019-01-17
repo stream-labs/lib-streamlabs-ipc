@@ -17,10 +17,8 @@
 
 #include "ipc-server.hpp"
 #include <chrono>
-#include "source/os/error.hpp"
-#include "source/os/tags.hpp"
-
-static const size_t buffer_size = 128 * 1024 * 1024;
+#include "../include/error.hpp"
+#include "../include/tags.hpp"
 
 void ipc::server::watcher() {
 	os::error ec;
@@ -81,20 +79,6 @@ void ipc::server::watcher() {
 		if (waits.size() == 0) {
 			std::this_thread::sleep_for(std::chrono::milliseconds(20));
 			continue;
-		}
-
-		size_t idx = -1;
-		ec = os::waitable::wait_any(waits, idx, std::chrono::milliseconds(20));
-		if (ec == os::error::TimedOut) {
-			continue;
-		} else if (ec == os::error::Connected) {
-			pending_accept pa;
-			auto kv = pa_map.find(idx_to_socket[idx]);
-			if (kv != pa_map.end()) {
-				pa_map.erase(idx_to_socket[idx]);
-			}
-		} else {
-			// Unknown error.
 		}
 	}
 }
@@ -188,10 +172,6 @@ void ipc::server::set_pre_callback(server_pre_callback_t handler, void* data) {
 
 void ipc::server::set_post_callback(server_post_callback_t handler, void* data) {
 	m_postCallback = std::make_pair(handler, data);
-}
-
-bool ipc::server::register_collection(ipc::collection cls) {
-	return register_collection(std::make_shared<ipc::collection>(cls));
 }
 
 bool ipc::server::register_collection(std::shared_ptr<ipc::collection> cls) {

@@ -26,7 +26,7 @@
 #include <string>
 #include <thread>
 #include <functional>
-#include "source/os/windows/named-pipe.hpp"
+#include "../source/windows/named-pipe.hpp"
 
 namespace ipc {
 	class server_instance;
@@ -88,7 +88,6 @@ namespace ipc {
 		void set_post_callback(server_post_callback_t handler, void* data);
 
 		public: // Functionality
-		bool register_collection(ipc::collection cls);
 		bool register_collection(std::shared_ptr<ipc::collection> cls);
 
 		protected: // Client -> Server

@@ -50,27 +50,8 @@ ipc::function::function(std::string name)
 
 ipc::function::~function() {}
 
-std::string ipc::function::get_name() {
-	return m_name;
-}
-
 std::string ipc::function::get_unique_name() {
 	return m_nameUnique;
-}
-
-size_t ipc::function::count_parameters() {
-	return m_params.size();
-}
-
-ipc::type ipc::function::get_parameter_type(size_t index) {
-	if (index > m_params.size())
-		throw std::out_of_range("index is out of range");
-	return m_params.at(index);
-}
-
-void ipc::function::set_call_handler(call_handler_t ptr, void* data) {
-	m_callHandler.first = ptr;
-	m_callHandler.second = data;
 }
 
 void ipc::function::call(const int64_t id, const std::vector<ipc::value>& args, std::vector<ipc::value>& rval) {

@@ -41,8 +41,6 @@ namespace ipc {
 		return reinterpret_cast<const ipc_size_real_t&>(in[sizeof(ipc_size_real_t)]);
 	}
 
-	void set_log_callback(log_callback_t cb, void* data);
-
 	void log(const char* fmt, ...);
 
 	std::string vectortohex(const std::vector<char>&);
@@ -74,23 +72,5 @@ namespace ipc {
 			size_t serialize(std::vector<char>& buf, size_t offset);
 			size_t deserialize(std::vector<char>& buf, size_t offset);
 		};
-
-		struct authenticate {
-			ipc::value name = ipc::value("");
-			ipc::value password = ipc::value("");
-
-			size_t size();
-			size_t serialize(std::vector<char>& buf, size_t offset);
-			size_t deserialize(std::vector<char>& buf, size_t offset);
-		};
-
-		struct authenticate_reply {
-			ipc::value auth = ipc::value(false);
-
-			size_t size();
-			size_t serialize(std::vector<char>& buf, size_t offset);
-			size_t deserialize(std::vector<char>& buf, size_t offset);
-		};
-
 	}
 }
