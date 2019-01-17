@@ -37,8 +37,7 @@ namespace ipc {
 	typedef void(*server_pre_callback_t)(std::string, std::string, const std::vector<ipc::value>&, void*);
 	typedef void(*server_post_callback_t)(std::string, std::string, const std::vector<ipc::value>&, void*);
 
-	class server
-	{
+	class server {
 		bool m_isInitialized = false;
 
 		// Functions		
