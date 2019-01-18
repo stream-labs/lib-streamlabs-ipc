@@ -18,7 +18,7 @@
 #include "ipc.hpp"
 #include <sstream>
 
-std::string ipc::base::make_unique_id(std::string name, std::vector<type> parameters) {
+std::string ipc::base::make_unique_id(const std::string& name, const std::vector<type> & parameters) {
 	// Implement similar behavior to C/C++ compilers, which put parameter type
 	//  into the generated function name in order to allow overloading of the
 	//  same function, even when exported.

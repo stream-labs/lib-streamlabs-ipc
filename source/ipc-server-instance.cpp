@@ -26,12 +26,11 @@ using namespace std::placeholders;
 
 ipc::server_instance::server_instance() {}
 
-ipc::server_instance::server_instance(ipc::server* owner, std::shared_ptr<os::windows::named_pipe> conn) {
-	m_parent = owner;
-	m_socket = conn;
-	m_clientId = 0;
-
-	m_stopWorkers = false;
+ipc::server_instance::server_instance(ipc::server* owner, std::shared_ptr<os::windows::named_pipe> conn): 
+	m_stopWorkers(0),
+	m_socket(conn),
+	m_parent(owner),
+	m_clientId(0) {
 	m_worker = std::thread(std::bind(&server_instance::worker, this));
 }
 

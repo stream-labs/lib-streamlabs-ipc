@@ -56,6 +56,6 @@ namespace ipc {
 
 		bool cancel(int64_t const& id);
 
-		std::vector<ipc::value> call_synchronous_helper(std::string cname, std::string fname, std::vector<ipc::value> args);
+		std::vector<ipc::value> call_synchronous_helper(const std::string & cname, const std::string &fname, const std::vector<ipc::value> & args);
 	};
 }

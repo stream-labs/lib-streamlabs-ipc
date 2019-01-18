@@ -17,8 +17,8 @@
 
 #include "ipc-class.hpp"
 
-ipc::collection::collection(std::string name) {
-	this->m_name = name;
+ipc::collection::collection(const std::string & name): m_name(name) {
+
 }
 
 ipc::collection::~collection() {

@@ -40,7 +40,7 @@ namespace os {
 			static void completion_routine(DWORD dwErrorCode, DWORD dwBytesTransmitted, LPVOID ov);
 
 			public:
-			~async_request();
+			virtual ~async_request();
 
 			virtual bool is_valid() override;
 

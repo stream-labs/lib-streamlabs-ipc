@@ -53,8 +53,8 @@ namespace ipc {
 		value(int64_t);
 		value(uint32_t);
 		value(uint64_t);
-		value(std::string);
-		value(std::vector<char>);
+		value(const std::string & p_value);
+		value(const std::vector<char>& p_value);
 
 		size_t size();
 		size_t serialize(std::vector<char>& buf, size_t offset);

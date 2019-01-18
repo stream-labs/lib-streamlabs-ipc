@@ -25,7 +25,7 @@
 namespace ipc {
 	class collection {
 		public:
-		collection(std::string name);
+		collection(const std::string & name);
 		virtual ~collection();
 
 		std::string get_name();

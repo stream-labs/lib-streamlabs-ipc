@@ -25,14 +25,14 @@ namespace ipc {
 
 	class function {
 		public:
-		function(std::string name, std::vector<ipc::type> params, call_handler_t ptr, void* data);
-		function(std::string name, std::vector<ipc::type> params, call_handler_t ptr);
-		function(std::string name, std::vector<ipc::type> params, void* data);
-		function(std::string name, std::vector<ipc::type> params);
-		function(std::string name, call_handler_t ptr, void* data);
-		function(std::string name, call_handler_t ptr);
-		function(std::string name, void* data);
-		function(std::string name);
+		function(const std::string & name, const std::vector<ipc::type>& params, call_handler_t ptr, void* data);
+		function(const std::string & name, const std::vector<ipc::type>& params, call_handler_t ptr);
+		function(const std::string & name, const std::vector<ipc::type>& params, void* data);
+		function(const std::string & name, const std::vector<ipc::type>& params);
+		function(const std::string & name, call_handler_t ptr, void* data);
+		function(const std::string & name, call_handler_t ptr);
+		function(const std::string & name, void* data);
+		function(const std::string & name);
 		virtual ~function();
 
 		/** Get the unique name for this function used to identify it.
