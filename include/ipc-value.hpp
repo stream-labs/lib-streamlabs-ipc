@@ -20,6 +20,9 @@
 #include <string>
 #include <vector>
 
+typedef float float_t;
+typedef double double_t; 
+
 namespace ipc {
 	enum class type {
 		Null,
