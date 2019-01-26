@@ -27,7 +27,9 @@
 #include <string>
 #include <thread>
 #include <functional>
+#ifdef WIN32
 #include "../source/windows/named-pipe.hpp"
+#endif
 
 namespace ipc {
 	class server_instance;
@@ -46,12 +48,16 @@ namespace ipc {
 
 		// Socket
 		std::mutex m_sockets_mtx;
+#ifdef WIN32
 		std::list<std::shared_ptr<os::windows::named_pipe>> m_sockets;
+#endif
 		std::string m_socketPath = "";
 
 		// Client management.
 		std::mutex m_clients_mtx;
+#ifdef WIN32
 		std::map<std::shared_ptr<os::windows::named_pipe>, std::shared_ptr<server_instance>> m_clients;
+#endif
 
 		// Event Handlers
 		std::pair<server_connect_handler_t, void*>    m_handlerConnect;
@@ -68,8 +74,10 @@ namespace ipc {
 
 		void watcher();
 
+#ifdef WIN32
 		void spawn_client(std::shared_ptr<os::windows::named_pipe> socket);
 		void kill_client(std::shared_ptr<os::windows::named_pipe> socket);
+#endif
 
 		public:
 		server();

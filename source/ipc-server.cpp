@@ -26,25 +26,32 @@ void ipc::server::watcher() {
 
 	struct pending_accept {
 		server* parent;
+#ifdef WIN32
 		std::shared_ptr<os::async_op> op;
 		std::shared_ptr<os::windows::named_pipe> socket;
+#endif
 		std::chrono::high_resolution_clock::time_point start;
 
 		void accept_client_cb(os::error ec, size_t length) {
+#ifdef WIN32
 			if (ec == os::error::Connected) {
 				// A client has connected, so spawn a new client.
 				parent->spawn_client(socket);
 			}
 			op->invalidate();
+#endif
 		}
 	};
 
+#ifdef WIN32
 	std::map<std::shared_ptr<os::windows::named_pipe>, pending_accept> pa_map;
+#endif
 
 	while (!m_watcher.stop) {
 		// Verify the state of sockets.
 		{
 			std::unique_lock<std::mutex> ul(m_sockets_mtx);
+#ifdef WIN32
 			for (auto socket : m_sockets) {
 				auto pending = pa_map.find(socket);
 				auto client = m_clients.find(socket);
@@ -67,8 +74,9 @@ void ipc::server::watcher() {
 					}
 				}
 			}
+#endif
 		}
-
+#ifdef WIN32
 		// Wait for sockets to connect.
 		std::vector<os::waitable*> waits;
 		std::vector<std::shared_ptr<os::windows::named_pipe>> idx_to_socket;
@@ -81,9 +89,11 @@ void ipc::server::watcher() {
 			std::this_thread::sleep_for(std::chrono::milliseconds(20));
 			continue;
 		}
+#endif
 	}
 }
 
+#ifdef WIN32
 void ipc::server::spawn_client(std::shared_ptr<os::windows::named_pipe> socket) {
 	std::unique_lock<std::mutex> ul(m_clients_mtx);
 	std::shared_ptr<ipc::server_instance> client = std::make_shared<ipc::server_instance>(this, socket);
@@ -99,6 +109,7 @@ void ipc::server::kill_client(std::shared_ptr<os::windows::named_pipe> socket) {
 	}
 	m_clients.erase(socket);
 }
+#endif
 
 ipc::server::server() {
 	// Start Watcher
@@ -119,11 +130,18 @@ void ipc::server::initialize(std::string socketPath) {
 	// Start a few sockets.
 
 	try {
+#ifdef WIN32
 		std::unique_lock<std::mutex> ul(m_sockets_mtx);
 		m_sockets.insert(m_sockets.end(),
 			std::make_shared<os::windows::named_pipe>(os::create_only, socketPath, 255,
 				os::windows::pipe_type::Byte, os::windows::pipe_read_mode::Byte, true));
-	} catch (std::exception & e) {
+		for (size_t idx = 1; idx < backlog; idx++) {
+			m_sockets.insert(m_sockets.end(),
+				std::make_shared<os::windows::named_pipe>(os::create_only, socketPath, 255,
+					os::windows::pipe_type::Byte, os::windows::pipe_read_mode::Byte, false));
+		}
+#endif
+	} catch (std::exception e) {
 		throw e;
 	}
 
@@ -138,7 +156,7 @@ void ipc::server::finalize() {
 
 	// Lock sockets mutex so that watcher pauses.
 	std::unique_lock<std::mutex> ul(m_sockets_mtx);
-
+#ifdef WIN32
 	{ // Kill/Disconnect any clients
 		std::unique_lock<std::mutex> ul(m_clients_mtx);
 		while (m_clients.size() > 0) {
@@ -148,6 +166,7 @@ void ipc::server::finalize() {
 
 	// Kill any remaining sockets
 	m_sockets.clear();
+#endif
 }
 
 void ipc::server::set_connect_handler(server_connect_handler_t handler, void* data) {
