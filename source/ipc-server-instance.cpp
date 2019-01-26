@@ -25,7 +25,7 @@ using namespace std::placeholders;
 #endif
 
 ipc::server_instance::server_instance() {}
-
+#ifdef WIN32
 ipc::server_instance::server_instance(ipc::server* owner, std::shared_ptr<os::windows::named_pipe> conn) {
 	m_parent = owner;
 	m_socket = conn;
@@ -112,7 +112,6 @@ void ipc::server_instance::worker() {
 		}
 	}
 }
-
 void ipc::server_instance::read_callback_init(os::error ec, size_t size) {
 	os::error ec2 = os::error::Success;
 
@@ -315,3 +314,4 @@ void ipc::server_instance::write_callback(os::error ec, size_t size) {
 	m_wop->invalidate();
 	m_rop->invalidate();
 }
+#endif

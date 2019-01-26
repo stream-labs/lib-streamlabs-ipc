@@ -23,9 +23,8 @@
 #include <iterator>
 #include "../include/error.hpp"
 #include "../include/tags.hpp"
+#ifdef WIN32
 #include "windows/semaphore.hpp"
-
-#ifdef _WIN32
 #include <windows.h>
 #include <Objbase.h>
 #endif
@@ -35,7 +34,7 @@ using namespace std::placeholders;
 void ipc::client::worker() {
 	os::error ec = os::error::Success;
 	std::vector<ipc::value> proc_rval;
-
+#ifdef WIN32
 	while (m_socket->is_connected() && !m_watcher.stop) {
 		if (!m_rop || !m_rop->is_valid()) {
 			m_watcher.buf.resize(sizeof(ipc_size_t));
@@ -67,6 +66,7 @@ void ipc::client::worker() {
 	if (!m_socket->is_connected()) {
 		std::string test = "test";
 	}
+#endif
 
 	// Call any remaining callbacks.
 	proc_rval.resize(1);
@@ -82,7 +82,7 @@ void ipc::client::worker() {
 		m_cb.clear();
 	}
 }
-
+#ifdef WIN32
 void ipc::client::read_callback_init(os::error ec, size_t size) {
 	os::error ec2 = os::error::Success;
 
@@ -358,3 +358,4 @@ std::vector<ipc::value> ipc::client::call_synchronous_helper(std::string cname, 
 
 	return std::move(cd.values);
 }
+#endif
