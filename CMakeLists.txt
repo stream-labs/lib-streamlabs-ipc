@@ -48,23 +48,27 @@ SET(lib-streamlabs-ipc_SOURCES
 	"${PROJECT_SOURCE_DIR}/include/ipc-value.hpp"
 	"${PROJECT_SOURCE_DIR}/include/util.h"
 	"${PROJECT_SOURCE_DIR}/include/waitable.hpp"
-	"${PROJECT_SOURCE_DIR}/source/windows/waitable.cpp"
 	"${PROJECT_SOURCE_DIR}/include/tags.hpp"
 	"${PROJECT_SOURCE_DIR}/include/semaphore.hpp"
 	"${PROJECT_SOURCE_DIR}/include/error.hpp"
 	"${PROJECT_SOURCE_DIR}/include/async_op.hpp"
 	"${PROJECT_SOURCE_DIR}/source/async_op.cpp"
-	"${PROJECT_SOURCE_DIR}/source/windows/utility.hpp"
-	"${PROJECT_SOURCE_DIR}/source/windows/utility.cpp"
-	"${PROJECT_SOURCE_DIR}/source/windows/semaphore.hpp"
-	"${PROJECT_SOURCE_DIR}/source/windows/semaphore.cpp"
-	"${PROJECT_SOURCE_DIR}/source/windows/overlapped.hpp"
-	"${PROJECT_SOURCE_DIR}/source/windows/overlapped.cpp"
-	"${PROJECT_SOURCE_DIR}/source/windows/named-pipe.hpp"
-	"${PROJECT_SOURCE_DIR}/source/windows/named-pipe.cpp"
-	"${PROJECT_SOURCE_DIR}/source/windows/async_request.hpp"
-	"${PROJECT_SOURCE_DIR}/source/windows/async_request.cpp"
 )
+IF (WIN32)
+	SET(lib-streamlabs-ipc_SOURCES_WINDOWS
+		"${PROJECT_SOURCE_DIR}/source/windows/utility.hpp"
+		"${PROJECT_SOURCE_DIR}/source/windows/utility.cpp"
+		"${PROJECT_SOURCE_DIR}/source/windows/semaphore.hpp"
+		"${PROJECT_SOURCE_DIR}/source/windows/semaphore.cpp"
+		"${PROJECT_SOURCE_DIR}/source/windows/overlapped.hpp"
+		"${PROJECT_SOURCE_DIR}/source/windows/overlapped.cpp"
+		"${PROJECT_SOURCE_DIR}/source/windows/named-pipe.hpp"
+		"${PROJECT_SOURCE_DIR}/source/windows/named-pipe.cpp"
+		"${PROJECT_SOURCE_DIR}/source/windows/async_request.hpp"
+		"${PROJECT_SOURCE_DIR}/source/windows/async_request.cpp"
+		"${PROJECT_SOURCE_DIR}/source/windows/waitable.cpp"
+	)
+ENDIF()
 SET(Protobuf_IMPORT_DIRS
 	"${PROJECT_SOURCE_DIR}/proto"
 )
@@ -134,6 +138,8 @@ IF(WIN32)
 	add_definitions(-DNOMCX)
 	
 	LIST(APPEND lib-streamlabs-ipc_SOURCES
+	)
+	LIST(APPEND lib-streamlabs-ipc_SOURCES_WINDOWS
 	)
 	LIST(APPEND lib-streamlabs-ipc_DEPS
 	)
