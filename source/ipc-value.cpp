@@ -98,7 +98,7 @@ size_t ipc::value::serialize(std::vector<char>& buf, size_t offset) {
 	size_t buf_size = buf.size() - offset;
 	size_t full_size = size();
 	if (buf_size < full_size) {
-		throw std::exception("Value serialization failed, buffer too small");
+		throw std::exception((const std::exception&)"Value serialization failed, buffer too small");
 	}
 	size_t noffset = offset;
 	reinterpret_cast<uint32_t&>(buf[noffset]) = (uint32_t)this->type;
@@ -150,7 +150,7 @@ size_t ipc::value::serialize(std::vector<char>& buf, size_t offset) {
 
 size_t ipc::value::deserialize(const std::vector<char>& buf, size_t offset) {
 	if ((buf.size() - offset) < sizeof(uint32_t)) {
-		throw std::exception("Buffer too small");
+		throw std::exception((const std::exception&)"Buffer too small");
 	}
 	this->type = (ipc::type)buf[offset];
 	size_t   noffset = offset + sizeof(uint32_t);
@@ -160,7 +160,7 @@ size_t ipc::value::deserialize(const std::vector<char>& buf, size_t offset) {
 		case type::UInt32:
 		case type::Float:
 			if ((buf.size() - noffset) < sizeof(int32_t)) {
-				throw std::exception("Deserialize of 32-bit value failed");
+				throw std::exception((const std::exception&)"Deserialize of 32-bit value failed");
 			}
 			memcpy(&this->value_union.i32, &buf[noffset], sizeof(int32_t));
 			noffset += sizeof(int32_t);
@@ -169,19 +169,19 @@ size_t ipc::value::deserialize(const std::vector<char>& buf, size_t offset) {
 		case type::UInt64:
 		case type::Double:
 			if ((buf.size() - noffset) < sizeof(int64_t)) {
-				throw std::exception("Deserialize of 64-bit value failed");
+				throw std::exception((const std::exception&)"Deserialize of 64-bit value failed");
 			}
 			memcpy(&this->value_union.i64, &buf[noffset], sizeof(int64_t));
 			noffset += sizeof(int64_t);
 			break;
 		case type::String:
 			if ((buf.size() - noffset) < sizeof(uint32_t)) {
-				throw std::exception("Deserialize of string value failed, length missing");
+				throw std::exception((const std::exception&)"Deserialize of string value failed, length missing");
 			}
 			length = reinterpret_cast<const uint32_t&>(buf[noffset]);
 			noffset += sizeof(uint32_t);
 			if ((buf.size() - noffset) < length) {
-				throw std::exception("Deserialize of string value failed, string missing");
+				throw std::exception((const std::exception&)"Deserialize of string value failed, string missing");
 			}
 			this->value_str.clear();
 			this->value_str.resize(length);
@@ -192,12 +192,12 @@ size_t ipc::value::deserialize(const std::vector<char>& buf, size_t offset) {
 			break;
 		case type::Binary:
 			if ((buf.size() - noffset) < sizeof(uint32_t)) {
-				throw std::exception("Deserialize of buffer value failed, length missing");
+				throw std::exception((const std::exception&)"Deserialize of buffer value failed, length missing");
 			}
 			length = reinterpret_cast<const uint32_t&>(buf[noffset]);
 			noffset += sizeof(uint32_t);
 			if ((buf.size() - noffset) < length) {
-				throw std::exception("Deserialize of buffer value failed, buffer missing");
+				throw std::exception((const std::exception&)"Deserialize of buffer value failed, buffer missing");
 			}
 			this->value_bin.clear();
 			this->value_bin.resize(length);
