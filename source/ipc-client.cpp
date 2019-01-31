@@ -65,7 +65,7 @@ void ipc::client::worker() {
 	}
 
 	if (!m_socket->is_connected()) {
-		std::string test = "test";
+		exit(1);
 	}
 
 	// Call any remaining callbacks.
