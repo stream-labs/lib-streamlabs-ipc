@@ -65,10 +65,6 @@ void ipc::client::worker() {
 		}
 	}
 
-	if (!m_socket->is_connected()) {
-		std::string test = "test";
-	}
-
 	// Call any remaining callbacks.
 	proc_rval.resize(1);
 	proc_rval[0].type = ipc::type::Null;
@@ -81,6 +77,10 @@ void ipc::client::worker() {
 		}
 
 		m_cb.clear();
+	}
+
+	if (!m_socket->is_connected()) {
+		exit(1);
 	}
 }
 
