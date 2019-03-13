@@ -128,12 +128,12 @@ void ipc::server::initialize(std::string socketPath) {
 				std::make_shared<os::windows::named_pipe>(os::create_only, socketPath, 255,
 					os::windows::pipe_type::Byte, os::windows::pipe_read_mode::Byte, false));
 		}
-	} catch (std::exception e) {
+	} catch (std::exception & e) {
 		throw e;
 	}
 
 	m_isInitialized = true;
-	m_socketPath = socketPath;
+	m_socketPath = std::move(socketPath);
 }
 
 void ipc::server::finalize() {
@@ -183,7 +183,7 @@ bool ipc::server::register_collection(std::shared_ptr<ipc::collection> cls) {
 	return true;
 }
 
-bool ipc::server::client_call_function(int64_t cid, std::string cname, std::string fname, std::vector<ipc::value>& args, std::vector<ipc::value>& rval, std::string& errormsg) {
+bool ipc::server::client_call_function(int64_t cid, const std::string & cname, const std::string &fname, std::vector<ipc::value>& args, std::vector<ipc::value>& rval, std::string& errormsg) {
 	if (m_classes.count(cname) == 0) {
 		errormsg = "Class '" + cname + "' is not registered.";
 		return false;

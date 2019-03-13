@@ -26,8 +26,8 @@ std::string ipc::base::make_unique_id(const std::string& name, const std::vector
 	// This behavior might not be desired, but allows some amount of flexibility.
 
 	std::string uq = name;
+	uq += "_";
 	if (parameters.size() > 0) {
-		uq += "_";
 		for (type p : parameters) {
 			switch (p) {
 				case ipc::type::Null:

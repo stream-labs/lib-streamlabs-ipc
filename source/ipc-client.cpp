@@ -123,7 +123,7 @@ void ipc::client::read_callback_msg(os::error ec, size_t size) {
 
 	try {
 		fnc_reply_msg.deserialize(m_watcher.buf, 0);
-	} catch (std::exception e) {
+	} catch (std::exception& e) {
 		ipc::log("Deserialize failed with error %s.", e.what());
 		throw e;
 	}
@@ -158,6 +158,9 @@ void ipc::client::read_callback_msg(os::error ec, size_t size) {
 				break;
 			case type::Binary:
 				ipc::log("(read) \t%llu: (Binary)", idx);
+				break;
+			case type::Null:
+				ipc::log("(read) \t%llu: (Null)", idx);
 				break;
 		}
 	}
@@ -218,7 +221,7 @@ bool ipc::client::cancel(int64_t const& id) {
 	return m_cb.erase(id) != 0;
 }
 
-bool ipc::client::call(std::string cname, std::string fname, std::vector<ipc::value> args, call_return_t fn, void* data, int64_t& cbid) {
+bool ipc::client::call(const std::string& cname, const std::string& fname, std::vector<ipc::value> args, call_return_t fn, void* data, int64_t& cbid) {
 	static std::mutex mtx;
 	static uint64_t timestamp = 0;
 	os::error ec;
@@ -273,6 +276,9 @@ bool ipc::client::call(std::string cname, std::string fname, std::vector<ipc::va
 			case type::Binary:
 				ipc::log("(write) \t%llu: (Binary)", idx);
 				break;
+			case type::Null:
+				ipc::log("(write) \t%llu: (Null)", idx);
+				break;
 		}
 	}
 #endif
@@ -281,7 +287,7 @@ bool ipc::client::call(std::string cname, std::string fname, std::vector<ipc::va
 	std::vector<char> buf(fnc_call_msg.size());
 	try {
 		fnc_call_msg.serialize(buf, 0);
-	} catch (std::exception e) {
+	} catch (std::exception& e) {
 		ipc::log("(write) %8llu: Failed to serialize, error %s.", fnc_call_msg.uid.value_union.ui64, e.what());
 		throw e;
 	}
