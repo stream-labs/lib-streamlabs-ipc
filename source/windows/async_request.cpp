@@ -51,8 +51,8 @@ void *os::windows::async_request::get_waitable() {
 }
 
 os::windows::async_request::~async_request() {
-	if (is_valid()) {
-		cancel();
+	if (os::windows::async_request::is_valid()) {
+		os::windows::async_request::cancel();
 	}
 }
 

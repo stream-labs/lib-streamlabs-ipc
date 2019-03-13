@@ -330,7 +330,7 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
 	return true;
 }
 
-std::vector<ipc::value> ipc::client::call_synchronous_helper(std::string cname, std::string fname, std::vector<ipc::value> args) {
+std::vector<ipc::value> ipc::client::call_synchronous_helper(const std::string & cname, const std::string & fname, const std::vector<ipc::value>& args) {
 	// Set up call reference data.
 	struct CallData {
 		std::shared_ptr<os::windows::semaphore> sgn = std::make_shared<os::windows::semaphore>();

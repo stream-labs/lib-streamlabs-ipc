@@ -22,14 +22,10 @@ ipc::value::value() {
 	this->type = type::Null;
 }
 
-ipc::value::value(std::vector<char> p_value) {
-	this->type = type::Binary;
-	this->value_bin = std::move(p_value);
+ipc::value::value(const std::vector<char>& p_value):type(type::Binary), value_bin(p_value) {
 }
 
-ipc::value::value(std::string p_value) {
-	this->type = type::String;
-	this->value_str = std::move(p_value);
+ipc::value::value(const std::string & p_value):type(type::String), value_str(p_value) {
 }
 
 ipc::value::value(uint64_t p_value) {
