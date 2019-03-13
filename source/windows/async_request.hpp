@@ -38,7 +38,7 @@ namespace os {
 
 			void set_valid(bool valid);
 
-			static void completion_routine(DWORD dwErrorCode, DWORD dwBytesTransmitted, LPVOID ov);
+			static void CALLBACK completion_routine(DWORD dwErrorCode, DWORD dwBytesTransmitted, LPVOID ov);
 
 			public:
 			~async_request();
