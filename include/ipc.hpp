@@ -48,7 +48,7 @@ namespace ipc {
 
 	class base {
 		public:
-		static std::string make_unique_id(std::string name, std::vector<type> parameters);
+		static std::string make_unique_id(const std::string & name, const std::vector<type>& parameters);
 		
 	};
 

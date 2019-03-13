@@ -141,7 +141,7 @@ os::windows::named_pipe::named_pipe() {
 	set_connected(false);
 }
 
-os::windows::named_pipe::named_pipe(os::create_only_t, std::string name,
+os::windows::named_pipe::named_pipe(os::create_only_t, const std::string & name,
 									size_t         max_instances /*= PIPE_UNLIMITED_INSTANCES*/,
 									pipe_type      type /*= pipe_type::Message*/,
 									pipe_read_mode mode /*= pipe_read_mode::Message*/, bool is_unique /*= false*/)
@@ -153,7 +153,7 @@ os::windows::named_pipe::named_pipe(os::create_only_t, std::string name,
 	created = true;
 }
 
-os::windows::named_pipe::named_pipe(os::open_only_t, std::string name,
+os::windows::named_pipe::named_pipe(os::open_only_t, const std::string & name,
 									pipe_read_mode mode /*= pipe_read_mode::Message*/)
 	: named_pipe() {
 	validate_open_param(name);

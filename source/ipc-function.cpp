@@ -20,7 +20,7 @@
 #include "ipc.hpp"
 
 
-ipc::function::function(std::string name, std::vector<ipc::type> params, call_handler_t ptr, void* data) {
+ipc::function::function(const std::string & name, const std::vector<ipc::type>& params, call_handler_t ptr, void* data) {
 	this->m_name = name;
 	this->m_nameUnique = ipc::base::make_unique_id(m_name, params);
 	this->m_params = params;
@@ -28,25 +28,25 @@ ipc::function::function(std::string name, std::vector<ipc::type> params, call_ha
 	this->m_callHandler.second = data;
 }
 
-ipc::function::function(std::string name, std::vector<ipc::type> params, call_handler_t ptr)
+ipc::function::function(const std::string & name, const std::vector<ipc::type>& params, call_handler_t ptr)
 	: function(name, params, ptr, nullptr) {}
 
-ipc::function::function(std::string name, std::vector<ipc::type> params, void* data)
+ipc::function::function(const std::string & name, const std::vector<ipc::type>& params, void* data)
 	: function(name, params, nullptr, data) {}
 
-ipc::function::function(std::string name, std::vector<ipc::type> params)
+ipc::function::function(const std::string & name, const std::vector<ipc::type>& params)
 	: function(name, params, nullptr, nullptr) {}
 
-ipc::function::function(std::string name, call_handler_t ptr, void* data)
+ipc::function::function(const std::string & name, call_handler_t ptr, void* data)
 	: function(name, std::vector<ipc::type>(), ptr, data) {}
 
-ipc::function::function(std::string name, call_handler_t ptr)
+ipc::function::function(const std::string & name, call_handler_t ptr)
 	: function(name, std::vector<ipc::type>(), ptr, nullptr) {}
 
-ipc::function::function(std::string name, void* data)
+ipc::function::function(const std::string & name, void* data)
 	: function(name, std::vector<ipc::type>(), nullptr, data) {}
 
-ipc::function::function(std::string name)
+ipc::function::function(const std::string & name)
 	: function(name, std::vector<ipc::type>(), nullptr, nullptr) {}
 
 ipc::function::~function() {}
