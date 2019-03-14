@@ -212,15 +212,9 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 
 	// Execute
 	proc_rval.resize(0);
-	try {
-		success = m_parent->client_call_function(m_clientId,
-			fnc_call_msg.class_name.value_str, fnc_call_msg.function_name.value_str,
-			fnc_call_msg.arguments, proc_rval, proc_error);
-	} catch (std::exception & e) {
-		ipc::log("%8llu: Unexpected exception during client call, error %s.",
-			fnc_call_msg.uid.value_union.ui64, e.what());
-		throw e;
-	}
+	success = m_parent->client_call_function(m_clientId,
+		fnc_call_msg.class_name.value_str, fnc_call_msg.function_name.value_str,
+		fnc_call_msg.arguments, proc_rval, proc_error);
 
 	// Set
 	fnc_reply_msg.uid = fnc_call_msg.uid;
