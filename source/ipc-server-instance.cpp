@@ -294,7 +294,11 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 				if (ec2 == os::error::Disconnected) {
 					return;
 				} else {
-					throw std::exception("Unexpected Error");
+					ipc::log(
+					    "%8llu: Write buffer operation failed with error %d.",
+					    fnc_call_msg.uid.value_union.ui64,
+					    static_cast<int>(ec2));
+					throw std::exception("Write buffer operation failed");
 				}
 			}
 		} else {
