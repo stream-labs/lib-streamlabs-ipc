@@ -43,7 +43,7 @@ namespace ipc {
 	}
 
 	void log(const char* fmt, ...);
-	void register_log_callback(log_callback_t _callback);
+	void register_log_callback(ipc::log_callback_t callback, void* data);
 
 	std::string vectortohex(const std::vector<char>&);
 
