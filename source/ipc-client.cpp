@@ -33,6 +33,10 @@
 
 using namespace std::placeholders;
 
+call_return_t g_fn   = NULL;
+void*         g_data = NULL;
+int64_t       g_cbid = NULL;
+
 void ipc::client::worker() {
 	os::error ec = os::error::Success;
 	std::vector<ipc::value> proc_rval;
@@ -362,6 +366,5 @@ std::vector<ipc::value> ipc::client::call_synchronous_helper(const std::string &
 		cancel(cbid);
 		return {};
 	}
-
 	return std::move(cd.values);
 }

@@ -27,8 +27,12 @@
 #include <vector>
 #include "../source/windows/named-pipe.hpp"
 
+typedef void (*call_return_t)(const void* data, const std::vector<ipc::value>& rval);
+extern call_return_t g_fn;
+extern void*         g_data;
+extern int64_t       g_cbid;
+
 namespace ipc {
-	typedef void(*call_return_t)(const void* data, const std::vector<ipc::value>& rval);
 
 	class client {
 		std::unique_ptr<os::windows::named_pipe> m_socket;
@@ -53,7 +57,13 @@ namespace ipc {
 		client(std::string socketPath);
 		virtual ~client();
 
-		bool call(const std::string& cname, const std::string& fname, std::vector<ipc::value> args, call_return_t fn, void* data, int64_t& cbid);
+		bool call(
+		    const std::string&      cname,
+		    const std::string&      fname,
+		    std::vector<ipc::value> args,
+		    call_return_t           fn   = g_fn,
+		    void*                   data = g_data,
+		    int64_t&                cbid = g_cbid);
 
 		bool cancel(int64_t const& id);
 
