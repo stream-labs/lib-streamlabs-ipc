@@ -51,6 +51,8 @@ SET(lib-streamlabs-ipc_SOURCES
 	"${PROJECT_SOURCE_DIR}/include/error.hpp"
 	"${PROJECT_SOURCE_DIR}/include/async_op.hpp"
 	"${PROJECT_SOURCE_DIR}/source/async_op.cpp"
+	"${PROJECT_SOURCE_DIR}/include/ipc-communication.hpp"
+	"${PROJECT_SOURCE_DIR}/source/ipc-communication.cpp"
 	"${PROJECT_SOURCE_DIR}/source/windows/utility.hpp"
 	"${PROJECT_SOURCE_DIR}/source/windows/utility.cpp"
 	"${PROJECT_SOURCE_DIR}/source/windows/semaphore.hpp"
