@@ -25,13 +25,22 @@
 using namespace std::placeholders;
 #endif
 
-ipc::communication::communication() {}
+ipc::communication::communication()
+{
+	m_stopWorkers = false;
+	m_clientId = 0;
+}
 
 ipc::communication::~communication() {
 	// Threading
 	m_stopWorkers = true;
 	if (m_worker.joinable())
 		m_worker.join();
+}
+
+void ipc::communication::startWorker()
+{
+	m_worker = std::thread(std::bind(&communication::worker, this));
 }
 
 bool ipc::communication::is_alive() {
@@ -52,8 +61,7 @@ void ipc::communication::worker() {
 		if (!m_rop || !m_rop->is_valid()) {
 			size_t testSize = sizeof(ipc_size_t);
 			m_rbuf.resize(sizeof(ipc_size_t));
-			//Declare a virtual pure function and implement it in both cliant and server instances
-			//ec = m_socket->read(m_rbuf.data(), m_rbuf.size(), m_rop, std::bind(&server_instance::read_callback_init, this, _1, _2));
+			ec = m_socket->read(m_rbuf.data(), m_rbuf.size(), m_rop, std::bind(&communication::read_callback_init, this, _1, _2));
 			if (ec != os::error::Pending && ec != os::error::Success) {
 				if (ec == os::error::Disconnected) {
 					break;
@@ -71,8 +79,7 @@ void ipc::communication::worker() {
 				std::string hex_msg = ipc::vectortohex(m_wbuf);
 				ipc::log("????????: %.*s.", hex_msg.size(), hex_msg.data());
 #endif
-				//Declare a virtual pure function and implement it in both cliant and server instances
-				//ec = m_socket->write(m_wbuf.data(), m_wbuf.size(), m_wop, std::bind(&server_instance::write_callback, this, _1, _2));
+				ec = m_socket->write(m_wbuf.data(), m_wbuf.size(), m_wop, std::bind(&communication::write_callback, this, _1, _2));
 				if (ec != os::error::Pending && ec != os::error::Success) {
 					if (ec == os::error::Disconnected) {
 						break;
@@ -120,8 +127,7 @@ void ipc::communication::read_callback_init(os::error ec, size_t size) {
 #endif
 		if (n_size != 0) {
 			m_rbuf.resize(n_size);
-			//Declare a virtual pure function and implement it in both cliant and server instances
-			//ec2 = m_socket->read(m_rbuf.data(), m_rbuf.size(), m_rop, std::bind(&server_instance::read_callback_msg, this, _1, _2));
+			ec2 = m_socket->read(m_rbuf.data(), m_rbuf.size(), m_rop, std::bind(&communication::read_callback_msg, this, _1, _2));
 			if (ec2 != os::error::Pending && ec2 != os::error::Success) {
 				if (ec2 == os::error::Disconnected) {
 					return;
@@ -208,10 +214,10 @@ void ipc::communication::read_callback_msg(os::error ec, size_t size) {
 	// Execute
 	proc_rval.resize(0);
 
-	//Declare a virtual pure function and implement it in both cliant and server instances
-	//success = m_parent->client_call_function(m_clientId,
-	//	fnc_call_msg.class_name.value_str, fnc_call_msg.function_name.value_str,
-	//	fnc_call_msg.arguments, proc_rval, proc_error);
+	success = call_function(m_clientId,
+		                    fnc_call_msg.class_name.value_str, 
+		                    fnc_call_msg.function_name.value_str,
+		                    fnc_call_msg.arguments, proc_rval, proc_error);
 
 	// Set
 	fnc_reply_msg.uid = fnc_call_msg.uid;
@@ -287,15 +293,14 @@ void ipc::communication::read_callback_msg(os::error ec, size_t size) {
 			ipc::log("????????: %.*s.", hex_msg.size(), hex_msg.data());
 #endif
 
-			//Declare a virtual pure function and implement it in both cliant and server instances
-			//os::error ec2 = m_socket->write(m_wbuf.data(), m_wbuf.size(), m_wop, std::bind(&server_instance::write_callback, this, _1, _2));
-			//if (ec2 != os::error::Success && ec2 != os::error::Pending) {
-			//	if (ec2 == os::error::Disconnected) {
-			//		return;
-			//	} else {
-			//		throw std::exception("Unexpected Error");
-			//	}
-			//}
+			os::error ec2 = m_socket->write(m_wbuf.data(), m_wbuf.size(), m_wop, std::bind(&communication::write_callback, this, _1, _2));
+			if (ec2 != os::error::Success && ec2 != os::error::Pending) {
+				if (ec2 == os::error::Disconnected) {
+					return;
+				} else {
+					throw std::exception("Unexpected Error");
+				}
+			}
 		} else {
 			m_write_queue.push(std::move(write_buffer));
 		}

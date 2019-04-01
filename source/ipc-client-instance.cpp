@@ -16,31 +16,33 @@
 
 ******************************************************************************/
 
-#pragma once
-#include "ipc-communication.hpp"
-#include "ipc-server.hpp"
+#include "ipc-client-instance.hpp"
+#include <sstream>
+#include <functional>
 
-namespace ipc {
-	class server;
+#ifdef _WIN32
+#include <windows.h>
+using namespace std::placeholders;
+#endif
 
-	class server_instance: communication {
-		friend class server;
+ipc::client_instance::client_instance() {}
 
-		public:
-		server_instance();
-		server_instance(server* owner, std::shared_ptr<os::windows::named_pipe> conn);
-		virtual ~server_instance();
+ipc::client_instance::client_instance(ipc::client* owner, std::shared_ptr<os::windows::named_pipe> conn)
+{
+	m_socket = conn;
+	m_parent = owner;
+	startWorker();
+}
 
-		bool call_function(
-		    int64_t                  cid,
-		    const std::string&       cname,
-		    const std::string&       fname,
-		    std::vector<ipc::value>& args,
-		    std::vector<ipc::value>& rval,
-		    std::string&             errormsg);
+ipc::client_instance::~client_instance() {}
 
-		private:
-		server* m_parent = nullptr;
-		int64_t m_clientId;
-	};
+bool ipc::client_instance::call_function(
+    int64_t                  cid,
+    const std::string&       cname,
+    const std::string&       fname,
+    std::vector<ipc::value>& args,
+    std::vector<ipc::value>& rval,
+    std::string&             errormsg)
+{
+	return m_parent->server_call_function(cid, cname, fname, args, rval, errormsg);
 }

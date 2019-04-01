@@ -19,6 +19,7 @@
 #pragma once
 #include "ipc.hpp"
 #include "ipc-class.hpp"
+#include "ipc-value.hpp"
 #include "ipc-server-instance.hpp"
 #include <list>
 #include <map>
@@ -28,6 +29,11 @@
 #include <thread>
 #include <functional>
 #include "../source/windows/named-pipe.hpp"
+
+typedef void (*call_return_t)(const void* data, const std::vector<ipc::value>& rval);
+extern call_return_t g_fn;
+extern void*         g_data;
+extern int64_t       g_cbid;
 
 namespace ipc {
 	class server_instance;
@@ -41,8 +47,12 @@ namespace ipc {
 	class server {
 		bool m_isInitialized = false;
 
-		// Functions		
+		// Functions
 		std::map<std::string, std::shared_ptr<ipc::collection>> m_classes;
+		std::mutex                                              m_lock;
+		std::map<int64_t, std::pair<call_return_t, void*>>      m_cb;
+
+		std::shared_ptr<os::async_op> m_rop;
 
 		// Socket
 		size_t backlog = 40;
@@ -63,11 +73,14 @@ namespace ipc {
 
 		// Worker
 		struct {
-			std::thread worker;
-			bool stop = false;
+			std::thread       worker;
+			bool              stop = false;
+			std::vector<char> buf;
 		} m_watcher;
 
 		void watcher();
+		void read_callback_init(os::error ec, size_t size);
+		void read_callback_msg(os::error ec, size_t size);
 
 		void spawn_client(std::shared_ptr<os::windows::named_pipe> socket);
 		void kill_client(std::shared_ptr<os::windows::named_pipe> socket);
@@ -83,9 +96,6 @@ namespace ipc {
 		public: // Events
 		void set_connect_handler(server_connect_handler_t handler, void* data);
 		void set_disconnect_handler(server_disconnect_handler_t handler, void* data);
-		void set_message_handler(server_message_handler_t handler, void* data);
-		void set_pre_callback(server_pre_callback_t handler, void* data);
-		void set_post_callback(server_post_callback_t handler, void* data);
 
 		public: // Functionality
 		bool register_collection(std::shared_ptr<ipc::collection> cls);
@@ -93,6 +103,20 @@ namespace ipc {
 		protected: // Client -> Server
 		bool client_call_function(int64_t cid, const std::string &cname, const std::string &fname,
 			std::vector<ipc::value>& args, std::vector<ipc::value>& rval, std::string& errormsg);
+
+		public:
+		bool call(
+		    const std::string&      cname,
+		    const std::string&      fname,
+		    std::vector<ipc::value> args,
+		    call_return_t           fn   = g_fn,
+		    void*                   data = g_data,
+		    int64_t&                cbid = g_cbid);
+		std::vector<ipc::value> call_synchronous_helper(
+		    const std::string&             cname,
+		    const std::string&             fname,
+		    const std::vector<ipc::value>& args);
+		bool cancel(int64_t const& id);
 
 		friend class server_instance;
 	};

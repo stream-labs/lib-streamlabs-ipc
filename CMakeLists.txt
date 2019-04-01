@@ -41,6 +41,8 @@ SET(lib-streamlabs-ipc_SOURCES
 	"${PROJECT_SOURCE_DIR}/include/ipc-server.hpp"
 	"${PROJECT_SOURCE_DIR}/source/ipc-server-instance.cpp"
 	"${PROJECT_SOURCE_DIR}/include/ipc-server-instance.hpp"
+	"${PROJECT_SOURCE_DIR}/source/ipc-client-instance.cpp"
+	"${PROJECT_SOURCE_DIR}/include/ipc-client-instance.hpp"
 	"${PROJECT_SOURCE_DIR}/source/ipc-value.cpp"
 	"${PROJECT_SOURCE_DIR}/include/ipc-value.hpp"
 	"${PROJECT_SOURCE_DIR}/include/util.h"

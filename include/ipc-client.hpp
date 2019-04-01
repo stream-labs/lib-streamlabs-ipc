@@ -18,6 +18,7 @@
 
 #pragma once
 #include "ipc.hpp"
+#include "ipc-class.hpp"
 #include <string>
 #include <vector>
 #include <map>
@@ -26,6 +27,7 @@
 #include <thread>
 #include <vector>
 #include "../source/windows/named-pipe.hpp"
+#include "ipc-client-instance.hpp"
 
 typedef void (*call_return_t)(const void* data, const std::vector<ipc::value>& rval);
 extern call_return_t g_fn;
@@ -36,22 +38,26 @@ namespace ipc {
 
 	class client {
 		std::unique_ptr<os::windows::named_pipe> m_socket;
-		std::shared_ptr<os::async_op> m_rop;
+		std::shared_ptr<os::async_op>            m_rop, m_wop;
+		std::queue<std::vector<char>>            m_write_queue;
 
 		bool m_authenticated = false;
 		std::mutex m_lock;
-		std::map<int64_t, std::pair<call_return_t, void*>> m_cb;
+		std::map<int64_t, std::pair<call_return_t, void*>>      m_cb;
+		std::map<std::string, std::shared_ptr<ipc::collection>> m_classes;
 
 		// Threading
 		struct {
 			std::thread worker;
-			bool stop = false;
-			std::vector<char> buf;
+			bool              stop = false;
+			std::vector<char> rbuf;
+			std::vector<char> wbuf;
 		} m_watcher;
 		
 		void worker();
 		void read_callback_init(os::error ec, size_t size);
 		void read_callback_msg(os::error ec, size_t size);
+		void write_callback(os::error ec, size_t size);	
 
 		public:
 		client(std::string socketPath);
@@ -68,5 +74,8 @@ namespace ipc {
 		bool cancel(int64_t const& id);
 
 		std::vector<ipc::value> call_synchronous_helper(const std::string & cname, const std::string &fname, const std::vector<ipc::value> & args);
+		bool register_collection(std::shared_ptr<ipc::collection> cls);
+		bool server_call_function(int64_t cid, const std::string& cname, const std::string& fname, std::vector<ipc::value>& args, 
+		                          std::vector<ipc::value>& rval, std::string& errormsg);
 	};
 }

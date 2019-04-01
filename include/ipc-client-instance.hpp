@@ -18,18 +18,18 @@
 
 #pragma once
 #include "ipc-communication.hpp"
-#include "ipc-server.hpp"
+#include "ipc-client.hpp"
 
 namespace ipc {
-	class server;
+	class client;
 
-	class server_instance: communication {
-		friend class server;
+	class client_instance: communication {
+		friend class client;
 
 		public:
-		server_instance();
-		server_instance(server* owner, std::shared_ptr<os::windows::named_pipe> conn);
-		virtual ~server_instance();
+		client_instance();
+		client_instance(client* owner, std::shared_ptr<os::windows::named_pipe> conn);
+		virtual ~client_instance();
 
 		bool call_function(
 		    int64_t                  cid,
@@ -40,7 +40,7 @@ namespace ipc {
 		    std::string&             errormsg);
 
 		private:
-		server* m_parent = nullptr;
+		client* m_parent = nullptr;
 		int64_t m_clientId;
 	};
 }

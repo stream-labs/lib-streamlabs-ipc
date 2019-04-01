@@ -147,7 +147,7 @@ size_t ipc::value::serialize(std::vector<char>& buf, size_t offset) {
 
 size_t ipc::value::deserialize(const std::vector<char>& buf, size_t offset) {
 	if (buf.size() < offset + sizeof(uint32_t)) {
-		throw std::exception("Buffer too small");
+			throw std::exception("Buffer too small");
 	}
 	this->type = (ipc::type) *(reinterpret_cast<const uint32_t*>(&buf[offset]));
 	size_t   noffset = offset + sizeof(uint32_t);

@@ -25,6 +25,7 @@
 #include <thread>
 #include <vector>
 #include "../source/windows/named-pipe.hpp"
+#include "ipc-class.hpp"
 
 namespace ipc {
 	class communication {
@@ -34,14 +35,16 @@ namespace ipc {
 		
 		bool is_alive();
 
-		private: // Threading
+		protected: // Threading
 		bool m_stopWorkers = false;
 		std::thread m_worker;
+		void        startWorker();
 
+		public:
 		void worker();
 		void read_callback_init(os::error ec, size_t size);
 		void read_callback_msg(os::error ec, size_t size);
-		void write_callback(os::error ec, size_t size);		
+		void write_callback(os::error ec, size_t size);	
 		
 		public:
 		std::shared_ptr<os::windows::named_pipe> m_socket;
@@ -49,8 +52,14 @@ namespace ipc {
 		std::vector<char> m_wbuf, m_rbuf;
 		std::queue<std::vector<char>> m_write_queue;
 
+		public:
+		virtual bool call_function(int64_t                  cid,
+		                           const std::string&       cname,
+		                           const std::string&       fname,
+		                           std::vector<ipc::value>& args,
+		                           std::vector<ipc::value>& rval,
+		                           std::string&             errormsg) = 0;
 		private:
-		//server* m_parent = nullptr;
-		int64_t m_clientId;
+		int64_t                                                 m_clientId;
 	};
 }
