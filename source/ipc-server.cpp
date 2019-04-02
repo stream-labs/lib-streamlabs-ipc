@@ -175,14 +175,6 @@ void ipc::server::set_post_callback(server_post_callback_t handler, void* data) 
 	m_postCallback = std::make_pair(handler, data);
 }
 
-bool ipc::server::register_collection(std::shared_ptr<ipc::collection> cls) {
-	if (m_classes.count(cls->get_name()) > 0)
-		return false;
-
-	m_classes.insert(std::make_pair(cls->get_name(), cls));
-	return true;
-}
-
 bool ipc::server::client_call_function(int64_t cid, const std::string & cname, const std::string &fname, std::vector<ipc::value>& args, std::vector<ipc::value>& rval, std::string& errormsg) {
 	if (m_classes.count(cname) == 0) {
 		errormsg = "Class '" + cname + "' is not registered.";

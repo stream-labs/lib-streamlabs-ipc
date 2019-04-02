@@ -28,6 +28,7 @@
 #include <thread>
 #include <functional>
 #include "../source/windows/named-pipe.hpp"
+#include "ipc-communication.hpp"
 
 namespace ipc {
 	class server_instance;
@@ -38,11 +39,8 @@ namespace ipc {
 	typedef void(*server_pre_callback_t)(std::string, std::string, const std::vector<ipc::value>&, void*);
 	typedef void(*server_post_callback_t)(std::string, std::string, const std::vector<ipc::value>&, void*);
 
-	class server {
+	class server : public ipc_communication {
 		bool m_isInitialized = false;
-
-		// Functions		
-		std::map<std::string, std::shared_ptr<ipc::collection>> m_classes;
 
 		// Socket
 		size_t backlog = 40;
@@ -87,9 +85,6 @@ namespace ipc {
 		void set_message_handler(server_message_handler_t handler, void* data);
 		void set_pre_callback(server_pre_callback_t handler, void* data);
 		void set_post_callback(server_post_callback_t handler, void* data);
-
-		public: // Functionality
-		bool register_collection(std::shared_ptr<ipc::collection> cls);
 
 		protected: // Client -> Server
 		bool client_call_function(int64_t cid, const std::string &cname, const std::string &fname,

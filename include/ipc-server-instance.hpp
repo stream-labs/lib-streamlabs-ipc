@@ -39,6 +39,9 @@ namespace ipc {
 	class server_instance {
 		friend class server;
 
+		// Functions
+		std::map<std::string, std::shared_ptr<ipc::collection>> m_classes;
+
 		public:
 		server_instance();
 		server_instance(server* owner, std::shared_ptr<os::windows::named_pipe> conn);

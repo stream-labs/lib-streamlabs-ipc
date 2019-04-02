@@ -151,7 +151,7 @@ void ipc::client::read_callback_msg(os::error ec, size_t size) {
 	}
 }
 
-ipc::client::client(std::string socketPath) {
+ipc::client::client(std::string socketPath) : ipc_communication() {
 	m_socket = std::make_unique<os::windows::named_pipe>(os::open_only, socketPath, os::windows::pipe_read_mode::Byte);
 
 	m_watcher.stop   = false;
@@ -259,15 +259,6 @@ std::vector<ipc::value> ipc::client::call_synchronous_helper(const std::string &
 		return {};
 	}
 	return std::move(cd.values);
-}
-
-bool ipc::client::register_collection(std::shared_ptr<ipc::collection> cls)
-{
-	if (m_classes.count(cls->get_name()) > 0)
-		return false;
-
-	m_classes.insert(std::make_pair(cls->get_name(), cls));
-	return true;
 }
 
 void ipc::client::handle_fnc_call()

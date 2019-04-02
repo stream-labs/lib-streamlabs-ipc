@@ -27,6 +27,7 @@
 #include <vector>
 #include "../source/windows/named-pipe.hpp"
 #include "ipc-class.hpp"
+#include "ipc-communication.hpp"
 
 typedef void (*call_return_t)(const void* data, const std::vector<ipc::value>& rval);
 extern call_return_t g_fn;
@@ -35,7 +36,7 @@ extern int64_t       g_cbid;
 
 namespace ipc {
 
-	class client {
+	class client : public ipc_communication {
 		std::unique_ptr<os::windows::named_pipe> m_socket;
 		std::shared_ptr<os::async_op>            m_wop, m_rop;
 
@@ -73,10 +74,6 @@ namespace ipc {
 		bool cancel(int64_t const& id);
 
 		std::vector<ipc::value> call_synchronous_helper(const std::string & cname, const std::string &fname, const std::vector<ipc::value> & args);
-
-		// Functions
-		std::map<std::string, std::shared_ptr<ipc::collection>> m_classes;
-		bool register_collection(std::shared_ptr<ipc::collection> cls);
 
 		protected: // Server -> Client
 		bool server_call_function(
