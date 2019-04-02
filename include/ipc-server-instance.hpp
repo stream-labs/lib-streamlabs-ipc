@@ -26,42 +26,18 @@
 #include <vector>
 #include "../source/windows/named-pipe.hpp"
 #include "../source/windows/semaphore.hpp"
-
-
-typedef void (*call_return_t)(const void* data, const std::vector<ipc::value>& rval);
-extern call_return_t g_fn;
-extern void*         g_data;
-extern int64_t       g_cbid;
+#include "ipc-communication.hpp"
 
 namespace ipc {
 	class server;
 
-	class server_instance {
+	class server_instance: public ipc_communication {
 		friend class server;
-
-		// Functions
-		std::map<std::string, std::shared_ptr<ipc::collection>> m_classes;
 
 		public:
 		server_instance();
 		server_instance(server* owner, std::shared_ptr<os::windows::named_pipe> conn);
 		~server_instance();
-
-		std::mutex                                         m_lock;
-		std::map<int64_t, std::pair<call_return_t, void*>> m_cb;
-
-		bool call(
-		    const std::string&      cname,
-		    const std::string&      fname,
-		    std::vector<ipc::value> args,
-		    call_return_t           fn   = g_fn,
-		    void*                   data = g_data,
-		    int64_t&                cbid = g_cbid);
-		bool cancel(int64_t const& id);
-		std::vector<ipc::value> call_synchronous_helper(
-		    const std::string&             cname,
-		    const std::string&             fname,
-		    const std::vector<ipc::value>& args);
 
 		bool is_alive();
 
@@ -73,12 +49,6 @@ namespace ipc {
 		void read_callback_init(os::error ec, size_t size);
 		void read_callback_msg(os::error ec, size_t size);
 		void write_callback(os::error ec, size_t size);		
-		
-		protected:
-		std::shared_ptr<os::windows::named_pipe> m_socket;
-		std::shared_ptr<os::async_op> m_wop, m_rop;
-		std::vector<char> m_wbuf, m_rbuf;
-		std::queue<std::vector<char>> m_write_queue;
 
 		private:
 		server* m_parent = nullptr;

@@ -53,6 +53,8 @@ SET(lib-streamlabs-ipc_SOURCES
 	"${PROJECT_SOURCE_DIR}/source/async_op.cpp"
 	"${PROJECT_SOURCE_DIR}/include/ipc-class-manager.hpp"
 	"${PROJECT_SOURCE_DIR}/source/ipc-class-manager.cpp"
+	"${PROJECT_SOURCE_DIR}/include/ipc-communication.hpp"
+	"${PROJECT_SOURCE_DIR}/source/ipc-communication.cpp"
 	"${PROJECT_SOURCE_DIR}/source/windows/utility.hpp"
 	"${PROJECT_SOURCE_DIR}/source/windows/utility.cpp"
 	"${PROJECT_SOURCE_DIR}/source/windows/semaphore.hpp"
