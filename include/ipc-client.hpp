@@ -30,16 +30,13 @@ namespace ipc {
 		void worker();
 		void read_callback_init(os::error ec, size_t size);
 		void read_callback_msg(os::error ec, size_t size);
-		void write_callback(os::error ec, size_t size);
-		void handle_fnc_call();
-		void handle_fnc_reply();
 
 		public:
 		client(std::string socketPath);
 		virtual ~client();
 
 		protected: // Server -> Client
-		bool server_call_function(
+		bool call_function(
 		    int64_t                  cid,
 		    const std::string&       cname,
 		    const std::string&       fname,

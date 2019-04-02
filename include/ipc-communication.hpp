@@ -61,5 +61,17 @@ namespace ipc {
 		    const std::string&             cname,
 		    const std::string&             fname,
 		    const std::vector<ipc::value>& args);
+
+		void write_callback(os::error ec, size_t size);
+		void handle_fnc_call();
+		void handle_fnc_reply();
+
+		virtual bool call_function(
+		    int64_t                  cid,
+		    const std::string&       cname,
+		    const std::string&       fname,
+		    std::vector<ipc::value>& args,
+		    std::vector<ipc::value>& rval,
+		    std::string&             errormsg) = 0;
 	};
 }

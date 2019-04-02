@@ -28,25 +28,25 @@ using namespace std::placeholders;
 ipc::server_instance::server_instance() {}
 
 ipc::server_instance::server_instance(ipc::server* owner, std::shared_ptr<os::windows::named_pipe> conn): 
-	m_stopWorkers(0),
 	m_parent(owner), m_clientId(0)
 {
+	m_watcher.stop = false;
 	m_socket = std::make_unique<os::windows::named_pipe>(*conn);
-	m_worker = std::thread(std::bind(&server_instance::worker, this));
+	m_watcher.worker = std::thread(std::bind(&server_instance::worker, this));
 }
 
 ipc::server_instance::~server_instance() {
 	// Threading
-	m_stopWorkers = true;
-	if (m_worker.joinable())
-		m_worker.join();
+	m_watcher.stop = true;
+	if (m_watcher.worker.joinable())
+		m_watcher.worker.join();
 }
 
 bool ipc::server_instance::is_alive() {
 	if (!m_socket->is_connected())
 		return false;
 
-	if (m_stopWorkers)
+	if (m_watcher.stop)
 		return false;
 
 	return true;
@@ -56,7 +56,7 @@ void ipc::server_instance::worker() {
 	os::error ec = os::error::Success;
 
 	// Loop
-	while ((!m_stopWorkers) && m_socket->is_connected()) {
+	while ((!m_watcher.stop) && m_socket->is_connected()) {
 		if (!m_rop || !m_rop->is_valid()) {
 			size_t testSize = sizeof(ipc_size_t);
 			m_watcher.rbuf.resize(sizeof(ipc_size_t));
@@ -166,7 +166,7 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 
 	// Execute
 	proc_rval.resize(0);
-	success = m_parent->client_call_function(m_clientId,
+	success = call_function(m_clientId,
 		fnc_call_msg.class_name.value_str, fnc_call_msg.function_name.value_str,
 		fnc_call_msg.arguments, proc_rval, proc_error);
 
@@ -210,7 +210,14 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 	}
 }
 
-void ipc::server_instance::write_callback(os::error ec, size_t size) {
-	m_wop->invalidate();
-	m_rop->invalidate();
+bool ipc::server_instance::call_function(
+	int64_t                  cid,
+	const std::string&       cname,
+	const std::string&       fname,
+	std::vector<ipc::value>& args,
+	std::vector<ipc::value>& rval,
+	std::string&             errormsg)
+{
+	return m_parent->client_call_function(
+	    m_clientId, cname, fname, args, rval, errormsg);
 }

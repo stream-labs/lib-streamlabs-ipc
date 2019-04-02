@@ -129,3 +129,79 @@ std::vector<ipc::value> ipc::ipc_communication::call_synchronous_helper(
 	}
 	return std::move(cd.values);
 }
+
+void ipc::ipc_communication::write_callback(os::error ec, size_t size)
+{
+	m_wop->invalidate();
+	m_rop->invalidate();
+}
+
+void ipc::ipc_communication::handle_fnc_call()
+{
+	std::vector<ipc::value>      proc_rval;
+	std::string                  proc_error;
+	ipc::message::function_call  fnc_call_msg;
+	ipc::message::function_reply fnc_reply_msg;
+	std::vector<char>            write_buffer;
+	bool                         success = false;
+
+	try {
+		fnc_call_msg.deserialize(m_watcher.rbuf, 0);
+	} catch (std::exception e) {
+		ipc::log("????????: Deserialization of Function Call message failed with error %s.", e.what());
+		return;
+	}
+
+	// Execute
+	proc_rval.resize(0);
+	try {
+		success = call_function(
+		    -1, // Server
+		    fnc_call_msg.class_name.value_str,
+		    fnc_call_msg.function_name.value_str,
+		    fnc_call_msg.arguments,
+		    proc_rval,
+		    proc_error);
+	} catch (std::exception e) {
+		ipc::log(
+		    "%8llu: Unexpected exception during client call, error %s.", fnc_call_msg.uid.value_union.ui64, e.what());
+		throw e;
+	}
+}
+
+void ipc::ipc_communication::handle_fnc_reply()
+{
+	std::pair<call_return_t, void*> cb;
+	ipc::message::function_reply    fnc_reply_msg;
+
+	m_rop->invalidate();
+
+	try {
+		fnc_reply_msg.deserialize(m_watcher.rbuf, 0);
+	} catch (std::exception e) {
+		ipc::log("Deserialize failed with error %s.", e.what());
+		throw e;
+	}
+
+	// Find the callback function.
+	std::unique_lock<std::mutex> ulock(m_lock);
+	auto                         cb2 = m_cb.find(fnc_reply_msg.uid.value_union.ui64);
+	if (cb2 == m_cb.end()) {
+		return;
+	}
+	cb = cb2->second;
+
+	// Decode return values or errors.
+	if (fnc_reply_msg.error.value_str.size() > 0) {
+		fnc_reply_msg.values.resize(1);
+		fnc_reply_msg.values.at(0).type      = ipc::type::Null;
+		fnc_reply_msg.values.at(0).value_str = fnc_reply_msg.error.value_str;
+	}
+
+	// Call Callback
+	cb.first(cb.second, fnc_reply_msg.values);
+
+	// Remove cb entry
+	/// ToDo: Figure out better way of registering functions, perhaps even a way to have "events" across a IPC connection.
+	m_cb.erase(fnc_reply_msg.uid.value_union.ui64);
+}

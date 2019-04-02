@@ -41,14 +41,17 @@ namespace ipc {
 
 		bool is_alive();
 
-		private: // Threading
-		bool m_stopWorkers = false;
-		std::thread m_worker;
-
 		void worker();
 		void read_callback_init(os::error ec, size_t size);
 		void read_callback_msg(os::error ec, size_t size);
-		void write_callback(os::error ec, size_t size);		
+
+		bool call_function(
+		    int64_t                  cid,
+		    const std::string&       cname,
+		    const std::string&       fname,
+		    std::vector<ipc::value>& args,
+		    std::vector<ipc::value>& rval,
+		    std::string&             errormsg);
 
 		private:
 		server* m_parent = nullptr;
