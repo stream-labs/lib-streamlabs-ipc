@@ -18,6 +18,8 @@
 
 #include "ipc-communication.hpp"
 
+using namespace std::placeholders;
+
 call_return_t g_fn   = NULL;
 void*         g_data = NULL;
 int64_t       g_cbid = NULL;
@@ -130,6 +132,131 @@ std::vector<ipc::value> ipc::ipc_communication::call_synchronous_helper(
 	return std::move(cd.values);
 }
 
+void ipc::ipc_communication::worker()
+{
+	os::error               ec = os::error::Success;
+	std::vector<ipc::value> proc_rval;
+
+	while (m_socket->is_connected() && !m_watcher.stop) {
+		if (!m_rop || !m_rop->is_valid()) {
+			m_watcher.rbuf.resize(sizeof(ipc_size_t));
+			ec = m_socket->read(
+			    m_watcher.rbuf.data(),
+			    m_watcher.rbuf.size(),
+			    m_rop,
+			    std::bind(&ipc_communication::read_callback_init, this, _1, _2));
+			if (ec != os::error::Pending && ec != os::error::Success) {
+				if (ec == os::error::Disconnected) {
+					break;
+				} else {
+					throw std::exception("Unexpected error.");
+				}
+			}
+		}
+
+		if (!m_wop || !m_wop->is_valid()) {
+			if (m_watcher.write_queue.size() > 0) {
+				std::vector<char>& fbuf = m_watcher.write_queue.front();
+				ipc::make_sendable(m_watcher.wbuf, fbuf);
+				ec = m_socket->write(
+				    m_watcher.wbuf.data(),
+				    m_watcher.wbuf.size(),
+				    m_wop,
+				    std::bind(&ipc_communication::write_callback, this, _1, _2));
+				if (ec != os::error::Pending && ec != os::error::Success) {
+					if (ec == os::error::Disconnected) {
+						break;
+					} else {
+						throw std::exception("Unexpected error.");
+					}
+				}
+				m_watcher.write_queue.pop();
+			}
+		}
+
+		os::waitable* waits[]    = {m_rop.get(), m_wop.get()};
+		size_t        wait_index = -1;
+		for (size_t idx = 0; idx < 2; idx++) {
+			if (waits[idx] != nullptr) {
+				if (waits[idx]->wait(std::chrono::milliseconds(0)) == os::error::Success) {
+					wait_index = idx;
+					break;
+				}
+			}
+		}
+		if (wait_index == -1) {
+			os::error code = os::waitable::wait_any(waits, 2, wait_index, std::chrono::milliseconds(20));
+			if (code == os::error::TimedOut) {
+				continue;
+			} else if (code == os::error::Disconnected) {
+				break;
+			} else if (code == os::error::Error) {
+				throw std::exception("Error");
+			}
+		}
+	}
+
+	// Call any remaining callbacks.
+	proc_rval.resize(1);
+	proc_rval[0].type      = ipc::type::Null;
+	proc_rval[0].value_str = "Lost IPC Connection";
+
+	{ // ToDo: Figure out better way of registering functions, perhaps even a way to have "events" across a IPC connection.
+		std::unique_lock<std::mutex> ulock(m_lock);
+		for (auto& cb : m_cb) {
+			cb.second.first(cb.second.second, proc_rval);
+		}
+
+		m_cb.clear();
+	}
+
+	if (!m_socket->is_connected()) {
+		exit(1);
+	}
+}
+
+void ipc::ipc_communication::read_callback_init(os::error ec, size_t size)
+{
+	os::error ec2 = os::error::Success;
+
+	m_rop->invalidate();
+
+	if (ec == os::error::Success || ec == os::error::MoreData) {
+		ipc_size_t n_size = read_size(m_watcher.rbuf);
+
+		if (n_size != 0) {
+			m_watcher.rbuf.resize(n_size);
+			ec2 = m_socket->read(
+			    m_watcher.rbuf.data(),
+			    m_watcher.rbuf.size(),
+			    m_rop,
+			    std::bind(&ipc_communication::read_callback_msg, this, _1, _2));
+			if (ec2 != os::error::Pending && ec2 != os::error::Success) {
+				if (ec2 == os::error::Disconnected) {
+					return;
+				} else {
+					throw std::exception("Unexpected error.");
+				}
+			}
+		}
+	}
+}
+
+void ipc::ipc_communication::read_callback_msg(os::error ec, size_t size)
+{
+	std::pair<call_return_t, void*> cb;
+	ipc::message::function_reply    fnc_reply_msg;
+
+	m_rop->invalidate();
+
+	bool is_fnc_call = ipc::message::is_function_call(m_watcher.rbuf, 0);
+	if (is_fnc_call) {
+		handle_fnc_call();
+	} else {
+		handle_fnc_reply();
+	}
+}
+
 void ipc::ipc_communication::write_callback(os::error ec, size_t size)
 {
 	m_wop->invalidate();
@@ -156,7 +283,6 @@ void ipc::ipc_communication::handle_fnc_call()
 	proc_rval.resize(0);
 	try {
 		success = call_function(
-		    -1, // Server
 		    fnc_call_msg.class_name.value_str,
 		    fnc_call_msg.function_name.value_str,
 		    fnc_call_msg.arguments,

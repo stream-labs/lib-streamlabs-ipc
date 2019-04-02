@@ -27,17 +27,12 @@
 namespace ipc {
 
 	class client: public ipc_class_manager, public ipc_communication {
-		void worker();
-		void read_callback_init(os::error ec, size_t size);
-		void read_callback_msg(os::error ec, size_t size);
-
 		public:
 		client(std::string socketPath);
 		virtual ~client();
 
 		protected: // Server -> Client
 		bool call_function(
-		    int64_t                  cid,
 		    const std::string&       cname,
 		    const std::string&       fname,
 		    std::vector<ipc::value>& args,

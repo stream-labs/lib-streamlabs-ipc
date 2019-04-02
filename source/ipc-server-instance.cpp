@@ -42,16 +42,6 @@ ipc::server_instance::~server_instance() {
 		m_watcher.worker.join();
 }
 
-bool ipc::server_instance::is_alive() {
-	if (!m_socket->is_connected())
-		return false;
-
-	if (m_watcher.stop)
-		return false;
-
-	return true;
-}
-
 void ipc::server_instance::worker() {
 	os::error ec = os::error::Success;
 
@@ -166,8 +156,8 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 
 	// Execute
 	proc_rval.resize(0);
-	success = call_function(m_clientId,
-		fnc_call_msg.class_name.value_str, fnc_call_msg.function_name.value_str,
+	success = call_function(fnc_call_msg.class_name.value_str,
+		fnc_call_msg.function_name.value_str,
 		fnc_call_msg.arguments, proc_rval, proc_error);
 
 	// Set
@@ -211,7 +201,6 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 }
 
 bool ipc::server_instance::call_function(
-	int64_t                  cid,
 	const std::string&       cname,
 	const std::string&       fname,
 	std::vector<ipc::value>& args,
