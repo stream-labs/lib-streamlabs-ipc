@@ -151,7 +151,7 @@ void ipc::client::read_callback_msg(os::error ec, size_t size) {
 	}
 }
 
-ipc::client::client(std::string socketPath) : ipc_communication() {
+ipc::client::client(std::string socketPath) : ipc_class_manager() {
 	m_socket = std::make_unique<os::windows::named_pipe>(os::open_only, socketPath, os::windows::pipe_read_mode::Byte);
 
 	m_watcher.stop   = false;

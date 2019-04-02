@@ -28,7 +28,7 @@
 #include <thread>
 #include <functional>
 #include "../source/windows/named-pipe.hpp"
-#include "ipc-communication.hpp"
+#include "ipc-class-manager.hpp"
 
 namespace ipc {
 	class server_instance;
@@ -39,7 +39,7 @@ namespace ipc {
 	typedef void(*server_pre_callback_t)(std::string, std::string, const std::vector<ipc::value>&, void*);
 	typedef void(*server_post_callback_t)(std::string, std::string, const std::vector<ipc::value>&, void*);
 
-	class server : public ipc_communication {
+	class server : public ipc_class_manager {
 		bool m_isInitialized = false;
 
 		// Socket

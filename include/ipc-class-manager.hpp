@@ -20,15 +20,15 @@
 #include "ipc-class.hpp"
 
 namespace ipc {
-	class ipc_communication {
+	class ipc_class_manager {
 	public:
-		ipc_communication() {}
-		~ipc_communication() {}
+	ipc_class_manager() {}
+	~ipc_class_manager() {}
 		
 	protected:
-		std::map<std::string, std::shared_ptr<ipc::collection>> m_classes;
+	std::map<std::string, std::shared_ptr<ipc::collection>> m_classes;
 
 	public:
-		bool register_collection(std::shared_ptr<ipc::collection> cls);
+	bool register_collection(std::shared_ptr<ipc::collection> cls);
 	};
 }

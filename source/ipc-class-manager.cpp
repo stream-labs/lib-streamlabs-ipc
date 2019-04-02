@@ -16,9 +16,10 @@
 
 ******************************************************************************/
 
-#include "ipc-communication.hpp"
+#include "ipc-class-manager.hpp"
 
-bool ipc::ipc_communication::register_collection(std::shared_ptr<ipc::collection> cls) {
+bool ipc::ipc_class_manager::register_collection(std::shared_ptr<ipc::collection> cls)
+{
 	if (m_classes.count(cls->get_name()) > 0)
 		return false;
 
