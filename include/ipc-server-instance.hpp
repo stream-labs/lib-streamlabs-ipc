@@ -25,6 +25,13 @@
 #include <thread>
 #include <vector>
 #include "../source/windows/named-pipe.hpp"
+#include "../source/windows/semaphore.hpp"
+
+
+typedef void (*call_return_t)(const void* data, const std::vector<ipc::value>& rval);
+extern call_return_t g_fn;
+extern void*         g_data;
+extern int64_t       g_cbid;
 
 namespace ipc {
 	class server;
@@ -36,7 +43,23 @@ namespace ipc {
 		server_instance();
 		server_instance(server* owner, std::shared_ptr<os::windows::named_pipe> conn);
 		~server_instance();
-		
+
+		std::mutex                                         m_lock;
+		std::map<int64_t, std::pair<call_return_t, void*>> m_cb;
+
+		bool call(
+		    const std::string&      cname,
+		    const std::string&      fname,
+		    std::vector<ipc::value> args,
+		    call_return_t           fn   = g_fn,
+		    void*                   data = g_data,
+		    int64_t&                cbid = g_cbid);
+		bool cancel(int64_t const& id);
+		std::vector<ipc::value> call_synchronous_helper(
+		    const std::string&             cname,
+		    const std::string&             fname,
+		    const std::vector<ipc::value>& args);
+
 		bool is_alive();
 
 		private: // Threading

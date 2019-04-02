@@ -26,6 +26,7 @@
 #include <thread>
 #include <vector>
 #include "../source/windows/named-pipe.hpp"
+#include "ipc-class.hpp"
 
 typedef void (*call_return_t)(const void* data, const std::vector<ipc::value>& rval);
 extern call_return_t g_fn;
@@ -36,7 +37,7 @@ namespace ipc {
 
 	class client {
 		std::unique_ptr<os::windows::named_pipe> m_socket;
-		std::shared_ptr<os::async_op> m_rop;
+		std::shared_ptr<os::async_op>            m_wop, m_rop;
 
 		bool m_authenticated = false;
 		std::mutex m_lock;
@@ -46,12 +47,16 @@ namespace ipc {
 		struct {
 			std::thread worker;
 			bool stop = false;
-			std::vector<char> buf;
+			std::vector<char>             rbuf, wbuf;
+			std::queue<std::vector<char>> m_write_queue;
 		} m_watcher;
 		
 		void worker();
 		void read_callback_init(os::error ec, size_t size);
 		void read_callback_msg(os::error ec, size_t size);
+		void write_callback(os::error ec, size_t size);
+		void handle_fnc_call();
+		void handle_fnc_reply();
 
 		public:
 		client(std::string socketPath);
@@ -68,5 +73,18 @@ namespace ipc {
 		bool cancel(int64_t const& id);
 
 		std::vector<ipc::value> call_synchronous_helper(const std::string & cname, const std::string &fname, const std::vector<ipc::value> & args);
+
+		// Functions
+		std::map<std::string, std::shared_ptr<ipc::collection>> m_classes;
+		bool register_collection(std::shared_ptr<ipc::collection> cls);
+
+		protected: // Server -> Client
+		bool server_call_function(
+		    int64_t                  cid,
+		    const std::string&       cname,
+		    const std::string&       fname,
+		    std::vector<ipc::value>& args,
+		    std::vector<ipc::value>& rval,
+		    std::string&             errormsg);
 	};
 }

@@ -25,6 +25,10 @@
 using namespace std::placeholders;
 #endif
 
+call_return_t g_fn   = NULL;
+void*         g_data = NULL;
+int64_t       g_cbid = NULL;
+
 ipc::server_instance::server_instance() {}
 
 ipc::server_instance::server_instance(ipc::server* owner, std::shared_ptr<os::windows::named_pipe> conn): 
@@ -73,11 +77,6 @@ void ipc::server_instance::worker() {
 			if (m_write_queue.size() > 0) {
 				std::vector<char>& fbuf = m_write_queue.front();
 				ipc::make_sendable(m_wbuf, fbuf);
-#ifdef _DEBUG
-				ipc::log("????????: Sending %llu bytes...", m_wbuf.size());
-				std::string hex_msg = ipc::vectortohex(m_wbuf);
-				ipc::log("????????: %.*s.", hex_msg.size(), hex_msg.data());
-#endif
 				ec = m_socket->write(m_wbuf.data(), m_wbuf.size(), m_wop, std::bind(&server_instance::write_callback, this, _1, _2));
 				if (ec != os::error::Pending && ec != os::error::Success) {
 					if (ec == os::error::Disconnected) {
@@ -120,10 +119,6 @@ void ipc::server_instance::read_callback_init(os::error ec, size_t size) {
 
 	if (ec == os::error::Success || ec == os::error::MoreData) {
 		ipc_size_t n_size = read_size(m_rbuf);
-#ifdef _DEBUG
-		std::string hex_msg = ipc::vectortohex(m_rbuf);
-		ipc::log("????????: %.*s => %llu", hex_msg.size(), hex_msg.data(), n_size);
-#endif
 		if (n_size != 0) {
 			m_rbuf.resize(n_size);
 			ec2 = m_socket->read(m_rbuf.data(), m_rbuf.size(), m_rop, std::bind(&server_instance::read_callback_msg, this, _1, _2));
@@ -148,23 +143,11 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 	ipc::message::function_call fnc_call_msg;
 	ipc::message::function_reply fnc_reply_msg;
 
-#ifdef _DEBUG
-	{
-		ipc::log("????????: read_callback_msg %lld %llu", (int64_t)ec, size);
-		std::string hex_msg = ipc::vectortohex(m_rbuf);
-		ipc::log("????????: %.*s.", hex_msg.size(), hex_msg.data());
-	}
-#endif
-
 	if (ec != os::error::Success) {
 		return;
 	}
 
 	bool success = false;
-
-#ifdef _DEBUG
-	ipc::log("????????: Authenticated Client, attempting deserialize of Function Call message.");
-#endif
 
 	try {
 		fnc_call_msg.deserialize(m_rbuf, 0);
@@ -172,43 +155,6 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 		ipc::log("????????: Deserialization of Function Call message failed with error %s.", e.what());
 		return;
 	}
-
-#ifdef _DEBUG
-	ipc::log("%8llu: Function Call deserialized, class '%.*s' and function '%.*s', %llu arguments.",
-		fnc_call_msg.uid.value_union.ui64,
-		(uint64_t)fnc_call_msg.class_name.value_str.size(), fnc_call_msg.class_name.value_str.c_str(),
-		(uint64_t)fnc_call_msg.function_name.value_str.size(), fnc_call_msg.function_name.value_str.c_str(),
-		(uint64_t)fnc_call_msg.arguments.size());
-	for (size_t idx = 0; idx < fnc_call_msg.arguments.size(); idx++) {
-		ipc::value& arg = fnc_call_msg.arguments[idx];
-		switch (arg.type) {
-			case type::Int32:
-				ipc::log("\t%llu: %ld", idx, arg.value_union.i32);
-				break;
-			case type::Int64:
-				ipc::log("\t%llu: %lld", idx, arg.value_union.i64);
-				break;
-			case type::UInt32:
-				ipc::log("\t%llu: %lu", idx, arg.value_union.ui32);
-				break;
-			case type::UInt64:
-				ipc::log("\t%llu: %llu", idx, arg.value_union.ui64);
-				break;
-			case type::Float:
-				ipc::log("\t%llu: %f", idx, (double)arg.value_union.fp32);
-				break;
-			case type::Double:
-				ipc::log("\t%llu: %f", idx, arg.value_union.fp64);
-				break;
-			case type::String:
-				ipc::log("\t%llu: %.*s", idx, arg.value_str.size(), arg.value_str.c_str());
-				break;
-			case type::Binary:
-				ipc::log("\t%llu: (Binary)", idx);
-				break;
-		}
-	}
-#endif
 
 	// Execute
 	proc_rval.resize(0);
@@ -223,43 +169,6 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 		fnc_reply_msg.error = ipc::value(proc_error);
 	}
 
-#ifdef _DEBUG
-	ipc::log("%8llu: FunctionCall Execute Complete, %llu return values",
-		fnc_call_msg.uid.value_union.ui64, (uint64_t)fnc_reply_msg.values.size());
-	for (size_t idx = 0; idx < fnc_reply_msg.values.size(); idx++) {
-		ipc::value& arg = fnc_reply_msg.values[idx];
-		switch (arg.type) {
-			case type::Int32:
-				ipc::log("\t%llu: %ld", idx, arg.value_union.i32);
-				break;
-			case type::Int64:
-				ipc::log("\t%llu: %lld", idx, arg.value_union.i64);
-				break;
-			case type::UInt32:
-				ipc::log("\t%llu: %lu", idx, arg.value_union.ui32);
-				break;
-			case type::UInt64:
-				ipc::log("\t%llu: %llu", idx, arg.value_union.ui64);
-				break;
-			case type::Float:
-				ipc::log("\t%llu: %f", idx, (double)arg.value_union.fp32);
-				break;
-			case type::Double:
-				ipc::log("\t%llu: %f", idx, arg.value_union.fp64);
-				break;
-			case type::String:
-				ipc::log("\t%llu: %.*s", idx, arg.value_str.size(), arg.value_str.c_str());
-				break;
-			case type::Binary:
-				ipc::log("\t%llu: (Binary)", idx);
-				break;
-			case type::Null:
-				ipc::log("\t%llu: Null", idx);
-				break;
-		}
-	}
-#endif
-
 	// Serialize
 	write_buffer.resize(fnc_reply_msg.size());
 	try {
@@ -270,25 +179,9 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 		return;
 	}
 
-#ifdef _DEBUG
-	{
-		ipc::log(
-		    "%8llu: Function Reply serialized, %llu bytes.",
-		    fnc_call_msg.uid.value_union.ui64,
-		    (uint64_t)write_buffer.size());
-		std::string hex_msg = ipc::vectortohex(write_buffer);
-		ipc::log("%8llu: %.*s.", fnc_call_msg.uid.value_union.ui64, hex_msg.size(), hex_msg.data());
-	}
-#endif
-
 	if (write_buffer.size() != 0) {
 		if ((!m_wop || !m_wop->is_valid()) && (m_write_queue.size() == 0)) {
 			ipc::make_sendable(m_wbuf, write_buffer);
-#ifdef _DEBUG
-			ipc::log("????????: Sending %llu bytes...", m_wbuf.size());
-			std::string hex_msg = ipc::vectortohex(m_wbuf);
-			ipc::log("????????: %.*s.", hex_msg.size(), hex_msg.data());
-#endif
 			os::error ec2 = m_socket->write(m_wbuf.data(), m_wbuf.size(), m_wop, std::bind(&server_instance::write_callback, this, _1, _2));
 			if (ec2 != os::error::Success && ec2 != os::error::Pending) {
 				if (ec2 == os::error::Disconnected) {
@@ -301,9 +194,6 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 			m_write_queue.push(std::move(write_buffer));
 		}
 	} else {
-#ifdef _DEBUG
-		ipc::log("????????: No Output, continuing as if nothing happened.");
-#endif
 		m_rop->invalidate();
 	}
 }
@@ -311,4 +201,112 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 void ipc::server_instance::write_callback(os::error ec, size_t size) {
 	m_wop->invalidate();
 	m_rop->invalidate();
+}
+
+bool ipc::server_instance::cancel(int64_t const& id)
+{
+	std::unique_lock<std::mutex> ulock(m_lock);
+	return m_cb.erase(id) != 0;
+}
+
+bool ipc::server_instance::call(
+    const std::string&      cname,
+    const std::string&      fname,
+    std::vector<ipc::value> args,
+    call_return_t           fn,
+    void*                   data,
+    int64_t&                cbid)
+{
+	static std::mutex             mtx;
+	static uint64_t               timestamp = 0;
+	os::error                     ec;
+	std::shared_ptr<os::async_op> write_op;
+	ipc::message::function_call   fnc_call_msg;
+	std::vector<char>             outbuf;
+
+	if (!m_socket)
+		return false;
+
+	{
+		std::unique_lock<std::mutex> ulock(mtx);
+		timestamp++;
+		fnc_call_msg.uid = ipc::value(timestamp);
+	}
+
+	// Set
+	fnc_call_msg.class_name    = ipc::value(cname);
+	fnc_call_msg.function_name = ipc::value(fname);
+	fnc_call_msg.arguments     = std::move(args);
+
+	// Serialize
+	std::vector<char> buf(fnc_call_msg.size());
+	try {
+		fnc_call_msg.serialize(buf, 0);
+	} catch (std::exception& e) {
+		ipc::log("(write) %8llu: Failed to serialize, error %s.", fnc_call_msg.uid.value_union.ui64, e.what());
+		throw e;
+	}
+
+	if (fn != nullptr) {
+		std::unique_lock<std::mutex> ulock(m_lock);
+		m_cb.insert(std::make_pair(fnc_call_msg.uid.value_union.ui64, std::make_pair(fn, data)));
+		cbid = fnc_call_msg.uid.value_union.ui64;
+	}
+
+	ipc::make_sendable(outbuf, buf);
+	ec = m_socket->write(outbuf.data(), outbuf.size(), write_op, nullptr);
+	if (ec != os::error::Success && ec != os::error::Pending) {
+		cancel(cbid);
+		//write_op->cancel();
+		return false;
+	}
+
+	ec = write_op->wait();
+	if (ec != os::error::Success) {
+		cancel(cbid);
+		write_op->cancel();
+		return false;
+	}
+
+	return true;
+}
+
+std::vector<ipc::value> ipc::server_instance::call_synchronous_helper(
+    const std::string&             cname,
+    const std::string&             fname,
+    const std::vector<ipc::value>& args)
+{
+	// Set up call reference data.
+	struct CallData
+	{
+		std::shared_ptr<os::windows::semaphore>        sgn    = std::make_shared<os::windows::semaphore>();
+		bool                                           called = false;
+		std::chrono::high_resolution_clock::time_point start  = std::chrono::high_resolution_clock::now();
+
+		std::vector<ipc::value> values;
+	} cd;
+
+	auto cb = [](const void* data, const std::vector<ipc::value>& rval) {
+		CallData& cd = const_cast<CallData&>(*static_cast<const CallData*>(data));
+
+		// This copies the data off of the reply thread to the main thread.
+		cd.values.reserve(rval.size());
+		std::copy(rval.begin(), rval.end(), std::back_inserter(cd.values));
+
+		cd.called = true;
+		cd.sgn->signal();
+	};
+
+	int64_t cbid    = 0;
+	bool    success = call(cname, fname, std::move(args), cb, &cd, cbid);
+	if (!success) {
+		return {};
+	}
+
+	cd.sgn->wait();
+	if (!cd.called) {
+		cancel(cbid);
+		return {};
+	}
+	return std::move(cd.values);
 }

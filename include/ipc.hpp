@@ -52,8 +52,14 @@ namespace ipc {
 		
 	};
 
-	namespace message {
+	namespace message	{
+		bool is_function_call(std::vector<char>& buf, size_t offset);
 		struct function_call {
+
+			protected:
+			ipc::value              magic         = ipc::value(1);
+
+			public:
 			ipc::value uid = ipc::value(0ull);
 			ipc::value class_name = ipc::value("");
 			ipc::value function_name = ipc::value("");
@@ -65,6 +71,10 @@ namespace ipc {
 		};
 
 		struct function_reply {
+			protected:
+			ipc::value magic = ipc::value(-1);
+
+			public:
 			ipc::value uid = ipc::value(0ull);
 			std::vector<ipc::value> values;
 			ipc::value error = ipc::value("");

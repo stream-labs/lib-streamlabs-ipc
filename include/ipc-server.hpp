@@ -50,6 +50,7 @@ namespace ipc {
 		std::list<std::shared_ptr<os::windows::named_pipe>> m_sockets;
 		std::string m_socketPath = "";
 
+		public:
 		// Client management.
 		std::mutex m_clients_mtx;
 		std::map<std::shared_ptr<os::windows::named_pipe>, std::shared_ptr<server_instance>> m_clients;
