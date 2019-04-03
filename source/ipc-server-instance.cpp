@@ -48,7 +48,6 @@ void ipc::server_instance::worker() {
 	// Loop
 	while ((!m_watcher.stop) && m_socket->is_connected()) {
 		if (!m_rop || !m_rop->is_valid()) {
-			size_t testSize = sizeof(ipc_size_t);
 			m_watcher.rbuf.resize(sizeof(ipc_size_t));
 			ec = m_socket->read(
 			    m_watcher.rbuf.data(),
