@@ -268,8 +268,6 @@ void ipc::ipc_communication::handle_fnc_call()
 	std::vector<ipc::value>      proc_rval;
 	std::string                  proc_error;
 	ipc::message::function_call  fnc_call_msg;
-	ipc::message::function_reply fnc_reply_msg;
-	std::vector<char>            write_buffer;
 	bool                         success = false;
 
 	try {

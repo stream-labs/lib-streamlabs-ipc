@@ -134,18 +134,11 @@ void ipc::server_instance::read_callback_init(os::error ec, size_t size) {
 void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 	/// Processing
 	std::vector<ipc::value> proc_rval;
-	ipc::value proc_tempval;
-	std::string proc_error;
-	std::vector<char> write_buffer;
-
-	ipc::message::function_call fnc_call_msg;
+	std::string                  proc_error;
+	ipc::message::function_call  fnc_call_msg;
 	ipc::message::function_reply fnc_reply_msg;
-
-	if (ec != os::error::Success) {
-		return;
-	}
-
-	bool success = false;
+	std::vector<char>            write_buffer;
+	bool                         success = false;
 
 	try {
 		fnc_call_msg.deserialize(m_watcher.rbuf, 0);
@@ -156,9 +149,18 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 
 	// Execute
 	proc_rval.resize(0);
-	success = call_function(fnc_call_msg.class_name.value_str,
-		fnc_call_msg.function_name.value_str,
-		fnc_call_msg.arguments, proc_rval, proc_error);
+	try {
+		success = call_function(
+		    fnc_call_msg.class_name.value_str,
+		    fnc_call_msg.function_name.value_str,
+		    fnc_call_msg.arguments,
+		    proc_rval,
+		    proc_error);
+	} catch (std::exception e) {
+		ipc::log(
+		    "%8llu: Unexpected exception during client call, error %s.", fnc_call_msg.uid.value_union.ui64, e.what());
+		throw e;
+	}
 
 	// Set
 	fnc_reply_msg.uid = fnc_call_msg.uid;
