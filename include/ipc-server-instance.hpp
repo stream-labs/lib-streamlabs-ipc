@@ -39,10 +39,6 @@ namespace ipc {
 		server_instance(server* owner, std::shared_ptr<os::windows::named_pipe> conn);
 		~server_instance();
 
-		void worker();
-		void read_callback_init(os::error ec, size_t size);
-		void read_callback_msg(os::error ec, size_t size);
-
 		bool call_function(
 		    const std::string&       cname,
 		    const std::string&       fname,

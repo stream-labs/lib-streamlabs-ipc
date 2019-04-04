@@ -81,7 +81,6 @@ bool ipc::ipc_communication::call(
 		//write_op->cancel();
 		return false;
 	}
-
 	ec = write_op->wait();
 	if (ec != os::error::Success) {
 		cancel(cbid);
@@ -223,7 +222,6 @@ void ipc::ipc_communication::read_callback_init(os::error ec, size_t size)
 
 	if (ec == os::error::Success || ec == os::error::MoreData) {
 		ipc_size_t n_size = read_size(m_watcher.rbuf);
-
 		if (n_size != 0) {
 			m_watcher.rbuf.resize(n_size);
 			ec2 = m_socket->read(
@@ -268,7 +266,9 @@ void ipc::ipc_communication::handle_fnc_call()
 	std::vector<ipc::value>      proc_rval;
 	std::string                  proc_error;
 	ipc::message::function_call  fnc_call_msg;
+	ipc::message::function_reply fnc_reply_msg;
 	bool                         success = false;
+	std::vector<char>            write_buffer;
 
 	try {
 		fnc_call_msg.deserialize(m_watcher.rbuf, 0);
@@ -291,6 +291,49 @@ void ipc::ipc_communication::handle_fnc_call()
 		    "%8llu: Unexpected exception during client call, error %s.", fnc_call_msg.uid.value_union.ui64, e.what());
 		throw e;
 	}
+
+	// Set
+	fnc_reply_msg.uid = fnc_call_msg.uid;
+	std::swap(proc_rval, fnc_reply_msg.values); // Fast "copy" of parameters.
+	if (!success) {
+		fnc_reply_msg.error = ipc::value(proc_error);
+	}
+
+	// Serialize
+	write_buffer.resize(fnc_reply_msg.size());
+	try {
+		fnc_reply_msg.serialize(write_buffer, 0);
+	} catch (std::exception& e) {
+		ipc::log(
+		    "%8llu: Serialization of Function Reply message failed with error %s.",
+		    fnc_call_msg.uid.value_union.ui64,
+		    e.what());
+		return;
+	}
+
+	if (write_buffer.size() != 0) {
+		if ((!m_wop || !m_wop->is_valid()) && (m_watcher.write_queue.size() == 0)) {
+			ipc::make_sendable(m_watcher.wbuf, write_buffer);
+			os::error ec2 = m_socket->write(
+			    m_watcher.wbuf.data(),
+			    m_watcher.wbuf.size(),
+			    m_wop,
+			    std::bind(&ipc_communication::write_callback, this, _1, _2));
+			if (ec2 != os::error::Success && ec2 != os::error::Pending) {
+				if (ec2 == os::error::Disconnected) {
+					return;
+				} else {
+					throw std::exception("Unexpected Error");
+				}
+			}
+		} else {
+			m_watcher.write_queue.push(std::move(write_buffer));
+		}
+	} else {
+		m_rop->invalidate();
+	}
+
+	m_wop->invalidate();
 }
 
 void ipc::ipc_communication::handle_fnc_reply()
