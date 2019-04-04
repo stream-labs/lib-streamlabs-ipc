@@ -23,6 +23,7 @@
 #include <queue>
 #include "../source/windows/named-pipe.hpp"
 #include "../source/windows/semaphore.hpp"
+#include <iterator>
 
 typedef void (*call_return_t)(const void* data, const std::vector<ipc::value>& rval);
 extern call_return_t g_fn;
