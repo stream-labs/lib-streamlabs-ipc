@@ -47,6 +47,8 @@ namespace ipc {
 		} m_watcher;
 
 		public:
+		ipc_communication();
+		~ipc_communication();
 		bool call(
 		    const std::string&      cname,
 		    const std::string&      fname,

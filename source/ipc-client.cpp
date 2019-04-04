@@ -41,11 +41,6 @@ ipc::client::client(std::string socketPath) : ipc_class_manager() {
 }
 
 ipc::client::~client() {
-	m_watcher.stop = true;
-	if (m_watcher.worker.joinable()) {
-		m_watcher.worker.join();
-	}
-	m_socket = nullptr;
 }
 
 bool ipc::client::call_function(

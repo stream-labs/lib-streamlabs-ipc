@@ -31,7 +31,7 @@ namespace ipc {
 		client(std::string socketPath);
 		virtual ~client();
 
-		protected: // Server -> Client
+		protected:
 		bool call_function(
 		    const std::string&       cname,
 		    const std::string&       fname,

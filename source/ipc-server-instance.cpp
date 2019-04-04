@@ -36,10 +36,6 @@ ipc::server_instance::server_instance(ipc::server* owner, std::shared_ptr<os::wi
 }
 
 ipc::server_instance::~server_instance() {
-	// Threading
-	m_watcher.stop = true;
-	if (m_watcher.worker.joinable())
-		m_watcher.worker.join();
 }
 
 bool ipc::server_instance::call_function(

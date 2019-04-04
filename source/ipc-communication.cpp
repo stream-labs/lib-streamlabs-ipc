@@ -24,6 +24,18 @@ call_return_t g_fn   = NULL;
 void*         g_data = NULL;
 int64_t       g_cbid = NULL;
 
+ipc::ipc_communication::ipc_communication() {
+}
+
+ipc::ipc_communication::~ipc_communication()
+{
+	m_watcher.stop = true;
+	if (m_watcher.worker.joinable()) {
+		m_watcher.worker.join();
+	}
+	m_socket = nullptr;
+}
+
 bool ipc::ipc_communication::cancel(int64_t const& id)
 {
 	std::unique_lock<std::mutex> ulock(m_lock);

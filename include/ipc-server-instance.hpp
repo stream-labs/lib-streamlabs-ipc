@@ -37,7 +37,7 @@ namespace ipc {
 		public:
 		server_instance();
 		server_instance(server* owner, std::shared_ptr<os::windows::named_pipe> conn);
-		~server_instance();
+		virtual ~server_instance();
 
 		bool call_function(
 		    const std::string&       cname,
