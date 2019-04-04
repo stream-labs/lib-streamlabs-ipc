@@ -66,8 +66,8 @@ namespace ipc {
 		void read_callback_init(os::error ec, size_t size);
 		void read_callback_msg(os::error ec, size_t size);
 		void write_callback(os::error ec, size_t size);
-		void handle_fnc_call();
-		void handle_fnc_reply();
+		void worker_call();
+		void worker_reply();
 
 		virtual bool call_function(
 		    const std::string&       cname,

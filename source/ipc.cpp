@@ -94,21 +94,16 @@ std::string ipc::vectortohex(const std::vector<char>& buf) {
 	return tohex.str();
 }
 
-bool ipc::message::is_function_call(std::vector<char>& buf, size_t offset)
+uint32_t ipc::message::function_type(std::vector<char>& buf, size_t offset)
 {
-	ipc::value magic = {};
-	magic.deserialize(buf, offset + sizeof(size_t));
-
-	if (magic.value_union.i32 == 1) {
-		return true;
-	}
-
-	return false;
+	ipc::value type = {};
+	type.deserialize(buf, offset + sizeof(size_t));
+	return type.value_union.ui32;
 }
 
 size_t ipc::message::function_call::size() {
 	size_t size = sizeof(size_t) 
-		+ magic.size()
+		+ function_type.size()
 		+ uid.size() /* timestamp */
 		+ class_name.size()
 		+ function_name.size()
@@ -128,7 +123,7 @@ size_t ipc::message::function_call::serialize(std::vector<char>& buf, size_t off
 	reinterpret_cast<size_t&>(buf[noffset]) = size();
 	noffset += sizeof(size_t);
 
-	noffset += magic.serialize(buf, noffset);
+	noffset += function_type.serialize(buf, noffset);
 	noffset += uid.serialize(buf, noffset);
 	noffset += class_name.serialize(buf, noffset);
 	noffset += function_name.serialize(buf, noffset);
@@ -154,7 +149,7 @@ size_t ipc::message::function_call::deserialize(std::vector<char>& buf, size_t o
 	}
 	size_t noffset = offset + sizeof(size_t);
 
-	noffset += magic.deserialize(buf, noffset);
+	noffset += function_type.deserialize(buf, noffset);
 	noffset += uid.deserialize(buf, noffset);
 	noffset += class_name.deserialize(buf, noffset);
 	noffset += function_name.deserialize(buf, noffset);
@@ -170,7 +165,7 @@ size_t ipc::message::function_call::deserialize(std::vector<char>& buf, size_t o
 }
 
 size_t ipc::message::function_reply::size() {
-	size_t size = sizeof(size_t) + magic.size()
+	size_t size = sizeof(size_t) + function_type.size()
 		+ uid.size() /* timestamp */
 		+ error.size() /* error */
 		+ sizeof(uint32_t) /* values */;
@@ -189,7 +184,7 @@ size_t ipc::message::function_reply::serialize(std::vector<char>& buf, size_t of
 	reinterpret_cast<size_t&>(buf[noffset]) = size();
 	noffset += sizeof(size_t);
 
-	noffset += magic.serialize(buf, noffset);
+	noffset += function_type.serialize(buf, noffset);
 	noffset += uid.serialize(buf, noffset);
 	noffset += error.serialize(buf, noffset);
 
@@ -213,7 +208,7 @@ size_t ipc::message::function_reply::deserialize(std::vector<char>& buf, size_t 
 	}
 	size_t noffset = offset + sizeof(size_t);
 
-	noffset += magic.deserialize(buf, noffset);
+	noffset += function_type.deserialize(buf, noffset);
 	noffset += uid.deserialize(buf, noffset);
 	noffset += error.deserialize(buf, noffset);
 

@@ -23,6 +23,12 @@
 #include <functional>
 #include <stdarg.h>
 
+enum func_type : uint32_t
+{
+	CALL = 0,
+	REPLY = 1
+};
+
 namespace ipc {
 	typedef uint64_t ipc_size_t;
 	typedef uint32_t ipc_size_real_t;
@@ -53,11 +59,11 @@ namespace ipc {
 	};
 
 	namespace message	{
-		bool is_function_call(std::vector<char>& buf, size_t offset);
+		uint32_t function_type(std::vector<char>& buf, size_t offset);
 		struct function_call {
 
 			protected:
-			ipc::value              magic         = ipc::value(1);
+			ipc::value function_type = CALL;
 
 			public:
 			ipc::value uid = ipc::value(0ull);
@@ -72,7 +78,7 @@ namespace ipc {
 
 		struct function_reply {
 			protected:
-			ipc::value magic = ipc::value(-1);
+			ipc::value function_type = REPLY;
 
 			public:
 			ipc::value uid = ipc::value(0ull);

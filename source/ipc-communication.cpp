@@ -247,11 +247,11 @@ void ipc::ipc_communication::read_callback_msg(os::error ec, size_t size)
 
 	m_rop->invalidate();
 
-	bool is_fnc_call = ipc::message::is_function_call(m_watcher.rbuf, 0);
-	if (is_fnc_call) {
-		handle_fnc_call();
-	} else {
-		handle_fnc_reply();
+	func_type is_fnc_call = (func_type)ipc::message::function_type(m_watcher.rbuf, 0);
+	if (is_fnc_call == CALL) {
+		worker_call();
+	} else if (is_fnc_call == REPLY) {
+		worker_reply();
 	}
 }
 
@@ -261,7 +261,7 @@ void ipc::ipc_communication::write_callback(os::error ec, size_t size)
 	m_rop->invalidate();
 }
 
-void ipc::ipc_communication::handle_fnc_call()
+void ipc::ipc_communication::worker_call()
 {
 	std::vector<ipc::value>      proc_rval;
 	std::string                  proc_error;
@@ -336,7 +336,7 @@ void ipc::ipc_communication::handle_fnc_call()
 	m_wop->invalidate();
 }
 
-void ipc::ipc_communication::handle_fnc_reply()
+void ipc::ipc_communication::worker_reply()
 {
 	std::pair<call_return_t, void*> cb;
 	ipc::message::function_reply    fnc_reply_msg;
