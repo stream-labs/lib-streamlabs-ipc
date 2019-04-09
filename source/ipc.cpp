@@ -75,6 +75,11 @@ void ipc::log(const char* fmt, ...) {
 	va_end(args);
 }
 
+void ipc::register_log_callback(ipc::log_callback_t callback, void* data) {
+	g_cb = callback;
+	g_cb_data = data;
+}
+
 std::string ipc::vectortohex(const std::vector<char>& buf) {
 	static const char hexchars[] = {
 		'0', '1','2','3','4','5','6','7','8','9',
