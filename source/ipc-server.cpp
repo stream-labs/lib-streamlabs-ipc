@@ -90,6 +90,10 @@ void ipc::server::spawn_client(std::shared_ptr<os::windows::named_pipe> socket) 
 	if (m_handlerConnect.first) {
 		m_handlerConnect.first(m_handlerConnect.second, 0);
 	}
+
+	if (m_clients.size() == 0)
+		client->host = true;
+
 	m_clients.insert_or_assign(socket, client);
 }
 

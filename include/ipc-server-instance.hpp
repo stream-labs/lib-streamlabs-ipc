@@ -46,6 +46,8 @@ namespace ipc {
 		    std::vector<ipc::value>& rval,
 		    std::string&             errormsg);
 
+		bool host = false;
+
 		private:
 		server* m_parent = nullptr;
 		int64_t m_clientId;
