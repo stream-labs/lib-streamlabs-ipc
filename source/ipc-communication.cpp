@@ -220,6 +220,10 @@ void ipc::ipc_communication::worker()
 
 		m_cb.clear();
 	}
+
+	if (!m_socket->is_connected()) {
+		exit(1);
+	}
 }
 
 void ipc::ipc_communication::read_callback_init(os::error ec, size_t size)
