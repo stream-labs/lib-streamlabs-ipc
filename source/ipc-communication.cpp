@@ -148,7 +148,7 @@ void ipc::ipc_communication::worker()
 	os::error               ec = os::error::Success;
 	std::vector<ipc::value> proc_rval;
 
-	while (m_socket->is_connected() && !m_watcher.stop) {
+	while (!m_watcher.stop) {
 		if (!m_rop || !m_rop->is_valid()) {
 			m_watcher.rbuf.resize(sizeof(ipc_size_t));
 			ec = m_socket->read(

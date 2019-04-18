@@ -174,10 +174,6 @@ os::error os::windows::named_pipe::read(char *buffer, size_t buffer_length, std:
 										os::async_op_cb_t cb) {
 	os::error ec;
 
-	if (!is_connected()) {
-		return os::error::Disconnected;
-	}
-
 	std::shared_ptr<os::windows::async_request> ar = std::static_pointer_cast<os::windows::async_request>(op);
 	if (!ar) {
 		ar = std::make_shared<os::windows::async_request>();
@@ -209,10 +205,6 @@ os::error os::windows::named_pipe::read(char *buffer, size_t buffer_length, std:
 os::error os::windows::named_pipe::write(const char *buffer, size_t buffer_length, std::shared_ptr<os::async_op> &op,
 										 os::async_op_cb_t cb) {
 	os::error ec;
-
-	if (!is_connected()) {
-		return os::error::Disconnected;
-	}
 
 	std::shared_ptr<os::windows::async_request> ar = std::static_pointer_cast<os::windows::async_request>(op);
 	if (!ar) {
