@@ -38,6 +38,7 @@ namespace ipc {
 		std::map<int64_t, std::pair<call_return_t, void*>> m_cb;
 		std::mutex                                         m_lock;
 
+		public:
 		// Threading
 		struct
 		{
