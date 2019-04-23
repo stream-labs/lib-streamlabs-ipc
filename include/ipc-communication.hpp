@@ -36,9 +36,9 @@ namespace ipc {
 		std::unique_ptr<os::windows::named_pipe> m_socket;
 		std::shared_ptr<os::async_op>                      m_wop, m_rop;
 		std::map<int64_t, std::pair<call_return_t, void*>> m_cb;
-		std::mutex                                         m_lock;
 
 		public:
+		std::mutex m_lock;
 		// Threading
 		struct
 		{
