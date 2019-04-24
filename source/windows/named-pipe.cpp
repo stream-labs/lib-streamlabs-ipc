@@ -164,10 +164,6 @@ os::windows::named_pipe::named_pipe(os::open_only_t, const std::string & name,
 }
 
 os::windows::named_pipe::~named_pipe() {
-	if (handle) {
-		DisconnectNamedPipe(handle);
-		CloseHandle(handle);
-	}
 }
 
 os::error os::windows::named_pipe::read(char *buffer, size_t buffer_length, std::shared_ptr<os::async_op> &op,
@@ -346,4 +342,11 @@ os::error os::windows::named_pipe::accept(std::shared_ptr<os::async_op> &op, os:
 	}
 
 	return ec;
+}
+
+void os::windows::named_pipe::destroyHandle() {
+	if (handle) {
+		DisconnectNamedPipe(handle);
+		CloseHandle(handle);
+	}
 }

@@ -33,7 +33,7 @@ extern int64_t       g_cbid;
 namespace ipc {
 	class ipc_communication {
 		protected:
-		std::unique_ptr<os::windows::named_pipe> m_socket;
+		std::unique_ptr<os::windows::named_pipe> m_socket = nullptr;
 		std::shared_ptr<os::async_op>                      m_wop, m_rop;
 		std::map<int64_t, std::pair<call_return_t, void*>> m_cb;
 

@@ -48,7 +48,7 @@ namespace os {
 		};
 
 		class named_pipe {
-			HANDLE              handle;
+			HANDLE              handle = NULL;
 			bool                created = false;
 			SECURITY_ATTRIBUTES security_attributes;
 			struct {
@@ -78,6 +78,8 @@ namespace os {
 			bool is_connected();
 
 			void set_connected(bool is_connected);
+
+			void destroyHandle(void);
 
 			public: // created only
 			os::error accept(std::shared_ptr<os::async_op> &op, os::async_op_cb_t cb);

@@ -33,7 +33,10 @@ ipc::ipc_communication::~ipc_communication()
 	if (m_watcher.worker.joinable()) {
 		m_watcher.worker.join();
 	}
-	m_socket = nullptr;
+	if (m_socket) {
+		m_socket->destroyHandle();
+		m_socket = nullptr;
+	}
 }
 
 bool ipc::ipc_communication::cancel(int64_t const& id)
