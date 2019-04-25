@@ -64,9 +64,10 @@ void ipc::server::watcher() {
 					if (ec == os::error::Success) {
 						// There was no client waiting to connect, but there might be one in the future.
 						pa_map.insert_or_assign(socket, pa);
+					} else if (ec == os::error::Connected) {
+						// We limit the number of socket connections to one
+						socketConnected = true;
 					}
-					// We limit the number of socket connections to one
-					socketConnected = true;
 				}
 			}
 		}
