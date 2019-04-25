@@ -40,8 +40,8 @@ void ipc::server::watcher() {
 	};
 
 	std::map<std::shared_ptr<os::windows::named_pipe>, pending_accept> pa_map;
-
-	while (!m_watcher.stop) {
+	bool                                                               socketConnected = false;
+	while (!m_watcher.stop && !socketConnected) {
 		// Verify the state of sockets.
 		{
 			std::unique_lock<std::mutex> ul(m_sockets_mtx);
@@ -65,6 +65,8 @@ void ipc::server::watcher() {
 						// There was no client waiting to connect, but there might be one in the future.
 						pa_map.insert_or_assign(socket, pa);
 					}
+					// We limit the number of socket connections to one
+					socketConnected = true;
 				}
 			}
 		}
@@ -127,11 +129,6 @@ void ipc::server::initialize(std::string socketPath) {
 		m_sockets.insert(m_sockets.end(),
 			std::make_shared<os::windows::named_pipe>(os::create_only, socketPath, 255,
 				os::windows::pipe_type::Byte, os::windows::pipe_read_mode::Byte, true));
-		for (size_t idx = 1; idx < backlog; idx++) {
-			m_sockets.insert(m_sockets.end(),
-				std::make_shared<os::windows::named_pipe>(os::create_only, socketPath, 255,
-					os::windows::pipe_type::Byte, os::windows::pipe_read_mode::Byte, false));
-		}
 	} catch (std::exception & e) {
 		throw e;
 	}
