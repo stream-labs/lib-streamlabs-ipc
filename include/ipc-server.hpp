@@ -45,7 +45,6 @@ namespace ipc {
 		std::map<std::string, std::shared_ptr<ipc::collection>> m_classes;
 
 		// Socket
-		size_t backlog = 40;
 		std::mutex m_sockets_mtx;
 		std::list<std::shared_ptr<os::windows::named_pipe>> m_sockets;
 		std::string m_socketPath = "";
