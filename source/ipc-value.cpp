@@ -126,18 +126,24 @@ size_t ipc::value::serialize(std::vector<char>& buf, size_t offset) {
 			noffset += sizeof(double_t);
 			break;
 		case type::String:
-			reinterpret_cast<uint32_t&>(buf[noffset]) = this->value_str.size();
+			reinterpret_cast<uint32_t&>(buf[noffset]) = static_cast<uint32_t>(this->value_str.size());
 			noffset += sizeof(uint32_t);
 			if (this->value_str.size() > 0) {
-				memcpy(&buf[noffset], this->value_str.data(), this->value_str.size());
+			    auto str_begin        = this->value_str.begin();
+			    auto str_end          = this->value_str.end();
+			    auto buffer_begin     = buf.begin() + noffset;
+			    std::copy(str_begin, str_end, buffer_begin);
 			}
 			noffset += this->value_str.size();
 			break;
 		case type::Binary:
-			reinterpret_cast<uint32_t&>(buf[noffset]) = this->value_bin.size();
+			reinterpret_cast<uint32_t&>(buf[noffset]) = static_cast<uint32_t>(this->value_bin.size());
 			noffset += sizeof(uint32_t);
 			if (this->value_bin.size() > 0) {
-				memcpy(&buf[noffset], this->value_bin.data(), this->value_bin.size());
+			    auto bin_begin    = this->value_bin.begin();
+			    auto bin_end      = this->value_bin.end();
+			    auto buffer_begin = buf.begin() + noffset;
+			    std::copy(bin_begin, bin_end, buffer_begin);
 			}
 			noffset += this->value_bin.size();
 			break;
@@ -183,7 +189,9 @@ size_t ipc::value::deserialize(const std::vector<char>& buf, size_t offset) {
 			this->value_str.clear();
 			this->value_str.resize(length);
 			if (length > 0) {
-				memcpy((void*)this->value_str.data(), &buf[noffset], length);
+			    auto begin      = buf.begin() + noffset;
+			    auto end        = buf.begin() + noffset + static_cast<size_t>(length);
+			    this->value_str = std::string(begin, end);
 			}
 			noffset += length;
 			break;
@@ -199,7 +207,9 @@ size_t ipc::value::deserialize(const std::vector<char>& buf, size_t offset) {
 			this->value_bin.clear();
 			this->value_bin.resize(length);
 			if (length > 0) {
-				memcpy((void*)this->value_bin.data(), &buf[noffset], length);
+			    auto begin      = buf.begin() + noffset;
+			    auto end        = buf.begin() + noffset + static_cast<size_t>(length);
+			    this->value_bin = std::vector<char>(begin, end);
 			}
 			noffset += length;
 			break;

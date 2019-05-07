@@ -30,7 +30,7 @@ namespace ipc {
 
 	inline void make_sendable(std::vector<char>& out, std::vector<char> const& in) {
 		out.resize(in.size() + sizeof(ipc_size_t));
-		memcpy(out.data() + sizeof(ipc_size_t), in.data(), in.size());
+		std::copy(in.begin(), in.end(), out.begin() + sizeof(ipc_size_t));
 		out[0] = 0;
 		out[1] = 1;
 		out[2] = 2;
