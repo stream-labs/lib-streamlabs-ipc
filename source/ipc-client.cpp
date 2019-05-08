@@ -344,8 +344,8 @@ std::vector<ipc::value> ipc::client::call_synchronous_helper(const std::string &
 		std::vector<ipc::value> values;
 	} cd;
 
-	auto cb = [](const void* data, const std::vector<ipc::value>& rval) {
-		CallData& cd = const_cast<CallData&>(*static_cast<const CallData*>(data));
+	auto cb = [](void* data, const std::vector<ipc::value>& rval) {
+		CallData& cd = *static_cast<CallData*>(data);
 
 		// This copies the data off of the reply thread to the main thread.
 		cd.values.reserve(rval.size());
