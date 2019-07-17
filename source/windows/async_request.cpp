@@ -105,10 +105,12 @@ void os::windows::async_request::call_callback() {
 void os::windows::async_request::call_callback(os::error ec, size_t length) {
 	if (system.callback && !system.callback_called) {
 		system.callback_called = true;
-		system.callback(ec, length);
+		auto runned_callback = system.callback;
+		runned_callback(ec, length);
 	}
 	if (callback && !callback_called) {
 		callback_called = true;
-		callback(ec, length);
+		auto runned_callback = callback;
+		runned_callback(ec, length);
 	}
 }
