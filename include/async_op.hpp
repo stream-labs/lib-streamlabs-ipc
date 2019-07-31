@@ -30,10 +30,10 @@ namespace os {
 	class async_op : public os::waitable {
 		protected:
 		bool          valid = false;
-		async_op_cb_t callback;
+		async_op_cb_t callback = nullptr;
 		bool          callback_called = false;
 		struct {
-			async_op_cb_t callback;
+			async_op_cb_t callback = nullptr;
 			bool          callback_called = false;
 		} system;
 

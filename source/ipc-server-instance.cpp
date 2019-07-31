@@ -266,7 +266,7 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 		fnc_reply_msg.serialize(write_buffer, 0);
 	} catch (std::exception & e) {
 		ipc::log("%8llu: Serialization of Function Reply message failed with error %s.",
-			fnc_call_msg.uid.value_union.ui64, e.what());
+			fnc_reply_msg.uid.value_union.ui64, e.what());
 		return;
 	}
 
@@ -280,7 +280,11 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 		ipc::log("%8llu: %.*s.", fnc_call_msg.uid.value_union.ui64, hex_msg.size(), hex_msg.data());
 	}
 #endif
+	read_callback_msg_write(write_buffer);
+}
 
+void ipc::server_instance::read_callback_msg_write(const std::vector<char>& write_buffer)
+{
 	if (write_buffer.size() != 0) {
 		if ((!m_wop || !m_wop->is_valid()) && (m_write_queue.size() == 0)) {
 			ipc::make_sendable(m_wbuf, write_buffer);
@@ -294,10 +298,7 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 				if (ec2 == os::error::Disconnected) {
 					return;
 				} else {
-					ipc::log(
-					    "%8llu: Write buffer operation failed with error %d.",
-					    fnc_call_msg.uid.value_union.ui64,
-					    static_cast<int>(ec2));
+					ipc::log("Write buffer operation failed with error %d %p", static_cast<int>(ec2), &write_buffer);
 					throw std::exception("Write buffer operation failed");
 				}
 			}
