@@ -123,11 +123,6 @@ void ipc::server::initialize(std::string socketPath) {
 		m_sockets.insert(m_sockets.end(),
 			std::make_shared<os::windows::named_pipe>(os::create_only, socketPath, 255,
 				os::windows::pipe_type::Byte, os::windows::pipe_read_mode::Byte, true));
-		for (size_t idx = 1; idx < backlog; idx++) {
-			m_sockets.insert(m_sockets.end(),
-				std::make_shared<os::windows::named_pipe>(os::create_only, socketPath, 255,
-					os::windows::pipe_type::Byte, os::windows::pipe_read_mode::Byte, false));
-		}
 	} catch (std::exception & e) {
 		throw e;
 	}
