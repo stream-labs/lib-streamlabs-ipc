@@ -81,14 +81,11 @@ SET(lib-streamlabs-ipc_PROTOBUF
 	"${PROJECT_SOURCE_DIR}/proto/ipc.proto"
 )
 SET(lib-streamlabs-ipc_DATA
-	"${PROJECT_SOURCE_DIR}/index.js"
 	"${PROJECT_SOURCE_DIR}/README.md"
 	"${PROJECT_SOURCE_DIR}/LICENSE"
 )
 SET(lib-streamlabs-ipc_DEPS
 	"${PROJECT_SOURCE_DIR}/LICENSE"
-	"${PROJECT_SOURCE_DIR}/index.js"
-	"${PROJECT_SOURCE_DIR}/package.json"
 )
 
 # Project

@@ -52,7 +52,7 @@ namespace ipc {
 		void read_callback_msg(os::error ec, size_t size);
 		void read_callback_msg_write(const std::vector<char>& write_buffer);
 		void write_callback(os::error ec, size_t size);		
-		
+#endif
 		protected:
 #ifdef WIN32
 		std::shared_ptr<os::windows::named_pipe> m_socket;

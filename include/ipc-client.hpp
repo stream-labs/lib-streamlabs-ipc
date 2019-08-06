@@ -27,7 +27,7 @@
 #include <vector>
 #ifdef WIN32
 #include "../source/windows/named-pipe.hpp"
-
+#endif
 typedef void (*call_return_t)(void* data, const std::vector<ipc::value>& rval);
 extern call_return_t g_fn;
 extern void*         g_data;

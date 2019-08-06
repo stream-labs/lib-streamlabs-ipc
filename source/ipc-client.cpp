@@ -87,9 +87,9 @@ void ipc::client::worker() {
 		m_cb.clear();
 	}
 
-	if (!m_socket->is_connected()) {
-		exit(1);
-	}
+//    if (!m_socket->is_connected()) {
+//        exit(1);
+//    }
 }
 #ifdef WIN32
 void ipc::client::read_callback_init(os::error ec, size_t size) {
