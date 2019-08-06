@@ -68,6 +68,11 @@ IF (WIN32)
 		"${PROJECT_SOURCE_DIR}/source/windows/async_request.cpp"
 		"${PROJECT_SOURCE_DIR}/source/windows/waitable.cpp"
 	)
+ELSEIF(APPLE)
+    SET(lib-streamlabs-ipc_SOURCES_APPLE
+    "${PROJECT_SOURCE_DIR}/source/apple/named-pipe.hpp"
+    "${PROJECT_SOURCE_DIR}/source/apple/named-pipe.cpp"
+    )
 ENDIF()
 SET(Protobuf_IMPORT_DIRS
 	"${PROJECT_SOURCE_DIR}/proto"
@@ -148,7 +153,9 @@ ELSEIF(APPLE)
 
 	LIST(APPEND lib-streamlabs-ipc_SOURCES
 	)
-	LIST(APPEND lib-streamlabs-ipc_DEPS
+	LIST(APPEND lib-streamlabs-ipc_SOURCES ${lib-streamlabs-ipc_SOURCES_APPLE}
+	)
+	LIST(APPEND lib-streamlabs-ipc_SOURCES ${lib-streamlabs-ipc_DEPS}
 	)
 ELSEIF("${CMAKE_SYSTEM_NAME}" MATCHES "Linux")
 	# Linux
