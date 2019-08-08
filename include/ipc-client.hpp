@@ -25,9 +25,13 @@
 #include <queue>
 #include <thread>
 #include <vector>
+
 #ifdef WIN32
 #include "../source/windows/named-pipe.hpp"
+#elif __APPLE__
+#include "../source/apple/named-pipe.hpp"
 #endif
+
 typedef void (*call_return_t)(void* data, const std::vector<ipc::value>& rval);
 extern call_return_t g_fn;
 extern void*         g_data;
@@ -39,6 +43,8 @@ namespace ipc {
 #ifdef WIN32
 		std::unique_ptr<os::windows::named_pipe> m_socket;
 		std::shared_ptr<os::async_op> m_rop;
+#elif __APPLE__
+		std::unique_ptr<os::apple::named_pipe> m_socket;
 #endif
 		bool m_authenticated = false;
 		std::mutex m_lock;

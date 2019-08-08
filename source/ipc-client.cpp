@@ -29,6 +29,7 @@
 #include <windows.h>
 #include <Objbase.h>
 #endif
+#include <memory>
 
 using namespace std::placeholders;
 
@@ -208,10 +209,15 @@ void ipc::client::read_callback_msg(os::error ec, size_t size) {
 	ipc::log("(read) %8llu: Done.", fnc_reply_msg.uid.value_union.ui64);
 #endif
 }
+#endif
 
 ipc::client::client(std::string socketPath) {
+#ifdef WIN32
 	m_socket = std::make_unique<os::windows::named_pipe>(os::open_only, socketPath, os::windows::pipe_read_mode::Byte);
-
+#elif __APPLE__
+	m_socket = std::make_unique<os::apple::named_pipe>(os::create_only, socketPath);
+	std::make_unique<os::apple::named_pipe>(os::open_only, socketPath);
+#endif
 	m_watcher.stop   = false;
 	m_watcher.worker = std::thread(std::bind(&client::worker, this));
 }
@@ -224,6 +230,7 @@ ipc::client::~client() {
 	m_socket = nullptr;
 }
 
+#ifdef WIN32
 bool ipc::client::cancel(int64_t const& id) {
 	std::unique_lock<std::mutex> ulock(m_lock);
 	return m_cb.erase(id) != 0;
