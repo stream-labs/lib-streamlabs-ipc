@@ -35,7 +35,18 @@ ipc::server_instance::server_instance(ipc::server* owner, std::shared_ptr<os::wi
 	m_stopWorkers = false;
 	m_worker = std::thread(std::bind(&server_instance::worker, this));
 }
+#elif __APPLE__
+ipc::server_instance::server_instance(ipc::server* owner, std::shared_ptr<os::apple::named_pipe> conn) {
+	m_parent = owner;
+	m_socket = conn;
+	m_clientId = 0;
 
+	m_stopWorkers = false;
+	m_worker = std::thread(std::bind(&server_instance::worker, this));
+}
+void ipc::server_instance::worker() {
+}
+#endif
 ipc::server_instance::~server_instance() {
 	// Threading
 	m_stopWorkers = true;
@@ -43,6 +54,7 @@ ipc::server_instance::~server_instance() {
 		m_worker.join();
 }
 
+#ifdef WIN32
 bool ipc::server_instance::is_alive() {
 	if (!m_socket->is_connected())
 		return false;

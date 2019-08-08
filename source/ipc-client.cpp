@@ -40,31 +40,35 @@ int64_t       g_cbid = NULL;
 void ipc::client::worker() {
 	os::error ec = os::error::Success;
 	std::vector<ipc::value> proc_rval;
-#ifdef WIN32
+
 	while (m_socket->is_connected() && !m_watcher.stop) {
-		if (!m_rop || !m_rop->is_valid()) {
+		// if (!m_rop || !m_rop->is_valid()) {
 			m_watcher.buf.resize(sizeof(ipc_size_t));
+#ifdef WIN32
 			ec = m_socket->read(m_watcher.buf.data(), m_watcher.buf.size(), m_rop, std::bind(&client::read_callback_init, this, _1, _2));
+#elif __APPLE__
+			// uint32_t rslt = m_socket->read(m_watcher.buf.data(), m_watcher.buf.size());
+#endif
 			if (ec != os::error::Pending && ec != os::error::Success) {
 				if (ec == os::error::Disconnected) {
 					break;
 				} else {
-					throw std::exception("Unexpected error.");
+					throw std::exception((const std::exception&)"Unexpected error.");
 				}
 			}
-		}
+		// }
 
-		ec = m_rop->wait(std::chrono::milliseconds(0));
+		// ec = m_rop->wait(std::chrono::milliseconds(0));
 		if (ec == os::error::Success) {
 			continue;
 		} else {
-			ec = m_rop->wait(std::chrono::milliseconds(20));
+			// ec = m_rop->wait(std::chrono::milliseconds(20));
 			if (ec == os::error::TimedOut) {
 				continue;
 			} else if (ec == os::error::Disconnected) {
 				break;
 			} else if (ec == os::error::Error) {
-				throw std::exception("Error");
+				throw std::exception((const std::exception&)"Error");
 			}
 		}
 	}
@@ -72,6 +76,7 @@ void ipc::client::worker() {
 	if (!m_socket->is_connected()) {
 		std::string test = "test";
 	}
+#ifdef WIN32
 #endif
 
 	// Call any remaining callbacks.
@@ -88,9 +93,9 @@ void ipc::client::worker() {
 		m_cb.clear();
 	}
 
-//    if (!m_socket->is_connected()) {
-//        exit(1);
-//    }
+   if (!m_socket->is_connected()) {
+       exit(1);
+   }
 }
 #ifdef WIN32
 void ipc::client::read_callback_init(os::error ec, size_t size) {
@@ -230,7 +235,7 @@ ipc::client::~client() {
 	m_socket = nullptr;
 }
 
-#ifdef WIN32
+
 bool ipc::client::cancel(int64_t const& id) {
 	std::unique_lock<std::mutex> ulock(m_lock);
 	return m_cb.erase(id) != 0;
@@ -240,7 +245,9 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
 	static std::mutex mtx;
 	static uint64_t timestamp = 0;
 	os::error ec;
+#ifdef WIN32
 	std::shared_ptr<os::async_op> write_op;
+#endif
 	ipc::message::function_call fnc_call_msg;
 	std::vector<char> outbuf;
 
@@ -324,6 +331,7 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
 	hex_msg = ipc::vectortohex(outbuf);
 	ipc::log("(write) %8llu: %.*s", fnc_call_msg.uid.value_union.ui64, hex_msg.size(), hex_msg.data());
 #endif
+#ifdef WIN32
 	ec = m_socket->write(outbuf.data(), outbuf.size(), write_op, nullptr);
 	if (ec != os::error::Success && ec != os::error::Pending) {
 		cancel(cbid);
@@ -337,7 +345,13 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
 		write_op->cancel();
 		return false;
 	}
-
+#elif __APPLE__
+	uint32_t rslt = m_socket->write(outbuf.data(), outbuf.size());
+	if (ec != os::error::Success && ec != os::error::Pending) {
+		cancel(cbid);
+		return false;
+	}
+#endif
 #ifdef _DEBUG
 	ipc::log("(write) %8llu: Sent.", fnc_call_msg.uid.value_union.ui64);
 #endif
@@ -348,7 +362,9 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
 std::vector<ipc::value> ipc::client::call_synchronous_helper(const std::string & cname, const std::string & fname, const std::vector<ipc::value>& args) {
 	// Set up call reference data.
 	struct CallData {
+#ifdef WIN32
 		std::shared_ptr<os::windows::semaphore> sgn = std::make_shared<os::windows::semaphore>();
+#endif
 		bool called = false;
 		std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
 
@@ -363,7 +379,9 @@ std::vector<ipc::value> ipc::client::call_synchronous_helper(const std::string &
 		std::copy(rval.begin(), rval.end(), std::back_inserter(cd.values));
 
 		cd.called = true;
+#ifdef WIN32
 		cd.sgn->signal();
+#endif
 	};
 
 	int64_t cbid = 0;
@@ -371,12 +389,12 @@ std::vector<ipc::value> ipc::client::call_synchronous_helper(const std::string &
 	if (!success) {
 		return {};
 	}
-
+#ifdef WIN32
 	cd.sgn->wait();
+#endif
 	if (!cd.called) {
 		cancel(cbid);
 		return {};
 	}
 	return std::move(cd.values);
 }
-#endif

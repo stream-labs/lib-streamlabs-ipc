@@ -29,15 +29,18 @@ void ipc::server::watcher() {
 #ifdef WIN32
 		std::shared_ptr<os::async_op> op;
 		std::shared_ptr<os::windows::named_pipe> socket;
+#elif __APPLE__
+		std::shared_ptr<os::apple::named_pipe> socket;
 #endif
 		std::chrono::high_resolution_clock::time_point start;
 
 		void accept_client_cb(os::error ec, size_t length) {
-#ifdef WIN32
+
 			if (ec == os::error::Connected) {
 				// A client has connected, so spawn a new client.
 				parent->spawn_client(socket);
 			}
+#ifdef WIN32
 			op->invalidate();
 #endif
 		}
@@ -45,13 +48,14 @@ void ipc::server::watcher() {
 
 #ifdef WIN32
 	std::map<std::shared_ptr<os::windows::named_pipe>, pending_accept> pa_map;
+#elif __APPLE__
+	std::map<std::shared_ptr<os::apple::named_pipe>, pending_accept> pa_map;
 #endif
 
 	while (!m_watcher.stop) {
 		// Verify the state of sockets.
 		{
 			std::unique_lock<std::mutex> ul(m_sockets_mtx);
-#ifdef WIN32
 			for (auto socket : m_sockets) {
 				auto pending = pa_map.find(socket);
 				auto client = m_clients.find(socket);
@@ -67,14 +71,15 @@ void ipc::server::watcher() {
 					pa.parent = this;
 					pa.start = std::chrono::high_resolution_clock::now();
 					pa.socket = socket;
-					ec = socket->accept(pa.op, std::bind(&pending_accept::accept_client_cb, &pa, std::placeholders::_1, std::placeholders::_2));
-					if (ec == os::error::Success) {
-						// There was no client waiting to connect, but there might be one in the future.
-						pa_map.insert_or_assign(socket, pa);
-					}
+#ifdef WIN32
+					// ec = socket->accept(pa.op, std::bind(&pending_accept::accept_client_cb, &pa, std::placeholders::_1, std::placeholders::_2));
+					// if (ec == os::error::Success) {
+					// 	// There was no client waiting to connect, but there might be one in the future.
+					// 	pa_map.insert_or_assign(socket, pa);
+					// }
+#endif
 				}
 			}
-#endif
 		}
 #ifdef WIN32
 		// Wait for sockets to connect.
@@ -111,6 +116,24 @@ void ipc::server::kill_client(std::shared_ptr<os::windows::named_pipe> socket) {
 }
 #endif
 
+#ifdef __APPLE__
+void ipc::server::spawn_client(std::shared_ptr<os::apple::named_pipe> socket) {
+	std::unique_lock<std::mutex> ul(m_clients_mtx);
+	std::shared_ptr<ipc::server_instance> client = std::make_shared<ipc::server_instance>(this, socket);
+	if (m_handlerConnect.first) {
+		m_handlerConnect.first(m_handlerConnect.second, 0);
+	}
+	m_clients.insert_or_assign(socket, client);
+}
+
+void ipc::server::kill_client(std::shared_ptr<os::apple::named_pipe> socket) {
+	if (m_handlerDisconnect.first) {
+		m_handlerDisconnect.first(m_handlerDisconnect.second, 0);
+	}
+	m_clients.erase(socket);
+}
+#endif
+
 ipc::server::server() {
 	// Start Watcher
 	m_watcher.stop = false;
@@ -140,6 +163,10 @@ void ipc::server::initialize(std::string socketPath) {
 				std::make_shared<os::windows::named_pipe>(os::create_only, socketPath, 255,
 					os::windows::pipe_type::Byte, os::windows::pipe_read_mode::Byte, false));
 		}
+#elif __APPLE__
+		std::unique_lock<std::mutex> ul(m_sockets_mtx);
+		m_sockets.insert(m_sockets.end(),
+			std::make_shared<os::apple::named_pipe>(os::create_only, socketPath));
 #endif
 	} catch (std::exception e) {
 		throw e;

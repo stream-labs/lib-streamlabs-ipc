@@ -26,7 +26,10 @@
 #include <vector>
 #ifdef WIN32
 #include "../source/windows/named-pipe.hpp"
+#elif __APPLE__
+#include "../source/apple/named-pipe.hpp"
 #endif
+
 namespace ipc {
 	class server;
 
@@ -37,6 +40,8 @@ namespace ipc {
 		server_instance();
 #ifdef WIN32
 		server_instance(server* owner, std::shared_ptr<os::windows::named_pipe> conn);
+#elif __APPLE__
+		server_instance(server* owner, std::shared_ptr<os::apple::named_pipe> conn);
 #endif
         ~server_instance();
 		
@@ -57,6 +62,8 @@ namespace ipc {
 #ifdef WIN32
 		std::shared_ptr<os::windows::named_pipe> m_socket;
 		std::shared_ptr<os::async_op> m_wop, m_rop;
+#elif __APPLE__
+		std::shared_ptr<os::apple::named_pipe> m_socket;
 #endif
 		std::vector<char> m_wbuf, m_rbuf;
 		std::queue<std::vector<char>> m_write_queue;

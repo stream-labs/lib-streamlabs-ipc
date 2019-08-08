@@ -29,6 +29,8 @@
 #include <functional>
 #ifdef WIN32
 #include "../source/windows/named-pipe.hpp"
+#elif __APPLE__
+#include "../source/apple/named-pipe.hpp"
 #endif
 
 namespace ipc {
@@ -50,6 +52,8 @@ namespace ipc {
 		std::mutex m_sockets_mtx;
 #ifdef WIN32
 		std::list<std::shared_ptr<os::windows::named_pipe>> m_sockets;
+#elif __APPLE__
+		std::list<std::shared_ptr<os::apple::named_pipe>> m_sockets;
 #endif
 		std::string m_socketPath = "";
 
@@ -57,6 +61,8 @@ namespace ipc {
 		std::mutex m_clients_mtx;
 #ifdef WIN32
 		std::map<std::shared_ptr<os::windows::named_pipe>, std::shared_ptr<server_instance>> m_clients;
+#elif __APPLE__
+		std::map<std::shared_ptr<os::apple::named_pipe>, std::shared_ptr<server_instance>> m_clients;
 #endif
 
 		// Event Handlers
@@ -77,6 +83,9 @@ namespace ipc {
 #ifdef WIN32
 		void spawn_client(std::shared_ptr<os::windows::named_pipe> socket);
 		void kill_client(std::shared_ptr<os::windows::named_pipe> socket);
+#elif __APPLE__
+		void spawn_client(std::shared_ptr<os::apple::named_pipe> socket);
+		void kill_client(std::shared_ptr<os::apple::named_pipe> socket);
 #endif
 
 		public:
