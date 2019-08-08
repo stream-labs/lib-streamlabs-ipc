@@ -72,6 +72,8 @@ ELSEIF(APPLE)
     SET(lib-streamlabs-ipc_SOURCES_APPLE
     "${PROJECT_SOURCE_DIR}/source/apple/named-pipe.hpp"
     "${PROJECT_SOURCE_DIR}/source/apple/named-pipe.cpp"
+	"${PROJECT_SOURCE_DIR}/source/apple/semaphore.hpp"
+	"${PROJECT_SOURCE_DIR}/source/apple/semaphore.cpp"
     )
 ENDIF()
 SET(Protobuf_IMPORT_DIRS

@@ -245,9 +245,8 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
 	static std::mutex mtx;
 	static uint64_t timestamp = 0;
 	os::error ec;
-#ifdef WIN32
 	std::shared_ptr<os::async_op> write_op;
-#endif
+
 	ipc::message::function_call fnc_call_msg;
 	std::vector<char> outbuf;
 

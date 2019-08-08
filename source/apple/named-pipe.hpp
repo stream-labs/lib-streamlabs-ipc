@@ -12,6 +12,7 @@
 
 #include "tags.hpp"
 #include "error.hpp"
+#include "semaphore.hpp"
 
 namespace os {
     namespace apple {
