@@ -40,37 +40,44 @@ int64_t       g_cbid = NULL;
 void ipc::client::worker() {
 	os::error ec = os::error::Success;
 	std::vector<ipc::value> proc_rval;
-
+	std::cout << "Starting client worker" << std::endl;
 	while (m_socket->is_connected() && !m_watcher.stop) {
-		// if (!m_rop || !m_rop->is_valid()) {
-			m_watcher.buf.resize(sizeof(ipc_size_t));
-#ifdef WIN32
-			ec = m_socket->read(m_watcher.buf.data(), m_watcher.buf.size(), m_rop, std::bind(&client::read_callback_init, this, _1, _2));
-#elif __APPLE__
-			// uint32_t rslt = m_socket->read(m_watcher.buf.data(), m_watcher.buf.size());
-#endif
-			if (ec != os::error::Pending && ec != os::error::Success) {
-				if (ec == os::error::Disconnected) {
-					break;
-				} else {
-					throw std::exception((const std::exception&)"Unexpected error.");
-				}
-			}
-		// }
+		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+		std::cout << "Client instance: I'm here" << std::endl;
+		
+		const char* outbuf = "Message from the client!";
+		ec = (os::error) m_socket->write(outbuf, strlen(outbuf));
 
-		// ec = m_rop->wait(std::chrono::milliseconds(0));
-		if (ec == os::error::Success) {
-			continue;
-		} else {
-			// ec = m_rop->wait(std::chrono::milliseconds(20));
-			if (ec == os::error::TimedOut) {
-				continue;
-			} else if (ec == os::error::Disconnected) {
-				break;
-			} else if (ec == os::error::Error) {
-				throw std::exception((const std::exception&)"Error");
-			}
-		}
+// 		if (!m_rop || !m_rop->is_valid()) {
+// 			m_watcher.buf.resize(sizeof(ipc_size_t));
+// #ifdef WIN32
+// 			ec = m_socket->read(m_watcher.buf.data(), m_watcher.buf.size(), m_rop, std::bind(&client::read_callback_init, this, _1, _2));
+// #elif __APPLE__
+// 			// std::cout << "Reading from thread" << std::endl;
+// 			// ec = (os::error)m_socket->read(m_watcher.buf.data(), m_watcher.buf.size());
+// #endif
+// 			// if (ec != os::error::Pending && ec != os::error::Success) {
+// 			// 	if (ec == os::error::Disconnected) {
+// 			// 		break;
+// 			// 	} else {
+// 			// 		throw std::exception((const std::exception&)"Unexpected error.");
+// 			// 	}
+// 			// }
+// 		}
+
+// 		// ec = m_rop->wait(std::chrono::milliseconds(0));
+// 		if (ec == os::error::Success) {
+// 			continue;
+// 		} else {
+// 			// ec = m_rop->wait(std::chrono::milliseconds(20));
+// 			if (ec == os::error::TimedOut) {
+// 				continue;
+// 			} else if (ec == os::error::Disconnected) {
+// 				break;
+// 			} else if (ec == os::error::Error) {
+// 				// throw std::exception((const std::exception&)"Error");
+// 			}
+// 		}
 	}
 
 	if (!m_socket->is_connected()) {
@@ -97,7 +104,7 @@ void ipc::client::worker() {
        exit(1);
    }
 }
-#ifdef WIN32
+
 void ipc::client::read_callback_init(os::error ec, size_t size) {
 	os::error ec2 = os::error::Success;
 
@@ -111,12 +118,16 @@ void ipc::client::read_callback_init(os::error ec, size_t size) {
 #endif
 		if (n_size != 0) {
 			m_watcher.buf.resize(n_size);
+#ifdef WIN32
 			ec2 = m_socket->read(m_watcher.buf.data(), m_watcher.buf.size(), m_rop, std::bind(&client::read_callback_msg, this, _1, _2));
+#elif __APPLE__
+			ec2 = (os::error)m_socket->read(m_watcher.buf.data(), m_watcher.buf.size());
+#endif
 			if (ec2 != os::error::Pending && ec2 != os::error::Success) {
 				if (ec2 == os::error::Disconnected) {
 					return;
 				} else {
-					throw std::exception("Unexpected error.");
+					throw std::exception((const std::exception&)"Unexpected error.");
 				}
 			}
 		}
@@ -214,14 +225,13 @@ void ipc::client::read_callback_msg(os::error ec, size_t size) {
 	ipc::log("(read) %8llu: Done.", fnc_reply_msg.uid.value_union.ui64);
 #endif
 }
-#endif
 
 ipc::client::client(std::string socketPath) {
 #ifdef WIN32
 	m_socket = std::make_unique<os::windows::named_pipe>(os::open_only, socketPath, os::windows::pipe_read_mode::Byte);
 #elif __APPLE__
-	m_socket = std::make_unique<os::apple::named_pipe>(os::create_only, socketPath);
-	std::make_unique<os::apple::named_pipe>(os::open_only, socketPath);
+	std::cout << "Client open socket: " << std::endl;
+	m_socket = std::make_unique<os::apple::named_pipe>(os::open_only, socketPath);
 #endif
 	m_watcher.stop   = false;
 	m_watcher.worker = std::thread(std::bind(&client::worker, this));
@@ -245,8 +255,8 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
 	static std::mutex mtx;
 	static uint64_t timestamp = 0;
 	os::error ec;
-	std::shared_ptr<os::async_op> write_op;
 
+	std::shared_ptr<os::async_op> write_op;
 	ipc::message::function_call fnc_call_msg;
 	std::vector<char> outbuf;
 
@@ -345,9 +355,17 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
 		return false;
 	}
 #elif __APPLE__
-	uint32_t rslt = m_socket->write(outbuf.data(), outbuf.size());
+	std::cout << "Client writing" << std::endl;
+	ec = (os::error) m_socket->write(outbuf.data(), outbuf.size());
 	if (ec != os::error::Success && ec != os::error::Pending) {
 		cancel(cbid);
+		return false;
+	}
+
+	// ec = write_op->wait();
+	if (ec != os::error::Success) {
+		cancel(cbid);
+		write_op->cancel();
 		return false;
 	}
 #endif
@@ -363,13 +381,15 @@ std::vector<ipc::value> ipc::client::call_synchronous_helper(const std::string &
 	struct CallData {
 #ifdef WIN32
 		std::shared_ptr<os::windows::semaphore> sgn = std::make_shared<os::windows::semaphore>();
+#elif __APPLE__
+		std::shared_ptr<os::apple::semaphore> sgn = std::make_shared<os::apple::semaphore>();
 #endif
 		bool called = false;
 		std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
 
 		std::vector<ipc::value> values;
 	} cd;
-
+	std::cout << "Client calling" << std::endl;
 	auto cb = [](void* data, const std::vector<ipc::value>& rval) {
 		CallData& cd = *static_cast<CallData*>(data);
 
@@ -378,9 +398,7 @@ std::vector<ipc::value> ipc::client::call_synchronous_helper(const std::string &
 		std::copy(rval.begin(), rval.end(), std::back_inserter(cd.values));
 
 		cd.called = true;
-#ifdef WIN32
 		cd.sgn->signal();
-#endif
 	};
 
 	int64_t cbid = 0;
@@ -388,9 +406,8 @@ std::vector<ipc::value> ipc::client::call_synchronous_helper(const std::string &
 	if (!success) {
 		return {};
 	}
-#ifdef WIN32
 	cd.sgn->wait();
-#endif
+
 	if (!cd.called) {
 		cancel(cbid);
 		return {};

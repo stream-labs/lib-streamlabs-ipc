@@ -52,19 +52,18 @@ namespace ipc {
 		std::thread m_worker;
 
 		void worker();
-#ifdef WIN32
 		void read_callback_init(os::error ec, size_t size);
 		void read_callback_msg(os::error ec, size_t size);
 		void read_callback_msg_write(const std::vector<char>& write_buffer);
 		void write_callback(os::error ec, size_t size);		
-#endif
+
 		protected:
 #ifdef WIN32
 		std::shared_ptr<os::windows::named_pipe> m_socket;
-		std::shared_ptr<os::async_op> m_wop, m_rop;
 #elif __APPLE__
 		std::shared_ptr<os::apple::named_pipe> m_socket;
 #endif
+		std::shared_ptr<os::async_op> m_wop, m_rop;
 		std::vector<char> m_wbuf, m_rbuf;
 		std::queue<std::vector<char>> m_write_queue;
 

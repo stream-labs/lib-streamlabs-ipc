@@ -70,10 +70,13 @@ IF (WIN32)
 	)
 ELSEIF(APPLE)
     SET(lib-streamlabs-ipc_SOURCES_APPLE
-    "${PROJECT_SOURCE_DIR}/source/apple/named-pipe.hpp"
-    "${PROJECT_SOURCE_DIR}/source/apple/named-pipe.cpp"
-	"${PROJECT_SOURCE_DIR}/source/apple/semaphore.hpp"
-	"${PROJECT_SOURCE_DIR}/source/apple/semaphore.cpp"
+		"${PROJECT_SOURCE_DIR}/source/apple/named-pipe.hpp"
+		"${PROJECT_SOURCE_DIR}/source/apple/named-pipe.cpp"
+		"${PROJECT_SOURCE_DIR}/source/apple/semaphore.hpp"
+		"${PROJECT_SOURCE_DIR}/source/apple/semaphore.cpp"
+		"${PROJECT_SOURCE_DIR}/source/apple/async_request.hpp"
+		"${PROJECT_SOURCE_DIR}/source/apple/async_request.cpp"
+		"${PROJECT_SOURCE_DIR}/source/apple/waitable.cpp"
     )
 ENDIF()
 SET(Protobuf_IMPORT_DIRS

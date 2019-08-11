@@ -9,17 +9,24 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <string>
+#include <thread>
 
 #include "tags.hpp"
 #include "error.hpp"
 #include "semaphore.hpp"
+#include "async_request.hpp"
 
 namespace os {
     namespace apple {
         class named_pipe {
-            bool created   = false;
-            bool connected = true;
-            int  file_descriptor = 0;
+            bool created     = false;
+            bool connected   = true;
+            int file_descriptor = -1;
+            std::string name = "";
+
+			void handle_accept_callback(os::error code, size_t length);
+
             public:
             named_pipe(os::create_only_t, const std::string name);
             named_pipe(os::open_only_t, const std::string name);
@@ -34,6 +41,9 @@ namespace os {
 			bool is_connected();
 
 			void set_connected(bool is_connected);
+
+			public: // created only
+			os::error accept(std::shared_ptr<os::async_op> &op, os::async_op_cb_t cb);
         };
     }
 }

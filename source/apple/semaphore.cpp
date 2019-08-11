@@ -11,8 +11,8 @@ os::apple::semaphore::semaphore(int32_t initial_count /*= 0*/, int32_t maximum_c
 }
 
 os::apple::semaphore::~semaphore() {
-    if (sem_close(sem) < 0)
-        throw "Could remove the semaphore.";
+    // if (sem_close(sem) < 0)
+    //     throw "Could remove the semaphore.";
 }
 
 os::error os::apple::semaphore::signal(uint32_t count /*= 1*/) {
