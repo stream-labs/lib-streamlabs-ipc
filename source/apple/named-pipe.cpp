@@ -21,19 +21,7 @@ os::apple::named_pipe::named_pipe(os::create_only_t, const std::string name)
 
 os::apple::named_pipe::named_pipe(os::open_only_t, const std::string name)
 {
-    // int retry = 10;
-
-    // while (file_descriptor < 0 && retry > 0) {
-    //     file_descriptor = open(name.c_str(), O_RDWR);
-    //     if (file_descriptor < 0) {
-    //         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    //         retry --;
-    //     }
-    // }
-
-    // if (file_descriptor < 0)
-    //     std::cout << "Could not open named pipe." << strerror(errno) << std::endl;
-
+    this->name = name;
     connected = true;
 }
 
@@ -45,6 +33,7 @@ uint32_t os::apple::named_pipe::read(char *buffer, size_t buffer_length)
 {
     ssize_t ret = 0;
     file_descriptor = open(name.c_str(), O_RDONLY);//| O_NONBLOCK);
+
     if (file_descriptor < 0) {
         std::cout << "Could not open " << strerror(errno) << std::endl;
         return (uint32_t) os::error::Pending;
@@ -64,7 +53,9 @@ uint32_t os::apple::named_pipe::read(char *buffer, size_t buffer_length)
 uint32_t os::apple::named_pipe::write(const char *buffer, size_t buffer_length)
 {
     ssize_t ret = 0;
-    file_descriptor = open("slobs", O_WRONLY);
+
+    file_descriptor = open(name.c_str(), O_WRONLY);
+
     if (file_descriptor < 0) {
         std::cout << "Could not open " << strerror(errno) << std::endl;
         return (uint32_t) os::error::Pending;
@@ -74,10 +65,10 @@ uint32_t os::apple::named_pipe::write(const char *buffer, size_t buffer_length)
     if (ret < 0) {
         std::cout << "Invalid write " << strerror(errno) << std::endl;
         return (uint32_t) os::error::Error;
-    } else {
-        std::cout << "Successful write" << std::endl;
     }
+
     close(file_descriptor);
+
     return (uint32_t) os::error::Success;
 }
 
@@ -118,9 +109,6 @@ os::error os::apple::named_pipe::accept(std::shared_ptr<os::async_op> &op, os::a
 		std::bind(&named_pipe::handle_accept_callback, this, std::placeholders::_1, std::placeholders::_2));
 	// ar->set_sem(sem);
 
-	// SetLastError(ERROR_SUCCESS);
-	// BOOL suc = ConnectNamedPipe(handle, ar->get_overlapped_pointer());
-	// os::error ec = utility::translate_error(GetLastError());
     connected = true;
 
     os::error ec = os::error::Connected;
