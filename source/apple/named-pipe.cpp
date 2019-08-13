@@ -10,10 +10,6 @@ os::apple::named_pipe::named_pipe(os::create_only_t, const std::string name)
 
     if (ret < 0)
         std::cout << "Could not create named pipe. " << strerror(errno) << std::endl;
-    else
-    {
-        std::cout << "Created successfully" << std::endl;
-    }
     
     this->name = name;
     created = true;
@@ -32,19 +28,18 @@ os::apple::named_pipe::~named_pipe() {
 uint32_t os::apple::named_pipe::read(char *buffer, size_t buffer_length)
 {
     ssize_t ret = 0;
-    file_descriptor = open(name.c_str(), O_RDONLY);//| O_NONBLOCK);
+
+    file_descriptor = open(name.c_str(), O_RDONLY);
 
     if (file_descriptor < 0) {
         std::cout << "Could not open " << strerror(errno) << std::endl;
         return (uint32_t) os::error::Pending;
     }
-    ret = ::read(file_descriptor, buffer, buffer_length);
 
+    ret = ::read(file_descriptor, buffer, buffer_length);
     if (ret < 0) {
         std::cout << "Invalid read " << strerror(errno) << std::endl;
         return (uint32_t) os::error::Pending;
-    } else {
-        std::cout << "Successful read " << buffer << std::endl;
     }
     close(file_descriptor);
     return (uint32_t) os::error::Success;
@@ -53,22 +48,17 @@ uint32_t os::apple::named_pipe::read(char *buffer, size_t buffer_length)
 uint32_t os::apple::named_pipe::write(const char *buffer, size_t buffer_length)
 {
     ssize_t ret = 0;
-
-    file_descriptor = open(name.c_str(), O_WRONLY);
+    file_descriptor = open(name.c_str(), O_WRONLY ); //| O_NONBLOCK);
 
     if (file_descriptor < 0) {
         std::cout << "Could not open " << strerror(errno) << std::endl;
         return (uint32_t) os::error::Pending;
     }
     ret = ::write(file_descriptor, buffer, buffer_length);
-
     if (ret < 0) {
         std::cout << "Invalid write " << strerror(errno) << std::endl;
         return (uint32_t) os::error::Error;
     }
-
-    close(file_descriptor);
-
     return (uint32_t) os::error::Success;
 }
 

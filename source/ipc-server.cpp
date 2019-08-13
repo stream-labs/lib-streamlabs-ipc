@@ -35,7 +35,6 @@ void ipc::server::watcher() {
 		std::chrono::high_resolution_clock::time_point start;
 
 		void accept_client_cb(os::error ec, size_t length) {
-			std::cout << "Accept client cb" << std::endl;
 			if (ec == os::error::Connected) {
 				
 				// A client has connected, so spawn a new client.
@@ -52,7 +51,7 @@ void ipc::server::watcher() {
 #elif __APPLE__
 	std::map<std::shared_ptr<os::apple::named_pipe>, pending_accept> pa_map;
 #endif
-	std::cout << "Starting watcher" << std::endl;
+
 	while (!m_watcher.stop) {
 		// Verify the state of sockets.
 		{
@@ -80,7 +79,6 @@ void ipc::server::watcher() {
 						pa_map.insert_or_assign(socket, pa);
 					}
 #elif __APPLE__
-					std::cout << "Accepting socket" << std::endl;
 					ec = socket->accept(pa.op, std::bind(&pending_accept::accept_client_cb, &pa, std::placeholders::_1, std::placeholders::_2));
 					if (ec == os::error::Success) {
 						// There was no client waiting to connect, but there might be one in the future.
@@ -130,7 +128,6 @@ void ipc::server::kill_client(std::shared_ptr<os::windows::named_pipe> socket) {
 #ifdef __APPLE__
 void ipc::server::spawn_client(std::shared_ptr<os::apple::named_pipe> socket) {
 	std::unique_lock<std::mutex> ul(m_clients_mtx);
-	std::cout << "Spawning client" << std::endl;
 
 	std::shared_ptr<ipc::server_instance> client = std::make_shared<ipc::server_instance>(this, socket);
 	if (m_handlerConnect.first) {
@@ -148,7 +145,6 @@ void ipc::server::kill_client(std::shared_ptr<os::apple::named_pipe> socket) {
 #endif
 
 ipc::server::server() {
-	std::cout << "Starting the server_instance" << std::endl;
 	// Start Watcher
 	m_watcher.stop = false;
 	m_watcher.worker = std::thread(std::bind(&ipc::server::watcher, this));
@@ -179,7 +175,6 @@ void ipc::server::initialize(std::string socketPath) {
 		}
 #elif __APPLE__
 		std::unique_lock<std::mutex> ul(m_sockets_mtx);
-		std::cout << "Server create socket: " << std::endl;
 		m_sockets.insert(m_sockets.end(),
 			std::make_shared<os::apple::named_pipe>(os::create_only, socketPath));
 #endif
@@ -198,7 +193,7 @@ void ipc::server::finalize() {
 
 	// Lock sockets mutex so that watcher pauses.
 	std::unique_lock<std::mutex> ul(m_sockets_mtx);
-#ifdef WIN32
+// 
 	{ // Kill/Disconnect any clients
 		std::unique_lock<std::mutex> ul(m_clients_mtx);
 		while (m_clients.size() > 0) {
@@ -208,7 +203,6 @@ void ipc::server::finalize() {
 
 	// Kill any remaining sockets
 	m_sockets.clear();
-#endif
 }
 
 void ipc::server::set_connect_handler(server_connect_handler_t handler, void* data) {

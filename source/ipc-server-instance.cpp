@@ -65,16 +65,39 @@ bool ipc::server_instance::is_alive() {
 
 void ipc::server_instance::worker() {
 	os::error ec = os::error::Success;
-	std::cout << "Starting server instance worker" << std::endl;
+
 	// Loop
 	while ((!m_stopWorkers) && m_socket->is_connected()) {
-		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-		std::cout << "Server instance: I'm here" << std::endl;
+		// Read IPC header
+		std::vector<char> header;
+		header.resize(sizeof(ipc_size_t));
+		os::error ec = (os::error) m_socket->read(header.data(), header.size());
 
+		ipc_size_t n_size = read_size(header);
 		std::vector<char> buffer;
-		buffer.resize(255);
+		buffer.resize(n_size);
 		
-		ec = (os::error) m_socket->read(buffer.data(), 255);
+		// ec = (os::error) m_socket->read(buffer.data(), sizeof(ipc_size_t));
+		ec = (os::error) m_socket->read(buffer.data(), n_size);
+		// std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+
+		ipc::message::function_call fnc_call_msg;
+		fnc_call_msg.deserialize(buffer, 0);
+
+		// Execute
+		std::vector<ipc::value> proc_rval;
+		std::string proc_error;
+		proc_rval.resize(0);
+
+		bool result = m_parent->client_call_function(m_clientId,
+		fnc_call_msg.class_name.value_str, fnc_call_msg.function_name.value_str,
+		fnc_call_msg.arguments, proc_rval, proc_error);
+
+		// ipc::log("%8llu: Function Call deserialized, class '%.*s' and function '%.*s', %llu arguments.",
+		// fnc_call_msg.uid.value_union.ui64,
+		// (uint64_t)fnc_call_msg.class_name.value_str.size(), fnc_call_msg.class_name.value_str.c_str(),
+		// (uint64_t)fnc_call_msg.function_name.value_str.size(), fnc_call_msg.function_name.value_str.c_str(),
+		// (uint64_t)fnc_call_msg.arguments.size());
 
 // 		if (!m_rop || !m_rop->is_valid()) {
 // 			size_t testSize = sizeof(ipc_size_t);

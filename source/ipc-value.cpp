@@ -17,6 +17,7 @@
 ******************************************************************************/
 
 #include "ipc-value.hpp"
+#include <iostream>
 
 ipc::value::value() {
 	this->type = type::Null;
@@ -174,7 +175,7 @@ size_t ipc::value::deserialize(const std::vector<char>& buf, size_t offset) {
 			if ((buf.size() - noffset) < sizeof(int64_t)) {
 				throw std::exception((const std::exception&)"Deserialize of 64-bit value failed");
 			}
-			memcpy(&this->value_union.i64, &buf[noffset], sizeof(int64_t));
+			memcpy(&this->value_union.ui64, &buf[noffset], sizeof(uint64_t));
 			noffset += sizeof(int64_t);
 			break;
 		case type::String:
@@ -186,6 +187,7 @@ size_t ipc::value::deserialize(const std::vector<char>& buf, size_t offset) {
 			if ((buf.size() - noffset) < length) {
 				throw std::exception((const std::exception&)"Deserialize of string value failed, string missing");
 			}
+
 			this->value_str.clear();
 			this->value_str.resize(length);
 			if (length > 0) {

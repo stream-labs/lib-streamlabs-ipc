@@ -18,6 +18,7 @@
 
 #include "ipc.hpp"
 #include <sstream>
+#include <iostream>
 
 std::string ipc::base::make_unique_id(const std::string& name, const std::vector<type> & parameters) {
 	// Implement similar behavior to C/C++ compilers, which put parameter type
@@ -135,6 +136,7 @@ size_t ipc::message::function_call::serialize(std::vector<char>& buf, size_t off
 }
 
 size_t ipc::message::function_call::deserialize(std::vector<char>& buf, size_t offset) {
+
 	if ((buf.size() - offset) < sizeof(size_t)) {
 		throw std::exception((const std::exception&)"Buffer too small");
 	}
@@ -144,7 +146,6 @@ size_t ipc::message::function_call::deserialize(std::vector<char>& buf, size_t o
 		throw std::exception((const std::exception&)"Buffer too small");
 	}
 	size_t noffset = offset + sizeof(size_t);
-
 	noffset += uid.deserialize(buf, noffset);
 	noffset += class_name.deserialize(buf, noffset);
 	noffset += function_name.deserialize(buf, noffset);
