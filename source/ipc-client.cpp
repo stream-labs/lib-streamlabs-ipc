@@ -121,7 +121,7 @@ void ipc::client::read_callback_init(os::error ec, size_t size) {
 #ifdef WIN32
 			ec2 = m_socket->read(m_watcher.buf.data(), m_watcher.buf.size(), m_rop, std::bind(&client::read_callback_msg, this, _1, _2));
 #elif __APPLE__
-			ec2 = (os::error)m_socket->read(m_watcher.buf.data(), m_watcher.buf.size());
+			// ec2 = (os::error)m_socket->read(m_watcher.buf.data(), m_watcher.buf.size());
 #endif
 			if (ec2 != os::error::Pending && ec2 != os::error::Success) {
 				if (ec2 == os::error::Disconnected) {

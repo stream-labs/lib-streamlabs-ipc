@@ -25,12 +25,18 @@ os::apple::named_pipe::~named_pipe() {
     remove(name.c_str());
 }
 
-uint32_t os::apple::named_pipe::read(char *buffer, size_t buffer_length)
+uint32_t os::apple::named_pipe::read(char *buffer, size_t buffer_length, std::shared_ptr<os::async_op> &op, os::async_op_cb_t cb)
 {
     ssize_t ret = 0;
+    std::shared_ptr<os::apple::async_request> ar = std::static_pointer_cast<os::apple::async_request>(op);
+    if(!ar) {
+        ar = std::make_shared<os::apple::async_request>();
+        op = std::static_pointer_cast<os::async_op>(ar);
+    }
+    ar->set_callback(cb);
+    ar->set_sem(NULL);
 
     file_descriptor = open(name.c_str(), O_RDONLY);
-
     if (file_descriptor < 0) {
         std::cout << "Could not open " << strerror(errno) << std::endl;
         return (uint32_t) os::error::Pending;
@@ -39,7 +45,11 @@ uint32_t os::apple::named_pipe::read(char *buffer, size_t buffer_length)
     ret = ::read(file_descriptor, buffer, buffer_length);
     if (ret < 0) {
         std::cout << "Invalid read " << strerror(errno) << std::endl;
+        ar->set_valid(true);
         return (uint32_t) os::error::Pending;
+    } else {
+        ar->call_callback(os::error::Success, buffer_length);
+        ar->cancel();
     }
     close(file_descriptor);
     return (uint32_t) os::error::Success;

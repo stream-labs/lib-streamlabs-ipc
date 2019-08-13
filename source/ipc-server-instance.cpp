@@ -69,29 +69,36 @@ void ipc::server_instance::worker() {
 	// Loop
 	while ((!m_stopWorkers) && m_socket->is_connected()) {
 		// Read IPC header
-		std::vector<char> header;
-		header.resize(sizeof(ipc_size_t));
-		os::error ec = (os::error) m_socket->read(header.data(), header.size());
+		m_rbuf.resize(sizeof(ipc_size_t));
+		os::error ec =
+			(os::error) m_socket->read(m_rbuf.data(),
+                                       m_rbuf.size(),
+                                       m_rop,
+                                       std::bind(&server_instance::read_callback_init,
+                                                 this,
+                                                 std::placeholders::_1,
+                                                 std::placeholders::_2));
+		std::this_thread::sleep_for(std::chrono::milliseconds(17000));
 
-		ipc_size_t n_size = read_size(header);
-		std::vector<char> buffer;
-		buffer.resize(n_size);
+		// ipc_size_t n_size = read_size(header);
+		// std::vector<char> buffer;
+		// buffer.resize(n_size);
 		
 		// ec = (os::error) m_socket->read(buffer.data(), sizeof(ipc_size_t));
-		ec = (os::error) m_socket->read(buffer.data(), n_size);
+		// ec = (os::error) m_socket->read(buffer.data(), n_size);
 		// std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
-		ipc::message::function_call fnc_call_msg;
-		fnc_call_msg.deserialize(buffer, 0);
+		// ipc::message::function_call fnc_call_msg;
+		// fnc_call_msg.deserialize(buffer, 0);
 
-		// Execute
-		std::vector<ipc::value> proc_rval;
-		std::string proc_error;
-		proc_rval.resize(0);
+		// // Execute
+		// std::vector<ipc::value> proc_rval;
+		// std::string proc_error;
+		// proc_rval.resize(0);
 
-		bool result = m_parent->client_call_function(m_clientId,
-		fnc_call_msg.class_name.value_str, fnc_call_msg.function_name.value_str,
-		fnc_call_msg.arguments, proc_rval, proc_error);
+		// bool result = m_parent->client_call_function(m_clientId,
+		// fnc_call_msg.class_name.value_str, fnc_call_msg.function_name.value_str,
+		// fnc_call_msg.arguments, proc_rval, proc_error);
 
 		// ipc::log("%8llu: Function Call deserialized, class '%.*s' and function '%.*s', %llu arguments.",
 		// fnc_call_msg.uid.value_union.ui64,
@@ -183,7 +190,13 @@ void ipc::server_instance::read_callback_init(os::error ec, size_t size) {
 #ifdef WIN32
 			ec2 = m_socket->read(m_rbuf.data(), m_rbuf.size(), m_rop, std::bind(&server_instance::read_callback_msg, this, _1, _2));
 #elif __APPLE__
-			ec2 = (os::error)m_socket->read(m_rbuf.data(), m_rbuf.size());
+			ec2 = (os::error)m_socket->read(m_rbuf.data(),
+			                                m_rbuf.size(),
+			                                m_rop,
+			                                std::bind(&server_instance::read_callback_msg,
+			                                          this,
+			                                          std::placeholders::_1,
+			                                          std::placeholders::_2));
 #endif
 			if (ec2 != os::error::Pending && ec2 != os::error::Success) {
 				if (ec2 == os::error::Disconnected) {
