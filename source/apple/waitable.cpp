@@ -1,12 +1,12 @@
 #include "async_op.hpp"
 #include "waitable.hpp"
 #include <semaphore.h>
+#include <thread>
 
 os::error os::waitable::wait(waitable *item, std::chrono::nanoseconds timeout) {
 	sem_t *sem           = (sem_t*)item->get_waitable();
 	int64_t ms_timeout = std::chrono::duration_cast<std::chrono::milliseconds>(timeout).count();
 
-wait_retry:
 	auto start = std::chrono::high_resolution_clock::now();
 	if (ms_timeout < 0) {
 		ms_timeout = 0;
@@ -20,10 +20,10 @@ wait_retry:
 		}
 		return os::error::Success;
 	} else {
-		ms_timeout -=
-			std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start)
-				.count();
-		goto wait_retry;
+		std::this_thread::sleep_for(std::chrono::milliseconds(ms_timeout));
+
+		if (sem_trywait(sem) != 0)
+			return os::error::TimedOut;
 	}
 	return os::error::Error;
 }

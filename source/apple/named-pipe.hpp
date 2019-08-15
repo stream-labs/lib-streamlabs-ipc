@@ -34,7 +34,7 @@ namespace os {
 
             uint32_t read(char *buffer, size_t buffer_length, std::shared_ptr<os::async_op> &op, os::async_op_cb_t cb);
 
-			uint32_t write(const char *buffer, size_t buffer_length);
+			uint32_t write(const char *buffer, size_t buffer_length, std::shared_ptr<os::async_op> &op, os::async_op_cb_t cb);
 
             bool is_created();
 

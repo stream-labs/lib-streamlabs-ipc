@@ -38,32 +38,30 @@ void*         g_data = NULL;
 int64_t       g_cbid = NULL;
 
 void ipc::client::worker() {
-// 	os::error ec = os::error::Success;
-// 	std::vector<ipc::value> proc_rval;
-// 	std::cout << "Starting client worker" << std::endl;
-// 	while (m_socket->is_connected() && !m_watcher.stop) {
-// 		std::this_thread::sleep_for(std::chrono::milliseconds(5000));
-// 		std::cout << "Client instance: I'm here" << std::endl;
-		
-// 		const char* outbuf = "Message from the client!";
-// 		ec = (os::error) m_socket->write(outbuf, strlen(outbuf));
+	os::error ec = os::error::Success;
+	std::vector<ipc::value> proc_rval;
 
-// // 		if (!m_rop || !m_rop->is_valid()) {
-// // 			m_watcher.buf.resize(sizeof(ipc_size_t));
-// // #ifdef WIN32
-// // 			ec = m_socket->read(m_watcher.buf.data(), m_watcher.buf.size(), m_rop, std::bind(&client::read_callback_init, this, _1, _2));
-// // #elif __APPLE__
-// // 			// std::cout << "Reading from thread" << std::endl;
-// // 			// ec = (os::error)m_socket->read(m_watcher.buf.data(), m_watcher.buf.size());
-// // #endif
-// // 			// if (ec != os::error::Pending && ec != os::error::Success) {
-// // 			// 	if (ec == os::error::Disconnected) {
-// // 			// 		break;
-// // 			// 	} else {
-// // 			// 		throw std::exception((const std::exception&)"Unexpected error.");
-// // 			// 	}
-// // 			// }
-// // 		}
+	// while (m_socket->is_connected() && !m_watcher.stop) {
+	// 	if (!m_rop || !m_rop->is_valid()) {
+	// 		m_watcher.buf.resize(sizeof(ipc_size_t));
+	// 		// std::this_thread::sleep_for(std::chrono::milliseconds(10000));
+	// 		// std::cout << "client::read start" << std::endl;
+	// 		// (os::error) m_socket->read(m_watcher.buf.data(),
+	// 		// 				           m_watcher.buf.size(),
+	// 		// 				           m_rop,
+	// 		// 				           std::bind(&client::read_callback_init,
+	// 		// 							         this,
+	// 		// 							         std::placeholders::_1,
+	// 		// 							         std::placeholders::_2));
+	// 		// std::cout << "client::read end" << std::endl;
+	// 		// if (ec != os::error::Pending && ec != os::error::Success) {
+	// 		// 	if (ec == os::error::Disconnected) {
+	// 		// 		break;
+	// 		// 	} else {
+	// 		// 		throw std::exception((const std::exception&)"Unexpected error.");
+	// 		// 	}
+	// 		// }
+	// 	}
 
 // // 		// ec = m_rop->wait(std::chrono::milliseconds(0));
 // // 		if (ec == os::error::Success) {
@@ -78,7 +76,7 @@ void ipc::client::worker() {
 // // 				// throw std::exception((const std::exception&)"Error");
 // // 			}
 // // 		}
-// 	}
+	// }
 
 // 	if (!m_socket->is_connected()) {
 // 		std::string test = "test";
@@ -106,12 +104,14 @@ void ipc::client::worker() {
 }
 
 void ipc::client::read_callback_init(os::error ec, size_t size) {
+	std::cout << "read_callback_init - client" << std::endl;
 	os::error ec2 = os::error::Success;
 
 	m_rop->invalidate();
 
 	if (ec == os::error::Success || ec == os::error::MoreData) {
 		ipc_size_t n_size = read_size(m_watcher.buf);
+		// std::cout << "client::read size " << n_size << std::endl;
 #ifdef _DEBUG
 		std::string hex_msg = ipc::vectortohex(m_watcher.buf);
 		ipc::log("(read) ????????: %.*s => %llu", hex_msg.size(), hex_msg.data(), n_size);
@@ -122,6 +122,13 @@ void ipc::client::read_callback_init(os::error ec, size_t size) {
 			ec2 = m_socket->read(m_watcher.buf.data(), m_watcher.buf.size(), m_rop, std::bind(&client::read_callback_msg, this, _1, _2));
 #elif __APPLE__
 			// ec2 = (os::error)m_socket->read(m_watcher.buf.data(), m_watcher.buf.size());
+			ec2 = (os::error) m_socket->read(m_watcher.buf.data(),
+			                                 m_watcher.buf.size(),
+											 m_rop,
+											 std::bind(&client::read_callback_msg,
+											           this,
+													   std::placeholders::_1,
+													   std::placeholders::_2));
 #endif
 			if (ec2 != os::error::Pending && ec2 != os::error::Success) {
 				if (ec2 == os::error::Disconnected) {
@@ -135,6 +142,7 @@ void ipc::client::read_callback_init(os::error ec, size_t size) {
 }
 
 void ipc::client::read_callback_msg(os::error ec, size_t size) {
+	// std::cout << "read_callback_msg - client" << std::endl;
 	std::pair<call_return_t, void*> cb;
 	ipc::message::function_reply fnc_reply_msg;
 
@@ -340,23 +348,24 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
 	ipc::log("(write) %8llu: %.*s", fnc_call_msg.uid.value_union.ui64, hex_msg.size(), hex_msg.data());
 #endif
 #ifdef WIN32
-	ec = m_socket->write(outbuf.data(), outbuf.size(), write_op, nullptr);
-	if (ec != os::error::Success && ec != os::error::Pending) {
-		cancel(cbid);
-		//write_op->cancel();
-		return false;
-	}
-
-	ec = write_op->wait();
-	if (ec != os::error::Success) {
-		cancel(cbid);
-		write_op->cancel();
-		return false;
-	}
+//    ec = m_socket->write(outbuf.data(), outbuf.size(), write_op, nullptr);
+//    if (ec != os::error::Success && ec != os::error::Pending) {
+//        cancel(cbid);
+//        //write_op->cancel();
+//        return false;
+//    }
+//
+//    ec = write_op->wait();
+//    if (ec != os::error::Success) {
+//        cancel(cbid);
+//        write_op->cancel();
+//        return false;
+//    }
 #elif __APPLE__
-	// std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-
-	ec = (os::error) m_socket->write(outbuf.data(), outbuf.size());
+	std::this_thread::sleep_for(std::chrono::milliseconds(200));
+	std::cout << "Client writing" << std::endl;
+	ec = (os::error) m_socket->write(outbuf.data(), outbuf.size(), write_op, nullptr);
+	std::cout << "Client wrote" << std::endl;
 	// if (ec != os::error::Success && ec != os::error::Pending) {
 	// 	cancel(cbid);
 	// 	return false;
@@ -396,9 +405,9 @@ std::vector<ipc::value> ipc::client::call_synchronous_helper(const std::string &
 		// This copies the data off of the reply thread to the main thread.
 		cd.values.reserve(rval.size());
 		std::copy(rval.begin(), rval.end(), std::back_inserter(cd.values));
-
+		std::cout << "Response: " << rval[1].value_str.c_str() << std::endl;
 		cd.called = true;
-		cd.sgn->signal();
+		// cd.sgn->signal();
 	};
 
 	int64_t cbid = 0;

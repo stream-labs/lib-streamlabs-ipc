@@ -3,7 +3,7 @@
 os::apple::named_pipe::named_pipe(os::create_only_t, const std::string name)
 {
     int ret = 0;
-
+    std::cout << "create pipe - start" << std::endl;
     ret = remove(name.c_str());
 
     ret = mkfifo(name.c_str(), S_IRUSR|S_IWUSR);
@@ -13,6 +13,7 @@ os::apple::named_pipe::named_pipe(os::create_only_t, const std::string name)
     
     this->name = name;
     created = true;
+    std::cout << "create pipe - end" << std::endl;
 }
 
 os::apple::named_pipe::named_pipe(os::open_only_t, const std::string name)
@@ -36,18 +37,21 @@ uint32_t os::apple::named_pipe::read(char *buffer, size_t buffer_length, std::sh
     ar->set_callback(cb);
     ar->set_sem(NULL);
 
-    file_descriptor = open(name.c_str(), O_RDONLY);
+    file_descriptor = open(name.c_str(), O_RDONLY);// | O_NDELAY);//| O_NONBLOCK);
+
     if (file_descriptor < 0) {
         std::cout << "Could not open " << strerror(errno) << std::endl;
         return (uint32_t) os::error::Pending;
     }
 
     ret = ::read(file_descriptor, buffer, buffer_length);
-    if (ret < 0) {
+    if (ret < 0 || buffer_length <= 8) {
         std::cout << "Invalid read " << strerror(errno) << std::endl;
         ar->set_valid(true);
+        // close(file_descriptor);
         return (uint32_t) os::error::Pending;
     } else {
+        std::cout << "Successful read " << buffer_length << std::endl;
         ar->call_callback(os::error::Success, buffer_length);
         ar->cancel();
     }
@@ -55,11 +59,12 @@ uint32_t os::apple::named_pipe::read(char *buffer, size_t buffer_length, std::sh
     return (uint32_t) os::error::Success;
 }
 
-uint32_t os::apple::named_pipe::write(const char *buffer, size_t buffer_length)
+uint32_t os::apple::named_pipe::write(const char *buffer, size_t buffer_length, std::shared_ptr<os::async_op> &op, os::async_op_cb_t cb)
 {
+    std::cout << "Writing - start" << std::endl;
     ssize_t ret = 0;
-    file_descriptor = open(name.c_str(), O_WRONLY ); //| O_NONBLOCK);
-
+    file_descriptor = open(name.c_str(), O_WRONLY);// | O_DSYNC); //| O_NONBLOCK);
+    std::cout << "Writing - opened" << std::endl;
     if (file_descriptor < 0) {
         std::cout << "Could not open " << strerror(errno) << std::endl;
         return (uint32_t) os::error::Pending;
@@ -69,6 +74,8 @@ uint32_t os::apple::named_pipe::write(const char *buffer, size_t buffer_length)
         std::cout << "Invalid write " << strerror(errno) << std::endl;
         return (uint32_t) os::error::Error;
     }
+    // close(file_descriptor);
+    std::cout << "Writing - end " << ret << std::endl;
     return (uint32_t) os::error::Success;
 }
 

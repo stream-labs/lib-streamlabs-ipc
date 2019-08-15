@@ -65,101 +65,72 @@ bool ipc::server_instance::is_alive() {
 
 void ipc::server_instance::worker() {
 	os::error ec = os::error::Success;
-
+	std::cout << "Server instance" << std::endl;
 	// Loop
 	while ((!m_stopWorkers) && m_socket->is_connected()) {
-		// Read IPC header
-		m_rbuf.resize(sizeof(ipc_size_t));
-		os::error ec =
-			(os::error) m_socket->read(m_rbuf.data(),
+		if (!m_rop || !m_rop->is_valid()) {
+			m_rbuf.resize(sizeof(ipc_size_t));
+			std::cout << "server::read start" << std::endl;
+			// std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+			ec = (os::error) m_socket->read(m_rbuf.data(),
                                        m_rbuf.size(),
                                        m_rop,
                                        std::bind(&server_instance::read_callback_init,
                                                  this,
                                                  std::placeholders::_1,
                                                  std::placeholders::_2));
-		std::this_thread::sleep_for(std::chrono::milliseconds(17000));
+			std::cout << "server::read end" << std::endl;
 
-		// ipc_size_t n_size = read_size(header);
-		// std::vector<char> buffer;
-		// buffer.resize(n_size);
-		
-		// ec = (os::error) m_socket->read(buffer.data(), sizeof(ipc_size_t));
-		// ec = (os::error) m_socket->read(buffer.data(), n_size);
-		// std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-
-		// ipc::message::function_call fnc_call_msg;
-		// fnc_call_msg.deserialize(buffer, 0);
-
-		// // Execute
-		// std::vector<ipc::value> proc_rval;
-		// std::string proc_error;
-		// proc_rval.resize(0);
-
-		// bool result = m_parent->client_call_function(m_clientId,
-		// fnc_call_msg.class_name.value_str, fnc_call_msg.function_name.value_str,
-		// fnc_call_msg.arguments, proc_rval, proc_error);
-
-		// ipc::log("%8llu: Function Call deserialized, class '%.*s' and function '%.*s', %llu arguments.",
-		// fnc_call_msg.uid.value_union.ui64,
-		// (uint64_t)fnc_call_msg.class_name.value_str.size(), fnc_call_msg.class_name.value_str.c_str(),
-		// (uint64_t)fnc_call_msg.function_name.value_str.size(), fnc_call_msg.function_name.value_str.c_str(),
-		// (uint64_t)fnc_call_msg.arguments.size());
-
-// 		if (!m_rop || !m_rop->is_valid()) {
-// 			size_t testSize = sizeof(ipc_size_t);
-// 			m_rbuf.resize(sizeof(ipc_size_t));
-// #ifdef WIN32
-// 			ec = m_socket->read(m_rbuf.data(), m_rbuf.size(), m_rop, std::bind(&server_instance::read_callback_init, this, _1, _2));
-// #elif __APPLE__
-// 			std::cout << "Reading from the server" << std::endl;
-// 			ec = (os::error)m_socket->read(m_rbuf.data(), m_rbuf.size());
-// #endif
-// 			if (ec != os::error::Pending && ec != os::error::Success) {
-// 				if (ec == os::error::Disconnected) {
-// 					break;
-// 				} else {
-// 					throw std::exception((const std::exception&)"Unexpected error.");
-// 				}
-// 			}
-// 			std::cout << "Reading from the server0" << std::endl;
-// 		}
-// 		if (!m_wop || !m_wop->is_valid()) {
-// 			if (m_write_queue.size() > 0) {
-// 				std::vector<char>& fbuf = m_write_queue.front();
-// 				ipc::make_sendable(m_wbuf, fbuf);
-// #ifdef _DEBUG
-// 				ipc::log("????????: Sending %llu bytes...", m_wbuf.size());
-// 				std::string hex_msg = ipc::vectortohex(m_wbuf);
-// 				ipc::log("????????: %.*s.", hex_msg.size(), hex_msg.data());
-// #endif
-// #ifdef WIN32
-// 				ec = m_socket->write(m_wbuf.data(), m_wbuf.size(), m_wop, std::bind(&server_instance::write_callback, this, _1, _2));
-// #elif __APPLE__
-// 				ec = (os::error) m_socket->write(m_wbuf.data(), m_wbuf.size());
-// #endif
-// 				if (ec != os::error::Pending && ec != os::error::Success) {
-// 					if (ec == os::error::Disconnected) {
-// 						break;
-// 					} else {
-// 						throw std::exception((const std::exception&)"Unexpected error.");
-// 					}
-// 				}
-// 				m_write_queue.pop();
-// 			}
-// 		}
-
+			// if (ec != os::error::Pending && ec != os::error::Success) {
+			// 	if (ec == os::error::Disconnected) {
+			// 		break;
+			// 	} else {
+			// 		throw std::exception((const std::exception&)"Unexpected error.");
+			// 	}
+			// }
+			// std::cout << "Reading from the server0" << std::endl;
+			std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+		}
+		if (!m_wop || !m_wop->is_valid()) {
+			if (m_write_queue.size() > 0) {
+				std::cout << "We have something to write!" << std::endl;
+				std::vector<char>& fbuf = m_write_queue.front();
+				ipc::make_sendable(m_wbuf, fbuf);
+#ifdef _DEBUG
+				ipc::log("????????: Sending %llu bytes...", m_wbuf.size());
+				std::string hex_msg = ipc::vectortohex(m_wbuf);
+				ipc::log("????????: %.*s.", hex_msg.size(), hex_msg.data());
+#endif
+                ec = (os::error)m_socket->write(m_wbuf.data(),
+                                           m_wbuf.size(),
+                                           m_wop, std::bind(&server_instance::write_callback,
+													                    this,
+																		std::placeholders::_1,
+																		std::placeholders::_2));
+                 if (ec != os::error::Pending && ec != os::error::Success) {
+                     if (ec == os::error::Disconnected) {
+                         break;
+                     } else {
+                         throw std::exception((const std::exception&)"Unexpected error.");
+                     }
+                 }
+                 m_write_queue.pop();
+			}
+		}
+		// std::this_thread::sleep_for(std::chrono::milliseconds(20));
+		// std::cout << "Waiting server - start" << std::endl;
 		// os::waitable * waits[] = { m_rop.get(), m_wop.get() };
 		// size_t                      wait_index = -1;
 		// for (size_t idx = 0; idx < 2; idx++) {
 		// 	if (waits[idx] != nullptr) {
+		// 		std::cout << "Waiting on idx " << idx << std::endl;
 		// 		if (waits[idx]->wait(std::chrono::milliseconds(0)) == os::error::Success) {
 		// 			wait_index = idx;
 		// 			break;
 		// 		}
 		// 	}
 		// }
-
+		// std::cout << "Waiting server - mid" << std::endl;
 		// if (wait_index == -1) {
 		// 	os::error code = os::waitable::wait_any(waits, 2, wait_index, std::chrono::milliseconds(20));
 		// 	if (code == os::error::TimedOut) {
@@ -170,11 +141,12 @@ void ipc::server_instance::worker() {
 		// 		throw std::exception((const std::exception&)"Error");
 		// 	}
 		// }
-
+		// std::cout << "Waiting server - end" << std::endl;
 	}
 }
 
 void ipc::server_instance::read_callback_init(os::error ec, size_t size) {
+	std::cout << "read_callback_init - server" << std::endl;
 	os::error ec2 = os::error::Success;
 
 	m_rop->invalidate();
@@ -210,6 +182,7 @@ void ipc::server_instance::read_callback_init(os::error ec, size_t size) {
 }
 
 void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
+	// std::cout << "read_callback_msg - server" << std::endl;
 	/// Processing
 	std::vector<ipc::value> proc_rval;
 	ipc::value proc_tempval;
@@ -330,7 +303,6 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 		}
 	}
 #endif
-
 	// Serialize
 	write_buffer.resize(fnc_reply_msg.size());
 	try {
@@ -367,16 +339,23 @@ void ipc::server_instance::read_callback_msg_write(const std::vector<char>& writ
 #ifdef WIN32
 			os::error ec2 = m_socket->write(m_wbuf.data(), m_wbuf.size(), m_wop, std::bind(&server_instance::write_callback, this, _1, _2));
 #elif __APPLE__
-			os::error ec2 = (os::error)m_socket->write(m_wbuf.data(), m_wbuf.size());
+			std::cout << "server::write start" << std::endl;
+			os::error ec2 = (os::error)m_socket->write(m_wbuf.data(),
+			                                           m_wbuf.size(),
+													   m_wop, std::bind(&server_instance::write_callback,
+													                    this,
+																		std::placeholders::_1,
+																		std::placeholders::_2));
+			std::cout << "server::write end" << std::endl;
 #endif
-			if (ec2 != os::error::Success && ec2 != os::error::Pending) {
-				if (ec2 == os::error::Disconnected) {
-					return;
-				} else {
-					ipc::log("Write buffer operation failed with error %d %p", static_cast<int>(ec2), &write_buffer);
-					throw std::exception((const std::exception&)"Write buffer operation failed");
-				}
-			}
+			// if (ec2 != os::error::Success && ec2 != os::error::Pending) {
+			// 	if (ec2 == os::error::Disconnected) {
+			// 		return;
+			// 	} else {
+			// 		ipc::log("Write buffer operation failed with error %d %p", static_cast<int>(ec2), &write_buffer);
+			// 		throw std::exception((const std::exception&)"Write buffer operation failed");
+			// 	}
+			// }
 		} else {
 			m_write_queue.push(std::move(write_buffer));
 		}
