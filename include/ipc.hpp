@@ -22,10 +22,11 @@
 #include <vector>
 #include <functional>
 #include <stdarg.h>
+
 #ifdef _DEBUG
 #define TRACE_IPC_ENABLED
 #endif 
-#define TRACE_IPC_ENABLED
+
 
 namespace ipc {
 	typedef uint64_t ipc_size_t;
