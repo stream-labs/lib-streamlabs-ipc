@@ -73,7 +73,7 @@ void ipc::server_instance::worker() {
 			if (m_write_queue.size() > 0) {
 				std::vector<char>& fbuf = m_write_queue.front();
 				ipc::make_sendable(m_wbuf, fbuf);
-#ifdef _DEBUG
+#ifdef TRACE_IPC_ENABLED
 				ipc::log("????????: Sending %llu bytes...", m_wbuf.size());
 				std::string hex_msg = ipc::vectortohex(m_wbuf);
 				ipc::log("????????: %.*s.", hex_msg.size(), hex_msg.data());
@@ -120,7 +120,7 @@ void ipc::server_instance::read_callback_init(os::error ec, size_t size) {
 
 	if (ec == os::error::Success || ec == os::error::MoreData) {
 		ipc_size_t n_size = read_size(m_rbuf);
-#ifdef _DEBUG
+#ifdef TRACE_IPC_ENABLED
 		std::string hex_msg = ipc::vectortohex(m_rbuf);
 		ipc::log("????????: %.*s => %llu", hex_msg.size(), hex_msg.data(), n_size);
 #endif
@@ -148,7 +148,7 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 	ipc::message::function_call fnc_call_msg;
 	ipc::message::function_reply fnc_reply_msg;
 
-#ifdef _DEBUG
+#ifdef TRACE_IPC_ENABLED
 	{
 		ipc::log("????????: read_callback_msg %lld %llu", (int64_t)ec, size);
 		std::string hex_msg = ipc::vectortohex(m_rbuf);
@@ -162,7 +162,7 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 
 	bool success = false;
 
-#ifdef _DEBUG
+#ifdef TRACE_IPC_ENABLED
 	ipc::log("????????: Authenticated Client, attempting deserialize of Function Call message.");
 #endif
 
@@ -173,7 +173,7 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 		return;
 	}
 
-#ifdef _DEBUG
+#ifdef TRACE_IPC_ENABLED
 	ipc::log("%8llu: Function Call deserialized, class '%.*s' and function '%.*s', %llu arguments.",
 		fnc_call_msg.uid.value_union.ui64,
 		(uint64_t)fnc_call_msg.class_name.value_str.size(), fnc_call_msg.class_name.value_str.c_str(),
@@ -223,7 +223,7 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 		fnc_reply_msg.error = ipc::value(proc_error);
 	}
 
-#ifdef _DEBUG
+#ifdef TRACE_IPC_ENABLED
 	ipc::log("%8llu: FunctionCall Execute Complete, %llu return values",
 		fnc_call_msg.uid.value_union.ui64, (uint64_t)fnc_reply_msg.values.size());
 	for (size_t idx = 0; idx < fnc_reply_msg.values.size(); idx++) {
@@ -270,7 +270,7 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 		return;
 	}
 
-#ifdef _DEBUG
+#ifdef TRACE_IPC_ENABLED
 	{
 		ipc::log(
 		    "%8llu: Function Reply serialized, %llu bytes.",
@@ -288,7 +288,7 @@ void ipc::server_instance::read_callback_msg_write(const std::vector<char>& writ
 	if (write_buffer.size() != 0) {
 		if ((!m_wop || !m_wop->is_valid()) && (m_write_queue.size() == 0)) {
 			ipc::make_sendable(m_wbuf, write_buffer);
-#ifdef _DEBUG
+#ifdef TRACE_IPC_ENABLED
 			ipc::log("????????: Sending %llu bytes...", m_wbuf.size());
 			std::string hex_msg = ipc::vectortohex(m_wbuf);
 			ipc::log("????????: %.*s.", hex_msg.size(), hex_msg.data());
@@ -306,7 +306,7 @@ void ipc::server_instance::read_callback_msg_write(const std::vector<char>& writ
 			m_write_queue.push(std::move(write_buffer));
 		}
 	} else {
-#ifdef _DEBUG
+#ifdef TRACE_IPC_ENABLED
 		ipc::log("????????: No Output, continuing as if nothing happened.");
 #endif
 		m_rop->invalidate();
