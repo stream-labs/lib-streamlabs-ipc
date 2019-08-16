@@ -1,8 +1,11 @@
 #ifndef OS_APPLE_NAMED_PIPE_HPP
 #define OS_APPLE_NAMED_PIPE_HPP
 
+#include <stdlib.h>
+#include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <signal.h>
 #include <string>
 #include <memory>
 #include <errno.h>
@@ -11,7 +14,8 @@
 #include <unistd.h>
 #include <string>
 #include <thread>
-
+#include <aio.h>
+#include <unistd.h>
 #include "tags.hpp"
 #include "error.hpp"
 #include "semaphore.hpp"

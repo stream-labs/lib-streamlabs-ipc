@@ -69,16 +69,16 @@ void ipc::server_instance::worker() {
 	// Loop
 	while ((!m_stopWorkers) && m_socket->is_connected()) {
 		// Read IPC header
-		m_rbuf.resize(sizeof(ipc_size_t));
-		os::error ec =
-			(os::error) m_socket->read(m_rbuf.data(),
+        m_rbuf.resize(sizeof(ipc_size_t));
+        ec =
+            (os::error) m_socket->read(m_rbuf.data(),
                                        m_rbuf.size(),
                                        m_rop,
                                        std::bind(&server_instance::read_callback_init,
                                                  this,
                                                  std::placeholders::_1,
                                                  std::placeholders::_2));
-		std::this_thread::sleep_for(std::chrono::milliseconds(17000));
+//        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
 		// ipc_size_t n_size = read_size(header);
 		// std::vector<char> buffer;
@@ -172,9 +172,11 @@ void ipc::server_instance::worker() {
 		// }
 
 	}
+    std::cout << "End of worker in server instance" << std::endl;
 }
 
 void ipc::server_instance::read_callback_init(os::error ec, size_t size) {
+//    std::cout << "server - read_callback_init" << std::endl;
 	os::error ec2 = os::error::Success;
 
 	m_rop->invalidate();
@@ -210,6 +212,7 @@ void ipc::server_instance::read_callback_init(os::error ec, size_t size) {
 }
 
 void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
+    std::cout << "server - read_callback_msg" << std::endl;
 	/// Processing
 	std::vector<ipc::value> proc_rval;
 	ipc::value proc_tempval;
@@ -367,6 +370,7 @@ void ipc::server_instance::read_callback_msg_write(const std::vector<char>& writ
 #ifdef WIN32
 			os::error ec2 = m_socket->write(m_wbuf.data(), m_wbuf.size(), m_wop, std::bind(&server_instance::write_callback, this, _1, _2));
 #elif __APPLE__
+            std::cout << "server - read_callback_msg_write" << std::endl;
 			os::error ec2 = (os::error)m_socket->write(m_wbuf.data(), m_wbuf.size());
 #endif
 			if (ec2 != os::error::Success && ec2 != os::error::Pending) {

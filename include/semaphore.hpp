@@ -23,6 +23,7 @@
 #include "tags.hpp"
 #include "waitable.hpp"
 #include <memory>
+#include <mutex>
 
 namespace os {
 	class semaphore : public os::waitable {

@@ -23,7 +23,7 @@
 
 void ipc::server::watcher() {
 	os::error ec;
-
+    std::cout << "server - start watcher" << std::endl;
 	struct pending_accept {
 		server* parent;
 		std::shared_ptr<os::async_op> op;
@@ -36,7 +36,7 @@ void ipc::server::watcher() {
 
 		void accept_client_cb(os::error ec, size_t length) {
 			if (ec == os::error::Connected) {
-				
+                std::cout << "Spawning a new client" << std::endl;
 				// A client has connected, so spawn a new client.
 				parent->spawn_client(socket);
 			}
@@ -127,6 +127,7 @@ void ipc::server::kill_client(std::shared_ptr<os::windows::named_pipe> socket) {
 
 #ifdef __APPLE__
 void ipc::server::spawn_client(std::shared_ptr<os::apple::named_pipe> socket) {
+    std::cout << "Server - spawn_client" << std::endl;
 	std::unique_lock<std::mutex> ul(m_clients_mtx);
 
 	std::shared_ptr<ipc::server_instance> client = std::make_shared<ipc::server_instance>(this, socket);
@@ -175,6 +176,7 @@ void ipc::server::initialize(std::string socketPath) {
 		}
 #elif __APPLE__
 		std::unique_lock<std::mutex> ul(m_sockets_mtx);
+        std::cout << "Server create socket" << std::endl;
 		m_sockets.insert(m_sockets.end(),
 			std::make_shared<os::apple::named_pipe>(os::create_only, socketPath));
 #endif
