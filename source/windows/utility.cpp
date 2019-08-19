@@ -17,6 +17,7 @@
 ******************************************************************************/
 
 #include "utility.hpp"
+#include "ipc.hpp"
 
 os::error os::windows::utility::translate_error(DWORD error_code) {
 	switch (error_code) {
@@ -37,6 +38,8 @@ os::error os::windows::utility::translate_error(DWORD error_code) {
 		// !FIXME! Should this have its own error code?
 		return os::error::TooMuchData;
 	}
+
+	ipc::log("WriteFileEx failed with getErrorCode %d", error_code);
 
 	return os::error::Error;
 }
