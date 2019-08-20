@@ -46,21 +46,28 @@ void ipc::client::worker() {
           if (!m_rop || !m_rop->is_valid()) {
               m_watcher.buf.resize(sizeof(ipc_size_t));
 //              std::this_thread::sleep_for(std::chrono::milliseconds(100000));
-
-//              ec = (os::error) m_socket->read(m_watcher.buf.data(),
-//                                  m_watcher.buf.size(),
-//                                  m_rop, std::bind(&client::read_callback_init,
-//                                                   this,
-//                                                   std::placeholders::_1,
-//                                                   std::placeholders::_2));
-//
-//               if (ec != os::error::Pending && ec != os::error::Success) {
-//                   if (ec == os::error::Disconnected) {
-//                       break;
-//                   } else {
-//                       throw std::exception((const std::exception&)"Unexpected error.");
-//                   }
-//               }
+			// std::cout << "Reader semaphore wait - start" << std::endl;
+			if (sem_wait(m_reader_sem) < 0) {
+				std::cout << "Failed to wait for the semaphore: " << strerror(errno) << std::endl;
+				break;
+			}
+			// std::cout << "Reader semaphore wait - end" << std::endl;
+			std::cout << "client - read" << std::endl;
+             ec = (os::error) m_socket->read(m_watcher.buf.data(),
+                                 m_watcher.buf.size(),
+                                 m_rop, std::bind(&client::read_callback_init,
+                                                  this,
+                                                  std::placeholders::_1,
+                                                  std::placeholders::_2), true);
+			// std::cout << "Writer semaphore post - start - can write" << std::endl;
+			
+//              if (ec != os::error::Pending && ec != os::error::Success) {
+//                  if (ec == os::error::Disconnected) {
+//                      break;
+//                  } else {
+//                      throw std::exception((const std::exception&)"Unexpected error.");
+//                  }
+//              }
           }
 
  //         // ec = m_rop->wait(std::chrono::milliseconds(0));
@@ -104,7 +111,7 @@ void ipc::client::worker() {
 }
 
 void ipc::client::read_callback_init(os::error ec, size_t size) {
-//    std::cout << "client - read_callback_init" << std::endl;
+   std::cout << "client - read_callback_init" << std::endl;
 	os::error ec2 = os::error::Success;
 
 	m_rop->invalidate();
@@ -117,10 +124,16 @@ void ipc::client::read_callback_init(os::error ec, size_t size) {
 #endif
 		if (n_size != 0) {
 			m_watcher.buf.resize(n_size);
+			std::cout << "client read size: " << n_size << std::endl;
 #ifdef WIN32
 			ec2 = m_socket->read(m_watcher.buf.data(), m_watcher.buf.size(), m_rop, std::bind(&client::read_callback_msg, this, _1, _2));
 #elif __APPLE__
-			// ec2 = (os::error)m_socket->read(m_watcher.buf.data(), m_watcher.buf.size());
+             ec = (os::error) m_socket->read(m_watcher.buf.data(),
+                                 m_watcher.buf.size(),
+                                 m_rop, std::bind(&client::read_callback_msg,
+                                                  this,
+                                                  std::placeholders::_1,
+                                                  std::placeholders::_2), false);
 #endif
 			if (ec2 != os::error::Pending && ec2 != os::error::Success) {
 				if (ec2 == os::error::Disconnected) {
@@ -134,7 +147,7 @@ void ipc::client::read_callback_init(os::error ec, size_t size) {
 }
 
 void ipc::client::read_callback_msg(os::error ec, size_t size) {
-//    std::cout << "client - read_callback_msg" << std::endl;
+   std::cout << "client - read_callback_msg" << std::endl;
 	std::pair<call_return_t, void*> cb;
 	ipc::message::function_reply fnc_reply_msg;
 
@@ -224,6 +237,8 @@ void ipc::client::read_callback_msg(os::error ec, size_t size) {
 #ifdef _DEBUG
 	ipc::log("(read) %8llu: Done.", fnc_reply_msg.uid.value_union.ui64);
 #endif
+	std::cout << "release semaphore" << std::endl;
+	sem_post(m_writer_sem);
 }
 
 ipc::client::client(std::string socketPath) {
@@ -233,6 +248,15 @@ ipc::client::client(std::string socketPath) {
 	m_socket = std::make_unique<os::apple::named_pipe>(os::open_only, socketPath);
 #endif
 	m_watcher.stop   = false;
+
+	sem_unlink(reader_sem_name.c_str());
+	remove(reader_sem_name.c_str());
+	m_reader_sem = sem_open(reader_sem_name.c_str(), O_CREAT | O_EXCL, 0644, 0);
+
+	sem_unlink(writer_sem_name.c_str());
+	remove(writer_sem_name.c_str());
+	m_writer_sem = sem_open(writer_sem_name.c_str(), O_CREAT | O_EXCL, 0644, 1);
+	
 	m_watcher.worker = std::thread(std::bind(&client::worker, this));
 }
 
@@ -241,6 +265,8 @@ ipc::client::~client() {
 	if (m_watcher.worker.joinable()) {
 		m_watcher.worker.join();
 	}
+	sem_close(m_reader_sem);
+	sem_close(m_writer_sem);
 	m_socket = nullptr;
 }
 
@@ -354,10 +380,26 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
 		return false;
 	}
 #elif __APPLE__
-    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-    std::cout << "client writing - start" << std::endl;
+    // std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+	// std::cout << "Writer semaphore wait - start" << std::endl;
+	std::cout << "Decrement semaphore" << std::endl;
+	// sem_wait(m_writer_sem);
+
+	// if (sem_wait(m_writer_sem) < 0) {
+	// 	std::cout << "Failed to wait for the semaphore: " << strerror(errno) << std::endl;
+	// 	// return;
+	// }
+	int ret = 0;
+	do {
+	    ret = sem_wait(m_writer_sem);
+	}
+ 	while (ret == -1 && errno == EINTR);
+
+	// std::cout << "Writer semaphore wait - end " << std::endl;
+	std::cout << "client - write " << std::endl;
     ec = (os::error) m_socket->write(outbuf.data(), outbuf.size());
-    std::cout << "client writing - end" << std::endl;
+	// std::cout << "Reader semaphore post - start - can read" << std::endl;
+	sem_post(m_reader_sem);
 	// if (ec != os::error::Success && ec != os::error::Pending) {
 	// 	cancel(cbid);
 	// 	return false;
@@ -396,10 +438,10 @@ std::vector<ipc::value> ipc::client::call_synchronous_helper(const std::string &
 
 		// This copies the data off of the reply thread to the main thread.
 		cd.values.reserve(rval.size());
-		std::copy(rval.begin(), rval.end(), std::back_inserter(cd.values));
-
+		// std::copy(rval.begin(), rval.end(), std::back_inserter(cd.values));
+		std::cout << "Response from the server " << rval[1].value_str.c_str() << std::endl;
 		cd.called = true;
-		cd.sgn->signal();
+//        cd.sgn->signal();
 	};
 
 	int64_t cbid = 0;

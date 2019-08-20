@@ -25,6 +25,7 @@
 #include <queue>
 #include <thread>
 #include <vector>
+#include <semaphore.h>
 
 #ifdef WIN32
 #include "../source/windows/named-pipe.hpp"
@@ -56,6 +57,11 @@ namespace ipc {
 			bool stop = false;
 			std::vector<char> buf;
 		} m_watcher;
+
+		std::string reader_sem_name = "semaphore-client-reader";
+		std::string writer_sem_name = "semaphore-client-writer";
+		sem_t *m_reader_sem;
+		sem_t *m_writer_sem;
 		
 		void worker();
 		void read_callback_init(os::error ec, size_t size);

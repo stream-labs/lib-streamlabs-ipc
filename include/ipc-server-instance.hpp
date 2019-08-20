@@ -29,6 +29,7 @@
 #elif __APPLE__
 #include "../source/apple/named-pipe.hpp"
 #endif
+#include <semaphore.h>
 
 namespace ipc {
 	class server;
@@ -50,6 +51,11 @@ namespace ipc {
 		private: // Threading
 		bool m_stopWorkers = false;
 		std::thread m_worker;
+
+		std::string reader_sem_name = "semaphore-server-reader";
+		std::string writer_sem_name = "semaphore-server-writer";
+		sem_t *m_reader_sem;
+		sem_t *m_writer_sem;
 
 		void worker();
 		void read_callback_init(os::error ec, size_t size);

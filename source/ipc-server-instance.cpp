@@ -42,6 +42,15 @@ ipc::server_instance::server_instance(ipc::server* owner, std::shared_ptr<os::ap
 	m_clientId = 0;
 
 	m_stopWorkers = false;
+
+	sem_unlink(reader_sem_name.c_str());
+	remove(reader_sem_name.c_str());
+	m_reader_sem = sem_open(reader_sem_name.c_str(), O_CREAT | O_EXCL, 0644, 1);
+
+	sem_unlink(writer_sem_name.c_str());
+	remove(writer_sem_name.c_str());
+	m_writer_sem = sem_open(writer_sem_name.c_str(), O_CREAT | O_EXCL, 0644, 0);
+
 	m_worker = std::thread(std::bind(&server_instance::worker, this));
 }
 
@@ -51,6 +60,9 @@ ipc::server_instance::~server_instance() {
 	m_stopWorkers = true;
 	if (m_worker.joinable())
 		m_worker.join();
+
+	sem_close(m_reader_sem);
+	sem_close(m_writer_sem);
 }
 
 bool ipc::server_instance::is_alive() {
@@ -70,6 +82,11 @@ void ipc::server_instance::worker() {
 	while ((!m_stopWorkers) && m_socket->is_connected()) {
 		// Read IPC header
         m_rbuf.resize(sizeof(ipc_size_t));
+		if (sem_wait(m_reader_sem) < 0) {
+			std::cout << "Failed to wait for the semaphore: " << strerror(errno) << std::endl;
+			break;
+		}
+		std::cout << "Read" << std::endl;
         ec =
             (os::error) m_socket->read(m_rbuf.data(),
                                        m_rbuf.size(),
@@ -77,34 +94,8 @@ void ipc::server_instance::worker() {
                                        std::bind(&server_instance::read_callback_init,
                                                  this,
                                                  std::placeholders::_1,
-                                                 std::placeholders::_2));
-//        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-
-		// ipc_size_t n_size = read_size(header);
-		// std::vector<char> buffer;
-		// buffer.resize(n_size);
-		
-		// ec = (os::error) m_socket->read(buffer.data(), sizeof(ipc_size_t));
-		// ec = (os::error) m_socket->read(buffer.data(), n_size);
-		// std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-
-		// ipc::message::function_call fnc_call_msg;
-		// fnc_call_msg.deserialize(buffer, 0);
-
-		// // Execute
-		// std::vector<ipc::value> proc_rval;
-		// std::string proc_error;
-		// proc_rval.resize(0);
-
-		// bool result = m_parent->client_call_function(m_clientId,
-		// fnc_call_msg.class_name.value_str, fnc_call_msg.function_name.value_str,
-		// fnc_call_msg.arguments, proc_rval, proc_error);
-
-		// ipc::log("%8llu: Function Call deserialized, class '%.*s' and function '%.*s', %llu arguments.",
-		// fnc_call_msg.uid.value_union.ui64,
-		// (uint64_t)fnc_call_msg.class_name.value_str.size(), fnc_call_msg.class_name.value_str.c_str(),
-		// (uint64_t)fnc_call_msg.function_name.value_str.size(), fnc_call_msg.function_name.value_str.c_str(),
-		// (uint64_t)fnc_call_msg.arguments.size());
+                                                 std::placeholders::_2), true);
+		std::cout << "End Read" << std::endl;
 
 // 		if (!m_rop || !m_rop->is_valid()) {
 // 			size_t testSize = sizeof(ipc_size_t);
@@ -176,13 +167,14 @@ void ipc::server_instance::worker() {
 }
 
 void ipc::server_instance::read_callback_init(os::error ec, size_t size) {
-//    std::cout << "server - read_callback_init" << std::endl;
+    std::cout << "server - read_callback_init" << std::endl;
 	os::error ec2 = os::error::Success;
 
 	m_rop->invalidate();
 
 	if (ec == os::error::Success || ec == os::error::MoreData) {
 		ipc_size_t n_size = read_size(m_rbuf);
+        std::cout << "Size IPC message: " << n_size << std::endl;
 #ifdef _DEBUG
 		std::string hex_msg = ipc::vectortohex(m_rbuf);
 		ipc::log("????????: %.*s => %llu", hex_msg.size(), hex_msg.data(), n_size);
@@ -198,7 +190,7 @@ void ipc::server_instance::read_callback_init(os::error ec, size_t size) {
 			                                std::bind(&server_instance::read_callback_msg,
 			                                          this,
 			                                          std::placeholders::_1,
-			                                          std::placeholders::_2));
+			                                          std::placeholders::_2), false);
 #endif
 			if (ec2 != os::error::Pending && ec2 != os::error::Success) {
 				if (ec2 == os::error::Disconnected) {
@@ -354,11 +346,13 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 		ipc::log("%8llu: %.*s.", fnc_call_msg.uid.value_union.ui64, hex_msg.size(), hex_msg.data());
 	}
 #endif
+	sem_post(m_writer_sem);
 	read_callback_msg_write(write_buffer);
 }
 
 void ipc::server_instance::read_callback_msg_write(const std::vector<char>& write_buffer)
 {
+	std::cout << "read_callback_msg_write" << std::endl;
 	if (write_buffer.size() != 0) {
 		if ((!m_wop || !m_wop->is_valid()) && (m_write_queue.size() == 0)) {
 			ipc::make_sendable(m_wbuf, write_buffer);
@@ -370,8 +364,11 @@ void ipc::server_instance::read_callback_msg_write(const std::vector<char>& writ
 #ifdef WIN32
 			os::error ec2 = m_socket->write(m_wbuf.data(), m_wbuf.size(), m_wop, std::bind(&server_instance::write_callback, this, _1, _2));
 #elif __APPLE__
-            std::cout << "server - read_callback_msg_write" << std::endl;
+			sem_wait(m_writer_sem);
+			std::cout << "Server writing" << std::endl;
 			os::error ec2 = (os::error)m_socket->write(m_wbuf.data(), m_wbuf.size());
+			std::cout << "End write" << std::endl;
+			sem_post(m_reader_sem);
 #endif
 			if (ec2 != os::error::Success && ec2 != os::error::Pending) {
 				if (ec2 == os::error::Disconnected) {
