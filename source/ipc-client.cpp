@@ -44,7 +44,7 @@ void ipc::client::worker() {
     
      while (m_socket->is_connected() && !m_watcher.stop) {
           if (!m_rop || !m_rop->is_valid()) {
-              m_watcher.buf.resize(sizeof(ipc_size_t));
+              m_watcher.buf.resize(255);
 //              std::this_thread::sleep_for(std::chrono::milliseconds(100000));
 			// std::cout << "Reader semaphore wait - start" << std::endl;
 			if (sem_wait(m_reader_sem) < 0) {
@@ -55,7 +55,7 @@ void ipc::client::worker() {
 			std::cout << "client - read" << std::endl;
              ec = (os::error) m_socket->read(m_watcher.buf.data(),
                                  m_watcher.buf.size(),
-                                 m_rop, std::bind(&client::read_callback_init,
+                                 m_rop, std::bind(&client::read_callback_msg,
                                                   this,
                                                   std::placeholders::_1,
                                                   std::placeholders::_2), true);
@@ -360,7 +360,7 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
 	ipc::log("(write) %8llu: %.*s", fnc_call_msg.uid.value_union.ui64, hex_msg.size(), hex_msg.data());
 #endif
 
-	ipc::make_sendable(outbuf, buf);
+	// ipc::make_sendable(outbuf, buf);
 #ifdef _DEBUG
 	hex_msg = ipc::vectortohex(outbuf);
 	ipc::log("(write) %8llu: %.*s", fnc_call_msg.uid.value_union.ui64, hex_msg.size(), hex_msg.data());
@@ -397,8 +397,8 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
 	std::cout << "Decremented semaphore" << std::endl;
 
 	// std::cout << "Writer semaphore wait - end " << std::endl;
-	std::cout << "client - write " << std::endl;
-    ec = (os::error) m_socket->write(outbuf.data(), outbuf.size());
+	std::cout << "client - write " << buf.size() << std::endl;
+    ec = (os::error) m_socket->write(buf.data(), buf.size());
 	std::cout << "client - wrote " << std::endl;
 	// std::cout << "Reader semaphore post - start - can read" << std::endl;
 	sem_post(m_reader_sem);

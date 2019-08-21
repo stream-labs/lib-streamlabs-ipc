@@ -81,7 +81,7 @@ void ipc::server_instance::worker() {
 	// Loop
 	while ((!m_stopWorkers) && m_socket->is_connected()) {
 		// Read IPC header
-        m_rbuf.resize(sizeof(ipc_size_t));
+        m_rbuf.resize(255);
 		if (sem_wait(m_reader_sem) < 0) {
 			std::cout << "Failed to wait for the semaphore: " << strerror(errno) << std::endl;
 			break;
@@ -91,7 +91,7 @@ void ipc::server_instance::worker() {
             (os::error) m_socket->read(m_rbuf.data(),
                                        m_rbuf.size(),
                                        m_rop,
-                                       std::bind(&server_instance::read_callback_init,
+                                       std::bind(&server_instance::read_callback_msg,
                                                  this,
                                                  std::placeholders::_1,
                                                  std::placeholders::_2), true);
@@ -355,7 +355,7 @@ void ipc::server_instance::read_callback_msg_write(const std::vector<char>& writ
 	std::cout << "read_callback_msg_write" << std::endl;
 	if (write_buffer.size() != 0) {
 		if ((!m_wop || !m_wop->is_valid()) && (m_write_queue.size() == 0)) {
-			ipc::make_sendable(m_wbuf, write_buffer);
+			// ipc::make_sendable(m_wbuf, write_buffer);
 #ifdef _DEBUG
 			ipc::log("????????: Sending %llu bytes...", m_wbuf.size());
 			std::string hex_msg = ipc::vectortohex(m_wbuf);
@@ -367,7 +367,7 @@ void ipc::server_instance::read_callback_msg_write(const std::vector<char>& writ
 			std::cout << "start waiting" << std::endl;
 			sem_wait(m_writer_sem);
 			std::cout << "Server writing" << std::endl;
-			os::error ec2 = (os::error)m_socket->write(m_wbuf.data(), m_wbuf.size());
+			os::error ec2 = (os::error)m_socket->write(write_buffer.data(), write_buffer.size());
 			std::cout << "End write" << std::endl;
 			sem_post(m_reader_sem);
 #endif

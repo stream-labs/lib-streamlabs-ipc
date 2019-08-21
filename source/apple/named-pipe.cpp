@@ -74,10 +74,10 @@ uint32_t os::apple::named_pipe::read(char *buffer, size_t buffer_length, std::sh
 
     std::cout << "Read #####" << ret << std::endl;
 
+    close(file_descriptor);
     err = os::error::Success;
     ar->call_callback(err, buffer_length);
     ar->cancel();
-    close(file_descriptor);
 
 end:
     return (uint32_t) err;
