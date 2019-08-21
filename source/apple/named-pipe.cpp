@@ -47,9 +47,7 @@ void write_cb (int sig) {
 uint32_t os::apple::named_pipe::read(char *buffer, size_t buffer_length, std::shared_ptr<os::async_op> &op, os::async_op_cb_t cb, bool is_blocking)
 {
     os::error err = os::error::Error;
-    struct aiocb *aio = NULL;
-    const int signalNumber = SIGIO;
-    struct sigaction sa;
+    int ret = 0;
 
     // Set callback
     std::shared_ptr<os::apple::async_request> ar = std::static_pointer_cast<os::apple::async_request>(op);
@@ -68,101 +66,42 @@ uint32_t os::apple::named_pipe::read(char *buffer, size_t buffer_length, std::sh
         std::cout << "Could not open " << strerror(errno) << std::endl;
         goto end;
     }
-    aio = (struct aiocb*)malloc(sizeof(struct aiocb));
-    memset(aio, 0x0, sizeof(struct aiocb));
 
-    aio->aio_fildes = file_descriptor;
-    aio->aio_buf = buffer;
-    aio->aio_nbytes = buffer_length;
-    aio->aio_reqprio = 0;
-
-    aio->aio_sigevent.sigev_notify = SIGEV_SIGNAL;
-    aio->aio_sigevent.sigev_signo = signalNumber;
-    aio->aio_sigevent.sigev_value.sival_ptr = &aio;
-
-
-    memset(&sa, 0, sizeof(sa));
-
-    sa.sa_handler = read_cb;
-    sa.sa_flags = SA_SIGINFO;
-    sigemptyset(&sa.sa_mask);
-
-    if (sigaction(signalNumber, &sa, NULL) == -1) {
-        std::cout << "Sigaction failed" << std::endl;
-
+    do {
+        ret = ::read(file_descriptor, buffer, buffer_length);
     }
+    while ( ret <= 0 && is_blocking);
 
-    // if (aio_read(aio) != 0) {
-    //     std::cout << "Invalid read " << strerror(errno) << std::endl;
-    //     ar->set_valid(true);
-    //     goto end;
-    // }
-    
-    while (aio_read(aio) != 0) {
-        
-    }
+    std::cout << "Read #####" << ret << std::endl;
 
-    std::cout << "Read " << buffer_length << std::endl;
-
-    while (aio_error (aio) == EINPROGRESS);
-    
     err = os::error::Success;
     ar->call_callback(err, buffer_length);
     ar->cancel();
+    close(file_descriptor);
 
 end:
-    close(file_descriptor);
-    // std::cout << "Read successful" << std::endl;
     return (uint32_t) err;
 }
 
 uint32_t os::apple::named_pipe::write(const char *buffer, size_t buffer_length)
 {
     os::error err = os::error::Error;
-    struct aiocb *aio = NULL;
-    const int signalNumber = SIGIO;
-    struct sigaction sa;
+    int ret = 0;
 
     file_descriptor = open(name.c_str(), O_WRONLY | O_DSYNC);
     if (file_descriptor < 0) {
         std::cout << "Could not open " << strerror(errno) << std::endl;
         goto end;
     }
-    
- 
-    aio = (struct aiocb*)malloc(sizeof(struct aiocb));
-    memset(aio, 0x0, sizeof(struct aiocb));
-    
-    aio->aio_fildes = file_descriptor;
-    aio->aio_buf = (void *) buffer;
-    aio->aio_nbytes = buffer_length;
-    aio->aio_reqprio = 0;
-    
-    aio->aio_sigevent.sigev_notify = SIGEV_SIGNAL;
-    aio->aio_sigevent.sigev_signo = signalNumber;
-    aio->aio_sigevent.sigev_value.sival_ptr = &aio;
-    
-    memset(&sa, 0, sizeof(sa));
-    sa.sa_handler = write_cb;
-    sa.sa_flags = SA_SIGINFO;
-    sigemptyset(&sa.sa_mask);
-    
-    if (sigaction(signalNumber, &sa, NULL) == -1) {
-        std::cout << "Sigaction failed" << std::endl;
-    }
-    
-    if (aio_write(aio) != 0) {
-        std::cout << "Invalid write " << strerror(errno) << std::endl;
-//        ar->set_valid(true);
-        goto end;
-    }
-    
-    while (aio_error (aio) == EINPROGRESS);
-    err = os::error::Success;
 
+    do {
+        ret = ::write(file_descriptor, buffer, buffer_length);
+    }
+    while ( ret < 0 );
+    std::cout << "Write " << ret << std::endl;
+    err = os::error::Success;
 end:
     close(file_descriptor);
-    // std::cout << "Write successful" << std::endl;
     return (uint32_t) err;
 }
 

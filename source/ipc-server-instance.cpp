@@ -364,20 +364,21 @@ void ipc::server_instance::read_callback_msg_write(const std::vector<char>& writ
 #ifdef WIN32
 			os::error ec2 = m_socket->write(m_wbuf.data(), m_wbuf.size(), m_wop, std::bind(&server_instance::write_callback, this, _1, _2));
 #elif __APPLE__
+			std::cout << "start waiting" << std::endl;
 			sem_wait(m_writer_sem);
 			std::cout << "Server writing" << std::endl;
 			os::error ec2 = (os::error)m_socket->write(m_wbuf.data(), m_wbuf.size());
 			std::cout << "End write" << std::endl;
 			sem_post(m_reader_sem);
 #endif
-			if (ec2 != os::error::Success && ec2 != os::error::Pending) {
-				if (ec2 == os::error::Disconnected) {
-					return;
-				} else {
-					ipc::log("Write buffer operation failed with error %d %p", static_cast<int>(ec2), &write_buffer);
-					throw std::exception((const std::exception&)"Write buffer operation failed");
-				}
-			}
+//            if (ec2 != os::error::Success && ec2 != os::error::Pending) {
+//                if (ec2 == os::error::Disconnected) {
+//                    return;
+//                } else {
+//                    ipc::log("Write buffer operation failed with error %d %p", static_cast<int>(ec2), &write_buffer);
+//                    throw std::exception((const std::exception&)"Write buffer operation failed");
+//                }
+//            }
 		} else {
 			m_write_queue.push(std::move(write_buffer));
 		}

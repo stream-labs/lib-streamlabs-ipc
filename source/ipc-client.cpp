@@ -382,7 +382,6 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
 #elif __APPLE__
     // std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 	// std::cout << "Writer semaphore wait - start" << std::endl;
-	std::cout << "Decrement semaphore" << std::endl;
 	// sem_wait(m_writer_sem);
 
 	// if (sem_wait(m_writer_sem) < 0) {
@@ -395,9 +394,12 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
 	}
  	while (ret == -1 && errno == EINTR);
 
+	std::cout << "Decremented semaphore" << std::endl;
+
 	// std::cout << "Writer semaphore wait - end " << std::endl;
 	std::cout << "client - write " << std::endl;
     ec = (os::error) m_socket->write(outbuf.data(), outbuf.size());
+	std::cout << "client - wrote " << std::endl;
 	// std::cout << "Reader semaphore post - start - can read" << std::endl;
 	sem_post(m_reader_sem);
 	// if (ec != os::error::Success && ec != os::error::Pending) {
@@ -418,6 +420,8 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
 
 	return true;
 }
+
+int count = 0;
 
 std::vector<ipc::value> ipc::client::call_synchronous_helper(const std::string & cname, const std::string & fname, const std::vector<ipc::value>& args) {
 	// Set up call reference data.
@@ -440,6 +444,7 @@ std::vector<ipc::value> ipc::client::call_synchronous_helper(const std::string &
 		cd.values.reserve(rval.size());
 		// std::copy(rval.begin(), rval.end(), std::back_inserter(cd.values));
 		std::cout << "Response from the server " << rval[1].value_str.c_str() << std::endl;
+		std::cout << "Count " << count++ << std::endl;
 		cd.called = true;
 //        cd.sgn->signal();
 	};
