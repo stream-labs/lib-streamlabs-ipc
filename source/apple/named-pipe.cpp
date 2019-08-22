@@ -72,7 +72,7 @@ uint32_t os::apple::named_pipe::read(char *buffer, size_t buffer_length, std::sh
     }
     while ( ret <= 0 && is_blocking);
 
-    std::cout << "Read #####" << ret << std::endl;
+    // std::cout << "Read #####" << ret << std::endl;
 
     close(file_descriptor);
     err = os::error::Success;
@@ -98,7 +98,7 @@ uint32_t os::apple::named_pipe::write(const char *buffer, size_t buffer_length)
         ret = ::write(file_descriptor, buffer, buffer_length);
     }
     while ( ret < 0 );
-    std::cout << "Write " << ret << std::endl;
+    // std::cout << "Write " << ret << std::endl;
     err = os::error::Success;
 end:
     close(file_descriptor);

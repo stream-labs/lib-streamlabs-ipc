@@ -52,7 +52,7 @@ void ipc::client::worker() {
 				break;
 			}
 			// std::cout << "Reader semaphore wait - end" << std::endl;
-			std::cout << "client - read" << std::endl;
+			// std::cout << "client - read" << std::endl;
              ec = (os::error) m_socket->read(m_watcher.buf.data(),
                                  m_watcher.buf.size(),
                                  m_rop, std::bind(&client::read_callback_msg,
@@ -111,7 +111,7 @@ void ipc::client::worker() {
 }
 
 void ipc::client::read_callback_init(os::error ec, size_t size) {
-   std::cout << "client - read_callback_init" << std::endl;
+//    std::cout << "client - read_callback_init" << std::endl;
 	os::error ec2 = os::error::Success;
 
 	m_rop->invalidate();
@@ -147,7 +147,7 @@ void ipc::client::read_callback_init(os::error ec, size_t size) {
 }
 
 void ipc::client::read_callback_msg(os::error ec, size_t size) {
-   std::cout << "client - read_callback_msg" << std::endl;
+//    std::cout << "client - read_callback_msg" << std::endl;
 	std::pair<call_return_t, void*> cb;
 	ipc::message::function_reply fnc_reply_msg;
 
@@ -237,7 +237,7 @@ void ipc::client::read_callback_msg(os::error ec, size_t size) {
 #ifdef _DEBUG
 	ipc::log("(read) %8llu: Done.", fnc_reply_msg.uid.value_union.ui64);
 #endif
-	std::cout << "release semaphore" << std::endl;
+	// std::cout << "release semaphore" << std::endl;
 	sem_post(m_writer_sem);
 }
 
@@ -394,12 +394,12 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
 	}
  	while (ret == -1 && errno == EINTR);
 
-	std::cout << "Decremented semaphore" << std::endl;
+	// std::cout << "Decremented semaphore" << std::endl;
 
 	// std::cout << "Writer semaphore wait - end " << std::endl;
-	std::cout << "client - write " << buf.size() << std::endl;
+	// std::cout << "client - write " << buf.size() << std::endl;
     ec = (os::error) m_socket->write(buf.data(), buf.size());
-	std::cout << "client - wrote " << std::endl;
+	// std::cout << "client - wrote " << std::endl;
 	// std::cout << "Reader semaphore post - start - can read" << std::endl;
 	sem_post(m_reader_sem);
 	// if (ec != os::error::Success && ec != os::error::Pending) {
@@ -429,7 +429,7 @@ std::vector<ipc::value> ipc::client::call_synchronous_helper(const std::string &
 #ifdef WIN32
 		std::shared_ptr<os::windows::semaphore> sgn = std::make_shared<os::windows::semaphore>();
 #elif __APPLE__
-		std::shared_ptr<os::apple::semaphore> sgn = std::make_shared<os::apple::semaphore>();
+		sem_t *sem;
 #endif
 		bool called = false;
 		std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
@@ -442,12 +442,24 @@ std::vector<ipc::value> ipc::client::call_synchronous_helper(const std::string &
 
 		// This copies the data off of the reply thread to the main thread.
 		cd.values.reserve(rval.size());
-		// std::copy(rval.begin(), rval.end(), std::back_inserter(cd.values));
-		std::cout << "Response from the server " << rval[1].value_str.c_str() << std::endl;
-		std::cout << "Count " << count++ << std::endl;
+		// std::cout << "response size: " << rval.size() << std::endl;
+		std::copy(rval.begin(), rval.end(), std::back_inserter(cd.values));
+		// std::cout << "Response from the server " << rval[1].value_str.c_str() << std::endl;
+		// std::cout << "Count " << count++ << std::endl;
 		cd.called = true;
-//        cd.sgn->signal();
+#ifdef WIN32
+		cd.sgn->signal();
+#elif __APPLE__
+		sem_post(cd.sem);
+#endif  
 	};
+
+#ifdef __APPLE__
+	std::string sem_name = "semapahore-callback";
+	sem_unlink(sem_name.c_str());
+	remove(sem_name.c_str());
+	cd.sem = sem_open(sem_name.c_str(), O_CREAT | O_EXCL, 0644, 0);
+#endif
 
 	int64_t cbid = 0;
 	bool success = call(cname, fname, std::move(args), cb, &cd, cbid);
@@ -455,7 +467,13 @@ std::vector<ipc::value> ipc::client::call_synchronous_helper(const std::string &
 		return {};
 	}
 
+#ifdef WIN32
 	cd.sgn->wait();
+#elif __APPLE__
+	sem_wait(cd.sem);
+	sem_close(cd.sem);
+#endif
+
 	// if (!cd.called) {
 	// 	cancel(cbid);
 	// 	return {};

@@ -86,7 +86,7 @@ void ipc::server_instance::worker() {
 			std::cout << "Failed to wait for the semaphore: " << strerror(errno) << std::endl;
 			break;
 		}
-		std::cout << "Read" << std::endl;
+		// std::cout << "Read" << std::endl;
         ec =
             (os::error) m_socket->read(m_rbuf.data(),
                                        m_rbuf.size(),
@@ -95,7 +95,7 @@ void ipc::server_instance::worker() {
                                                  this,
                                                  std::placeholders::_1,
                                                  std::placeholders::_2), true);
-		std::cout << "End Read" << std::endl;
+		// std::cout << "End Read" << std::endl;
 
 // 		if (!m_rop || !m_rop->is_valid()) {
 // 			size_t testSize = sizeof(ipc_size_t);
@@ -167,14 +167,14 @@ void ipc::server_instance::worker() {
 }
 
 void ipc::server_instance::read_callback_init(os::error ec, size_t size) {
-    std::cout << "server - read_callback_init" << std::endl;
+    // std::cout << "server - read_callback_init" << std::endl;
 	os::error ec2 = os::error::Success;
 
 	m_rop->invalidate();
 
 	if (ec == os::error::Success || ec == os::error::MoreData) {
 		ipc_size_t n_size = read_size(m_rbuf);
-        std::cout << "Size IPC message: " << n_size << std::endl;
+        // std::cout << "Size IPC message: " << n_size << std::endl;
 #ifdef _DEBUG
 		std::string hex_msg = ipc::vectortohex(m_rbuf);
 		ipc::log("????????: %.*s => %llu", hex_msg.size(), hex_msg.data(), n_size);
@@ -352,7 +352,7 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 
 void ipc::server_instance::read_callback_msg_write(const std::vector<char>& write_buffer)
 {
-	std::cout << "read_callback_msg_write" << std::endl;
+	// std::cout << "read_callback_msg_write" << std::endl;
 	if (write_buffer.size() != 0) {
 		if ((!m_wop || !m_wop->is_valid()) && (m_write_queue.size() == 0)) {
 			// ipc::make_sendable(m_wbuf, write_buffer);
@@ -364,11 +364,11 @@ void ipc::server_instance::read_callback_msg_write(const std::vector<char>& writ
 #ifdef WIN32
 			os::error ec2 = m_socket->write(m_wbuf.data(), m_wbuf.size(), m_wop, std::bind(&server_instance::write_callback, this, _1, _2));
 #elif __APPLE__
-			std::cout << "start waiting" << std::endl;
+			// std::cout << "start waiting" << std::endl;
 			sem_wait(m_writer_sem);
-			std::cout << "Server writing" << std::endl;
+			// std::cout << "Server writing" << std::endl;
 			os::error ec2 = (os::error)m_socket->write(write_buffer.data(), write_buffer.size());
-			std::cout << "End write" << std::endl;
+			// std::cout << "End write" << std::endl;
 			sem_post(m_reader_sem);
 #endif
 //            if (ec2 != os::error::Success && ec2 != os::error::Pending) {
