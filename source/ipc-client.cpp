@@ -204,7 +204,7 @@ void ipc::client::read_callback_msg(os::error ec, size_t size) {
 	}
 	ipc::log("(read) \terror: %.*s", fnc_reply_msg.error.value_str.size(), fnc_reply_msg.error.value_str.c_str());
 #endif
-
+	sem_post(m_writer_sem);
 	// Find the callback function.
 	std::unique_lock<std::mutex> ulock(m_lock);
 	auto cb2 = m_cb.find(fnc_reply_msg.uid.value_union.ui64);
@@ -238,7 +238,6 @@ void ipc::client::read_callback_msg(os::error ec, size_t size) {
 	ipc::log("(read) %8llu: Done.", fnc_reply_msg.uid.value_union.ui64);
 #endif
 	// std::cout << "release semaphore" << std::endl;
-	sem_post(m_writer_sem);
 }
 
 ipc::client::client(std::string socketPath) {
@@ -388,6 +387,7 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
 	// 	std::cout << "Failed to wait for the semaphore: " << strerror(errno) << std::endl;
 	// 	// return;
 	// }
+	std::cout << "client - wait for writer to be available" << std::endl;
 	int ret = 0;
 	do {
 	    ret = sem_wait(m_writer_sem);
@@ -397,7 +397,7 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
 	// std::cout << "Decremented semaphore" << std::endl;
 
 	// std::cout << "Writer semaphore wait - end " << std::endl;
-	// std::cout << "client - write " << buf.size() << std::endl;
+	std::cout << "client - write " << buf.size() << std::endl;
     ec = (os::error) m_socket->write(buf.data(), buf.size());
 	// std::cout << "client - wrote " << std::endl;
 	// std::cout << "Reader semaphore post - start - can read" << std::endl;
