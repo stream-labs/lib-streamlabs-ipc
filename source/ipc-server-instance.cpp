@@ -80,7 +80,7 @@ void ipc::server_instance::worker() {
 #endif
 				ec = m_socket->write(m_wbuf.data(), m_wbuf.size(), m_wop, std::bind(&server_instance::write_callback, this, _1, _2));
 				if (ec != os::error::Pending && ec != os::error::Success) {
-					if (ec == os::error::Disconnected) {
+					if (ec == os::error::Disconnected || ec == os::error::NoData) {
 						break;
 					} else {
 						throw std::exception("Unexpected error.");
@@ -128,7 +128,7 @@ void ipc::server_instance::read_callback_init(os::error ec, size_t size) {
 			m_rbuf.resize(n_size);
 			ec2 = m_socket->read(m_rbuf.data(), m_rbuf.size(), m_rop, std::bind(&server_instance::read_callback_msg, this, _1, _2));
 			if (ec2 != os::error::Pending && ec2 != os::error::Success) {
-				if (ec2 == os::error::Disconnected) {
+				if (ec2 == os::error::Disconnected || ec2 == os::error::NoData) {
 					return;
 				} else {
 					throw std::exception("Unexpected error.");
@@ -295,7 +295,7 @@ void ipc::server_instance::read_callback_msg_write(const std::vector<char>& writ
 #endif
 			os::error ec2 = m_socket->write(m_wbuf.data(), m_wbuf.size(), m_wop, std::bind(&server_instance::write_callback, this, _1, _2));
 			if (ec2 != os::error::Success && ec2 != os::error::Pending) {
-				if (ec2 == os::error::Disconnected) {
+				if (ec2 == os::error::Disconnected || ec2 == os::error::NoData) {
 					return;
 				} else {
 					ipc::log("Write buffer operation failed with error %d %p", static_cast<int>(ec2), &write_buffer);

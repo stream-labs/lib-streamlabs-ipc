@@ -28,6 +28,8 @@ os::error os::windows::utility::translate_error(DWORD error_code) {
 		return os::error::Pending;
 	case ERROR_BROKEN_PIPE:
 		return os::error::Disconnected;
+	case ERROR_NO_DATA:
+		return os::error::NoData;
 	case ERROR_MORE_DATA:
 		return os::error::MoreData;
 	case ERROR_PIPE_CONNECTED:

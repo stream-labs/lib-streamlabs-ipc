@@ -64,6 +64,9 @@ namespace os {
 
 		// Buffer Overflow
 		BufferOverflow,
+
+		// No data to read or no data being written
+		NoData,
 	};
 }
 
