@@ -95,7 +95,7 @@ void ipc::client::read_callback_init(os::error ec, size_t size) {
 
 	if (ec == os::error::Success || ec == os::error::MoreData) {
 		ipc_size_t n_size = read_size(m_watcher.buf);
-#ifdef _DEBUG
+#ifdef TRACE_IPC_ENABLED
 		std::string hex_msg = ipc::vectortohex(m_watcher.buf);
 		ipc::log("(read) ????????: %.*s => %llu", hex_msg.size(), hex_msg.data(), n_size);
 #endif
@@ -119,7 +119,7 @@ void ipc::client::read_callback_msg(os::error ec, size_t size) {
 
 	m_rop->invalidate();
 
-#ifdef _DEBUG
+#ifdef TRACE_IPC_ENABLED
 	ipc::log("(read) ????????: Deserializing Function Reply, ec = %lld, size = %llu", (int64_t)ec, (uint64_t)size);
 	std::string hex_msg = ipc::vectortohex(m_watcher.buf);
 	ipc::log("(read) ????????: %.*s.", hex_msg.size(), hex_msg.data());
@@ -132,7 +132,7 @@ void ipc::client::read_callback_msg(os::error ec, size_t size) {
 		throw e;
 	}
 
-#ifdef _DEBUG
+#ifdef TRACE_IPC_ENABLED
 	ipc::log("(read) %8llu: Deserialized with %lld return values.", 
 		fnc_reply_msg.uid.value_union.ui64,
 		fnc_reply_msg.values.size());
@@ -175,7 +175,7 @@ void ipc::client::read_callback_msg(os::error ec, size_t size) {
 	std::unique_lock<std::mutex> ulock(m_lock);
 	auto cb2 = m_cb.find(fnc_reply_msg.uid.value_union.ui64);
 	if (cb2 == m_cb.end()) {
-#ifdef _DEBUG
+#ifdef TRACE_IPC_ENABLED
 		ipc::log("(read) %8llu: No callback, returning.", fnc_reply_msg.uid.value_union.ui64);
 #endif
 		return;
@@ -189,7 +189,7 @@ void ipc::client::read_callback_msg(os::error ec, size_t size) {
 		fnc_reply_msg.values.at(0).value_str = fnc_reply_msg.error.value_str;
 	}
 
-#ifdef _DEBUG
+#ifdef TRACE_IPC_ENABLED
 	ipc::log("(read) %8llu: Calling callback Function Reply...", fnc_reply_msg.uid.value_union.ui64);
 #endif
 
@@ -200,7 +200,7 @@ void ipc::client::read_callback_msg(os::error ec, size_t size) {
 	/// ToDo: Figure out better way of registering functions, perhaps even a way to have "events" across a IPC connection.
 	m_cb.erase(fnc_reply_msg.uid.value_union.ui64);
 
-#ifdef _DEBUG
+#ifdef TRACE_IPC_ENABLED
 	ipc::log("(read) %8llu: Done.", fnc_reply_msg.uid.value_union.ui64);
 #endif
 }
@@ -247,7 +247,7 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
 	fnc_call_msg.function_name = ipc::value(fname);
 	fnc_call_msg.arguments = std::move(args);
 
-#ifdef _DEBUG
+#ifdef TRACE_IPC_ENABLED
 	ipc::log("(write) %8llu: Serializing Function Call for class '%.*s' with function '%.*s' and %llu arguments.",
 		fnc_call_msg.uid.value_union.ui64,
 		(uint64_t)fnc_call_msg.class_name.value_str.size(), fnc_call_msg.class_name.value_str.c_str(),
@@ -302,14 +302,14 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
 		cbid = fnc_call_msg.uid.value_union.ui64;
 	}
 
-#ifdef _DEBUG
+#ifdef TRACE_IPC_ENABLED
 	ipc::log("(write) %8llu: Sending %llu bytes...", fnc_call_msg.uid.value_union.ui64, buf.size());
 	std::string hex_msg = ipc::vectortohex(buf);
 	ipc::log("(write) %8llu: %.*s", fnc_call_msg.uid.value_union.ui64, hex_msg.size(), hex_msg.data());
 #endif
 
 	ipc::make_sendable(outbuf, buf);
-#ifdef _DEBUG
+#ifdef TRACE_IPC_ENABLED
 	hex_msg = ipc::vectortohex(outbuf);
 	ipc::log("(write) %8llu: %.*s", fnc_call_msg.uid.value_union.ui64, hex_msg.size(), hex_msg.data());
 #endif
@@ -327,7 +327,7 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
 		return false;
 	}
 
-#ifdef _DEBUG
+#ifdef TRACE_IPC_ENABLED
 	ipc::log("(write) %8llu: Sent.", fnc_call_msg.uid.value_union.ui64);
 #endif
 
