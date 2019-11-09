@@ -81,7 +81,7 @@ void ipc::server_instance::worker() {
 	// Loop
 	while ((!m_stopWorkers) && m_socket->is_connected()) {
 		// Read IPC header
-        m_rbuf.resize(255);
+        m_rbuf.resize(30000);
 		if (sem_wait(m_reader_sem) < 0) {
 			std::cout << "Failed to wait for the semaphore: " << strerror(errno) << std::endl;
 			break;
@@ -204,7 +204,6 @@ void ipc::server_instance::read_callback_init(os::error ec, size_t size) {
 }
 
 void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
-    std::cout << "server - read_callback_msg" << std::endl;
 	/// Processing
 	std::vector<ipc::value> proc_rval;
 	ipc::value proc_tempval;
@@ -366,9 +365,7 @@ void ipc::server_instance::read_callback_msg_write(const std::vector<char>& writ
 #elif __APPLE__
 			// std::cout << "start waiting" << std::endl;
 			sem_wait(m_writer_sem);
-			// std::cout << "Server writing" << std::endl;
 			os::error ec2 = (os::error)m_socket->write(write_buffer.data(), write_buffer.size());
-			// std::cout << "End write" << std::endl;
 			sem_post(m_reader_sem);
 #endif
 //            if (ec2 != os::error::Success && ec2 != os::error::Pending) {

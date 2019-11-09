@@ -44,7 +44,7 @@ void ipc::client::worker() {
     
      while (m_socket->is_connected() && !m_watcher.stop) {
           if (!m_rop || !m_rop->is_valid()) {
-              m_watcher.buf.resize(255);
+              m_watcher.buf.resize(30000);
 //              std::this_thread::sleep_for(std::chrono::milliseconds(100000));
 			// std::cout << "Reader semaphore wait - start" << std::endl;
 			if (sem_wait(m_reader_sem) < 0) {
@@ -147,7 +147,6 @@ void ipc::client::read_callback_init(os::error ec, size_t size) {
 }
 
 void ipc::client::read_callback_msg(os::error ec, size_t size) {
-//    std::cout << "client - read_callback_msg" << std::endl;
 	std::pair<call_return_t, void*> cb;
 	ipc::message::function_reply fnc_reply_msg;
 
@@ -215,7 +214,6 @@ void ipc::client::read_callback_msg(os::error ec, size_t size) {
 		return;
 	}
 	cb = cb2->second;
-
 	// Decode return values or errors.
 	if (fnc_reply_msg.error.value_str.size() > 0) {
 		fnc_reply_msg.values.resize(1);
@@ -387,7 +385,7 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
 	// 	std::cout << "Failed to wait for the semaphore: " << strerror(errno) << std::endl;
 	// 	// return;
 	// }
-	std::cout << "client - wait for writer to be available" << std::endl;
+	// std::cout << "client - wait for writer to be available" << std::endl;
 	int ret = 0;
 	do {
 	    ret = sem_wait(m_writer_sem);
@@ -397,7 +395,7 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
 	// std::cout << "Decremented semaphore" << std::endl;
 
 	// std::cout << "Writer semaphore wait - end " << std::endl;
-	std::cout << "client - write " << buf.size() << std::endl;
+	// std::cout << "client - write " << buf.size() << std::endl;
     ec = (os::error) m_socket->write(buf.data(), buf.size());
 	// std::cout << "client - wrote " << std::endl;
 	// std::cout << "Reader semaphore post - start - can read" << std::endl;
@@ -417,7 +415,6 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
 #ifdef _DEBUG
 	ipc::log("(write) %8llu: Sent.", fnc_call_msg.uid.value_union.ui64);
 #endif
-
 	return true;
 }
 
@@ -439,7 +436,6 @@ std::vector<ipc::value> ipc::client::call_synchronous_helper(const std::string &
 
 	auto cb = [](void* data, const std::vector<ipc::value>& rval) {
 		CallData& cd = *static_cast<CallData*>(data);
-
 		// This copies the data off of the reply thread to the main thread.
 		cd.values.reserve(rval.size());
 		// std::cout << "response size: " << rval.size() << std::endl;
