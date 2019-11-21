@@ -40,20 +40,16 @@ int64_t       g_cbid = NULL;
 void ipc::client::worker() {
      os::error ec = os::error::Success;
      std::vector<ipc::value> proc_rval;
-     std::cout << "Starting client worker" << std::endl;
     
      while (m_socket->is_connected() && !m_watcher.stop) {
           if (!m_rop || !m_rop->is_valid()) {
               m_watcher.buf.resize(30000);
 //              std::this_thread::sleep_for(std::chrono::milliseconds(100000));
-			// std::cout << "Reader semaphore wait - start" << std::endl;
 			if (sem_wait(m_reader_sem) < 0) {
 				std::cout << "Failed to wait for the semaphore: " << strerror(errno) << std::endl;
 				break;
 			}
-			// std::cout << "Reader semaphore wait - end" << std::endl;
-			// std::cout << "client - read" << std::endl;
-             ec = (os::error) m_socket->read(m_watcher.buf.data(),
+            ec = (os::error) m_socket->read(m_watcher.buf.data(),
                                  m_watcher.buf.size(),
                                  m_rop, std::bind(&client::read_callback_msg,
                                                   this,
@@ -124,7 +120,6 @@ void ipc::client::read_callback_init(os::error ec, size_t size) {
 #endif
 		if (n_size != 0) {
 			m_watcher.buf.resize(n_size);
-			std::cout << "client read size: " << n_size << std::endl;
 #ifdef WIN32
 			ec2 = m_socket->read(m_watcher.buf.data(), m_watcher.buf.size(), m_rop, std::bind(&client::read_callback_msg, this, _1, _2));
 #elif __APPLE__
@@ -385,7 +380,6 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
 	// 	std::cout << "Failed to wait for the semaphore: " << strerror(errno) << std::endl;
 	// 	// return;
 	// }
-	// std::cout << "client - wait for writer to be available" << std::endl;
 	int ret = 0;
 	do {
 	    ret = sem_wait(m_writer_sem);
@@ -394,10 +388,7 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
 
 	// std::cout << "Decremented semaphore" << std::endl;
 
-	// std::cout << "Writer semaphore wait - end " << std::endl;
-	// std::cout << "client - write " << buf.size() << std::endl;
     ec = (os::error) m_socket->write(buf.data(), buf.size());
-	// std::cout << "client - wrote " << std::endl;
 	// std::cout << "Reader semaphore post - start - can read" << std::endl;
 	sem_post(m_reader_sem);
 	// if (ec != os::error::Success && ec != os::error::Pending) {
@@ -438,7 +429,6 @@ std::vector<ipc::value> ipc::client::call_synchronous_helper(const std::string &
 		CallData& cd = *static_cast<CallData*>(data);
 		// This copies the data off of the reply thread to the main thread.
 		cd.values.reserve(rval.size());
-		// std::cout << "response size: " << rval.size() << std::endl;
 		std::copy(rval.begin(), rval.end(), std::back_inserter(cd.values));
 		// std::cout << "Response from the server " << rval[1].value_str.c_str() << std::endl;
 		// std::cout << "Count " << count++ << std::endl;
@@ -470,9 +460,9 @@ std::vector<ipc::value> ipc::client::call_synchronous_helper(const std::string &
 	sem_close(cd.sem);
 #endif
 
-	// if (!cd.called) {
-	// 	cancel(cbid);
-	// 	return {};
-	// }
+	if (!cd.called) {
+		cancel(cbid);
+		return {};
+	}
 	return std::move(cd.values);
 }
