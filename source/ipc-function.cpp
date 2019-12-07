@@ -22,7 +22,7 @@
 
 ipc::function::function(const std::string & name, const std::vector<ipc::type>& params, call_handler_t ptr, void* data) {
 	this->m_name = name;
-	this->m_nameUnique = ipc::base::make_unique_id(m_name, params);
+	this->m_nameUnique = m_name; //ipc::base::make_unique_id(m_name, params);
 	this->m_params = params;
 	this->m_callHandler.first = ptr;
 	this->m_callHandler.second = data;
