@@ -32,6 +32,7 @@
 #elif __APPLE__
 #include "../source/apple/named-pipe.hpp"
 #endif
+#include "../../obs-studio-server/source/MyCPPClass.h"
 
 namespace ipc {
 	class server_instance;
@@ -92,7 +93,16 @@ namespace ipc {
 		server();
 		~server();
 
+#ifdef __APPLE__
+		std::queue<void*> display_actions;
+		std::mutex display_lock;
+#endif
+
 		public: // Status
+		MyCPPClass *displayHandler;
+
+
+
 		void initialize(std::string socketPath);
 		void finalize();
 
