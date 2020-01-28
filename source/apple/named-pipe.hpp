@@ -32,6 +32,10 @@ namespace os {
 			void handle_accept_callback(os::error code, size_t length);
 
             public:
+            std::chrono::time_point<std::chrono::high_resolution_clock>
+                last_process;
+            bool server_execute_state;
+
             named_pipe(os::create_only_t, const std::string name);
             named_pipe(os::open_only_t, const std::string name);
             ~named_pipe();

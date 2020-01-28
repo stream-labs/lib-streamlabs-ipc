@@ -163,7 +163,6 @@ void ipc::server_instance::worker() {
 		// }
 
 	}
-    std::cout << "End of worker in server instance" << std::endl;
 }
 
 void ipc::server_instance::read_callback_init(os::error ec, size_t size) {
@@ -212,6 +211,8 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 
 	ipc::message::function_call fnc_call_msg;
 	ipc::message::function_reply fnc_reply_msg;
+
+	m_socket->last_process = std::chrono::high_resolution_clock::now();
 
 #ifdef _DEBUG
 	{
@@ -277,9 +278,13 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 
 	// Execute
 	proc_rval.resize(0);
+	m_socket->server_execute_state = true;
 	success = m_parent->client_call_function(m_clientId,
 		fnc_call_msg.class_name.value_str, fnc_call_msg.function_name.value_str,
 		fnc_call_msg.arguments, proc_rval, proc_error);
+
+	m_socket->last_process = std::chrono::high_resolution_clock::now();
+	m_socket->server_execute_state = false;
 
 	// Set
 	fnc_reply_msg.uid = fnc_call_msg.uid;
@@ -366,6 +371,7 @@ void ipc::server_instance::read_callback_msg_write(const std::vector<char>& writ
 			// std::cout << "start waiting" << std::endl;
 			sem_wait(m_writer_sem);
 			os::error ec2 = (os::error)m_socket->write(write_buffer.data(), write_buffer.size());
+			m_socket->last_process = std::chrono::high_resolution_clock::now();
 			sem_post(m_reader_sem);
 #endif
 //            if (ec2 != os::error::Success && ec2 != os::error::Pending) {

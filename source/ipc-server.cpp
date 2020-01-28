@@ -66,6 +66,12 @@ void ipc::server::watcher() {
 						// Client died.
 						client = m_clients.end();
 						kill_client(socket);
+					} else {
+						auto delta = std::chrono::high_resolution_clock::now() - socket->last_process;
+						std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(delta).count() << std::endl;
+						if (!socket->server_execute_state && std::chrono::duration_cast<std::chrono::milliseconds>(delta).count() > 100) {
+							exit(1);
+						}
 					}
 				} else if (pending == pa_map.end()) {
 					pending_accept pa;
