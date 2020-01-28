@@ -131,6 +131,7 @@ void ipc::server::spawn_client(std::shared_ptr<os::apple::named_pipe> socket) {
 	std::unique_lock<std::mutex> ul(m_clients_mtx);
 
 	std::shared_ptr<ipc::server_instance> client = std::make_shared<ipc::server_instance>(this, socket);
+	std::cout << "Finished spawning client" << std::endl;
 	if (m_handlerConnect.first) {
 		m_handlerConnect.first(m_handlerConnect.second, 0);
 	}

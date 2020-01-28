@@ -152,14 +152,16 @@ void ipc::client::read_callback_msg(os::error ec, size_t size) {
 	std::string hex_msg = ipc::vectortohex(m_watcher.buf);
 	ipc::log("(read) ????????: %.*s.", hex_msg.size(), hex_msg.data());
 #endif
-
 	try {
 		fnc_reply_msg.deserialize(m_watcher.buf, 0);
 	} catch (std::exception& e) {
 		ipc::log("Deserialize failed with error %s.", e.what());
 		throw e;
 	}
-
+	std::cout << "Client read size: " << fnc_reply_msg.values.size() << std::endl;
+	std::cout << "fnc_reply_msg.uid.value_union.ui64: " << 
+	fnc_reply_msg.uid.value_union.ui64 << std::endl;
+	std::cout << "m_cb.size: " << m_cb.size() << std::endl;
 #ifdef _DEBUG
 	ipc::log("(read) %8llu: Deserialized with %lld return values.", 
 		fnc_reply_msg.uid.value_union.ui64,
@@ -206,6 +208,8 @@ void ipc::client::read_callback_msg(os::error ec, size_t size) {
 #ifdef _DEBUG
 		ipc::log("(read) %8llu: No callback, returning.", fnc_reply_msg.uid.value_union.ui64);
 #endif
+		std::cout << "Returning here " << fnc_reply_msg.uid.value_union.ui64 << std::endl;
+		std::cout << "m_cb.size: " << m_cb.size() << std::endl;
 		return;
 	}
 	cb = cb2->second;
@@ -221,7 +225,9 @@ void ipc::client::read_callback_msg(os::error ec, size_t size) {
 #endif
 
 	// Call Callback
+	std::cout << "Client call callback" << std::endl;
 	cb.first(cb.second, fnc_reply_msg.values);
+	std::cout << "Client call callback end" << std::endl;
 
 	// Remove cb entry
 	/// ToDo: Figure out better way of registering functions, perhaps even a way to have "events" across a IPC connection.
@@ -265,10 +271,12 @@ ipc::client::~client() {
 
 bool ipc::client::cancel(int64_t const& id) {
 	std::unique_lock<std::mutex> ulock(m_lock);
+	std::cout << "Erase function ID: " << id << std::endl;
 	return m_cb.erase(id) != 0;
 }
 
 bool ipc::client::call(const std::string& cname, const std::string& fname, std::vector<ipc::value> args, call_return_t fn, void* data, int64_t& cbid) {
+	std::cout << "client call: " << cname.c_str() << "  " << fname.c_str() << std::endl;
 	static std::mutex mtx;
 	static uint64_t timestamp = 0;
 	os::error ec;
@@ -344,6 +352,9 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
 		std::unique_lock<std::mutex> ulock(m_lock);
 		m_cb.insert(std::make_pair(fnc_call_msg.uid.value_union.ui64, std::make_pair(fn, data)));
 		cbid = fnc_call_msg.uid.value_union.ui64;
+		std::cout << "Insert function with id: " << cbid << std::endl;
+	} else {
+		std::cout << "Function is null, cannot insert!!" << std::endl;
 	}
 
 #ifdef _DEBUG
@@ -387,7 +398,7 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
  	while (ret == -1 && errno == EINTR);
 
 	// std::cout << "Decremented semaphore" << std::endl;
-
+	std::cout << "Client writing for " << cname.c_str() << "  " << fname.c_str() << std::endl;
     ec = (os::error) m_socket->write(buf.data(), buf.size());
 	// std::cout << "Reader semaphore post - start - can read" << std::endl;
 	sem_post(m_reader_sem);
@@ -423,10 +434,13 @@ std::vector<ipc::value> ipc::client::call_synchronous_helper(const std::string &
 		std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
 
 		std::vector<ipc::value> values;
+		int64_t callback_id;
 	} cd;
 
 	auto cb = [](void* data, const std::vector<ipc::value>& rval) {
+		std::cout << "size response " << rval.size() << std::endl;
 		CallData& cd = *static_cast<CallData*>(data);
+		std::cout << "Executing callback: " << cd.callback_id << std::endl;
 		// This copies the data off of the reply thread to the main thread.
 		cd.values.reserve(rval.size());
 		std::copy(rval.begin(), rval.end(), std::back_inserter(cd.values));
@@ -448,19 +462,25 @@ std::vector<ipc::value> ipc::client::call_synchronous_helper(const std::string &
 #endif
 
 	int64_t cbid = 0;
+	std::cout << "client sync call " << cname.c_str() << "  " <<
+	fname.c_str() << std::endl;
 	bool success = call(cname, fname, std::move(args), cb, &cd, cbid);
 	if (!success) {
 		return {};
 	}
-
+	cd.callback_id = cbid;
 #ifdef WIN32
 	cd.sgn->wait();
 #elif __APPLE__
+	std::cout << "Semaphore waiting on " << cbid << std::endl;
 	sem_wait(cd.sem);
+	std::cout << "Semaphore FINISHED waiting on " << cbid << std::endl;
 	sem_close(cd.sem);
 #endif
 
 	if (!cd.called) {
+		std::cout << "Canceling because the function wasn't called " << cbid << std::endl;
+		std::cout << "Other id " << cd.callback_id << std::endl;
 		cancel(cbid);
 		return {};
 	}

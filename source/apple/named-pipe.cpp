@@ -1,4 +1,5 @@
 #include "named-pipe.hpp"
+#include "ipc.hpp"
 
 os::apple::named_pipe::named_pipe(os::create_only_t, const std::string name)
 {
@@ -102,7 +103,9 @@ uint32_t os::apple::named_pipe::write(const char *buffer, size_t buffer_length)
     }
 
     do {
+        std::cout << "socket write - start buffer_lenght:" << buffer_length << std::endl;
         ret = ::write(file_descriptor, buffer, buffer_length);
+        std::cout << "socket write - end ret:" << ret << std::endl;
     }
     while ( ret < 0 );
     err = os::error::Success;

@@ -51,6 +51,7 @@ ipc::server_instance::server_instance(ipc::server* owner, std::shared_ptr<os::ap
 	remove(writer_sem_name.c_str());
 	m_writer_sem = sem_open(writer_sem_name.c_str(), O_CREAT | O_EXCL, 0644, 0);
 
+	std::cout << "server instance spawning worker" << std::endl;
 	m_worker = std::thread(std::bind(&server_instance::worker, this));
 }
 
@@ -77,9 +78,10 @@ bool ipc::server_instance::is_alive() {
 
 void ipc::server_instance::worker() {
 	os::error ec = os::error::Success;
-
+	std::cout << "WORKER STARTING" << std::endl;
 	// Loop
 	while ((!m_stopWorkers) && m_socket->is_connected()) {
+		std::cout << "Server looping" << std::endl;
 		// Read IPC header
         m_rbuf.resize(30000);
 		if (sem_wait(m_reader_sem) < 0) {
@@ -87,6 +89,7 @@ void ipc::server_instance::worker() {
 			break;
 		}
 		// std::cout << "Read" << std::endl;
+		std::cout << "Read server - start" << std::endl;
         ec =
             (os::error) m_socket->read(m_rbuf.data(),
                                        m_rbuf.size(),
@@ -95,6 +98,7 @@ void ipc::server_instance::worker() {
                                                  this,
                                                  std::placeholders::_1,
                                                  std::placeholders::_2), true);
+		std::cout << "Read server - end" << std::endl;
 		// std::cout << "End Read" << std::endl;
 
 // 		if (!m_rop || !m_rop->is_valid()) {
@@ -277,6 +281,10 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 
 	// Execute
 	proc_rval.resize(0);
+	std::cout << "server execute function: " <<
+	fnc_call_msg.class_name.value_str.c_str() << "  " <<
+	fnc_call_msg.function_name.value_str.c_str() << std::endl;
+
 	success = m_parent->client_call_function(m_clientId,
 		fnc_call_msg.class_name.value_str, fnc_call_msg.function_name.value_str,
 		fnc_call_msg.arguments, proc_rval, proc_error);
@@ -365,7 +373,9 @@ void ipc::server_instance::read_callback_msg_write(const std::vector<char>& writ
 #elif __APPLE__
 			// std::cout << "start waiting" << std::endl;
 			sem_wait(m_writer_sem);
+			std::cout << "server writing" << std::endl;
 			os::error ec2 = (os::error)m_socket->write(write_buffer.data(), write_buffer.size());
+			std::cout << "server finished writing" << std::endl;
 			sem_post(m_reader_sem);
 #endif
 //            if (ec2 != os::error::Success && ec2 != os::error::Pending) {
