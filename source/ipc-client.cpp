@@ -30,6 +30,7 @@
 #include <Objbase.h>
 #endif
 #include <memory>
+#include <errno.h>
 
 using namespace std::placeholders;
 
@@ -441,10 +442,15 @@ std::vector<ipc::value> ipc::client::call_synchronous_helper(const std::string &
 	};
 
 #ifdef __APPLE__
-	std::string sem_name = "semapahore-callback";
+	int uniqueId = cname.size() + fname.size();
+	std::string sem_name = "semapahore-callback-" + uniqueId;
 	sem_unlink(sem_name.c_str());
 	remove(sem_name.c_str());
 	cd.sem = sem_open(sem_name.c_str(), O_CREAT | O_EXCL, 0644, 0);
+	if (cd.sem == SEM_FAILED) {
+		std::cout << "Error opening sem #### " << strerror(errno) << std::endl;
+		return {};
+	}
 #endif
 
 	int64_t cbid = 0;
