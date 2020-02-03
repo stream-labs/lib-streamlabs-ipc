@@ -443,7 +443,7 @@ std::vector<ipc::value> ipc::client::call_synchronous_helper(const std::string &
 
 #ifdef __APPLE__
 	int uniqueId = cname.size() + fname.size();
-	std::string sem_name = "semapahore-callback-" + uniqueId;
+	std::string sem_name = "semapahore-callback-" + std::to_string(uniqueId);
 	sem_unlink(sem_name.c_str());
 	remove(sem_name.c_str());
 	cd.sem = sem_open(sem_name.c_str(), O_CREAT | O_EXCL, 0644, 0);
