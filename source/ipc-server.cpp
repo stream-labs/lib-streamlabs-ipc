@@ -182,7 +182,6 @@ void ipc::server::initialize(std::string socketPath) {
 		}
 #elif __APPLE__
 		std::unique_lock<std::mutex> ul(m_sockets_mtx);
-        std::cout << "Server create socket" << std::endl;
 		m_sockets.insert(m_sockets.end(),
 			std::make_shared<os::apple::named_pipe>(os::create_only, socketPath));
 #endif

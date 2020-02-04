@@ -31,6 +31,8 @@
 #endif
 #include <memory>
 #include <errno.h>
+#include <time.h>
+#include <stdlib.h>
 
 using namespace std::placeholders;
 
@@ -108,6 +110,7 @@ void ipc::client::worker() {
 }
 
 void ipc::client::read_callback_init(os::error ec, size_t size) {
+	srand(time(NULL));
 //    std::cout << "client - read_callback_init" << std::endl;
 	os::error ec2 = os::error::Success;
 
@@ -442,13 +445,13 @@ std::vector<ipc::value> ipc::client::call_synchronous_helper(const std::string &
 	};
 
 #ifdef __APPLE__
-	int uniqueId = cname.size() + fname.size();
-	std::string sem_name = "semapahore-callback-" + std::to_string(uniqueId);
-	sem_unlink(sem_name.c_str());
-	remove(sem_name.c_str());
-	cd.sem = sem_open(sem_name.c_str(), O_CREAT | O_EXCL, 0644, 0);
+	int uniqueId = cname.size() + fname.size() + rand();
+	std::string sem_name = "sem-cb" + std::to_string(uniqueId);
+	std::string path = "/tmp/" + sem_name;
+	sem_unlink(path.c_str());
+	remove(path.c_str());
+	cd.sem = sem_open(path.c_str(), O_CREAT | O_EXCL, 0644, 0);
 	if (cd.sem == SEM_FAILED) {
-		std::cout << "Error opening sem #### " << strerror(errno) << std::endl;
 		return {};
 	}
 #endif
@@ -464,6 +467,8 @@ std::vector<ipc::value> ipc::client::call_synchronous_helper(const std::string &
 #elif __APPLE__
 	sem_wait(cd.sem);
 	sem_close(cd.sem);
+	sem_unlink(path.c_str());
+	remove(path.c_str());
 #endif
 
 	if (!cd.called) {

@@ -1,21 +1,14 @@
 #include "named-pipe.hpp"
+#include <errno.h>
 
 os::apple::named_pipe::named_pipe(os::create_only_t, const std::string name)
 {
     int ret = 0;
-
     ret = remove(name.c_str());
     ret = mkfifo(name.c_str(), S_IRUSR | S_IWUSR);
-    file_descriptor = open(name.c_str(), O_RDONLY);
 
-    if (ret < 0)
-        std::cout << "Could not create named pipe. " << strerror(errno) << std::endl;
-    
     this->name = name;
     created = true;
-    
-    close(file_descriptor);
-    std::cout << "pipe created" << std::endl;
 }
 
 os::apple::named_pipe::named_pipe(os::open_only_t, const std::string name)
