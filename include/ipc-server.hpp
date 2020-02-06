@@ -32,7 +32,7 @@
 #elif __APPLE__
 #include "../source/apple/named-pipe.hpp"
 #endif
-#include "../../obs-studio-server/source/MyCPPClass.h"
+#include "../../obs-studio-server/source/mac-display-int.h"
 
 namespace ipc {
 	class server_instance;
@@ -99,7 +99,7 @@ namespace ipc {
 #endif
 
 		public: // Status
-		MyCPPClass *displayHandler;
+		DisplayInt *displayHandler;
 
 
 
