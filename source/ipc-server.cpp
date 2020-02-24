@@ -69,7 +69,7 @@ void ipc::server::watcher() {
 					} else {
 						auto delta = std::chrono::high_resolution_clock::now() - socket->last_process;
 						if (!socket->server_execute_state &&
-							std::chrono::duration_cast<std::chrono::milliseconds>(delta).count() > 1000) {
+							std::chrono::duration_cast<std::chrono::milliseconds>(delta).count() > 5000) {
 							exit(0);
 						}
 					}
