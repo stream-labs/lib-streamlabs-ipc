@@ -52,6 +52,8 @@ void ipc::client::worker() {
 				std::cout << "Failed to wait for the semaphore: " << strerror(errno) << std::endl;
 				break;
 			}
+            if (m_watcher.stop)
+                break;
             ec = (os::error) m_socket->read(m_watcher.buf.data(),
                                  m_watcher.buf.size(),
                                  m_rop, std::bind(&client::read_callback_msg,
@@ -258,6 +260,8 @@ ipc::client::client(std::string socketPath) {
 
 ipc::client::~client() {
 	m_watcher.stop = true;
+	sem_post(m_reader_sem);
+	sem_post(m_writer_sem);
 	if (m_watcher.worker.joinable()) {
 		m_watcher.worker.join();
 	}
