@@ -153,8 +153,5 @@ os::error os::apple::named_pipe::accept(std::shared_ptr<os::async_op> &op, os::a
 			ar->call_callback(ec, 0);
 		}
 	}
-
-	last_process = std::chrono::high_resolution_clock::now();
-	server_execute_state = false;
 	return ec;
 }
