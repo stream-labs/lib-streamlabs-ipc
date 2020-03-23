@@ -58,6 +58,12 @@ ipc::server_instance::server_instance(ipc::server* owner, std::shared_ptr<os::ap
 ipc::server_instance::~server_instance() {
 	// Threading
 	m_stopWorkers = true;
+
+	// Unblock current sync read by sendy dummy data
+	std::vector<char> buffer;
+	buffer.push_back('1');
+	m_socket->write(buffer.data(), buffer.size());
+
 	if (m_worker.joinable())
 		m_worker.join();
 
@@ -370,6 +376,10 @@ void ipc::server_instance::read_callback_msg_write(const std::vector<char>& writ
 #elif __APPLE__
 			// std::cout << "start waiting" << std::endl;
 			sem_wait(m_writer_sem);
+
+			if (m_stopWorkers)
+				return;
+
 			os::error ec2 = (os::error)m_socket->write(write_buffer.data(), write_buffer.size());
 			m_socket->last_process = std::chrono::high_resolution_clock::now();
 			sem_post(m_reader_sem);
