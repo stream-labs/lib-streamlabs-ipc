@@ -87,12 +87,13 @@ void ipc::server_instance::worker() {
 	// Loop
 	while ((!m_stopWorkers) && m_socket->is_connected()) {
 		// Read IPC header
-        m_rbuf.resize(30000);
 		if (sem_wait(m_reader_sem) < 0) {
 			std::cout << "Failed to wait for the semaphore: " << strerror(errno) << std::endl;
 			break;
 		}
 		// std::cout << "Read" << std::endl;
+		m_rbuf.clear();
+        m_rbuf.resize(30000);
         ec =
             (os::error) m_socket->read(m_rbuf.data(),
                                        m_rbuf.size(),
@@ -280,6 +281,7 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 	}
 #endif
 
+	// ipc::log("server::call:: %s::%s", fnc_call_msg.class_name.value_str.c_str(), fnc_call_msg.function_name.value_str.c_str());
 	// Execute
 	proc_rval.resize(0);
 	success = m_parent->client_call_function(m_clientId,
@@ -331,6 +333,7 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 #endif
 
 	// Serialize
+	write_buffer.clear();
 	write_buffer.resize(fnc_reply_msg.size());
 	try {
 		fnc_reply_msg.serialize(write_buffer, 0);
@@ -374,7 +377,10 @@ void ipc::server_instance::read_callback_msg_write(const std::vector<char>& writ
 			if (m_stopWorkers)
 				return;
 
+			// ipc::log("server::write - start");
+			std::this_thread::sleep_for(std::chrono::milliseconds(10));
 			os::error ec2 = (os::error)m_socket->write(write_buffer.data(), write_buffer.size());
+			// ipc::log("server::write - end");
 			sem_post(m_reader_sem);
 #endif
 //            if (ec2 != os::error::Success && ec2 != os::error::Pending) {

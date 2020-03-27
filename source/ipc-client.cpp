@@ -46,7 +46,6 @@ void ipc::client::worker() {
     
      while (m_socket->is_connected() && !m_watcher.stop) {
           if (!m_rop || !m_rop->is_valid()) {
-              m_watcher.buf.resize(30000);
 //              std::this_thread::sleep_for(std::chrono::milliseconds(100000));
 			if (sem_wait(m_reader_sem) < 0) {
 				std::cout << "Failed to wait for the semaphore: " << strerror(errno) << std::endl;
@@ -54,6 +53,9 @@ void ipc::client::worker() {
 			}
             if (m_watcher.stop)
                 break;
+			m_watcher.buf.clear();
+			m_watcher.buf.resize(30000);
+			// std::cout << "client::read" << std::endl;
             ec = (os::error) m_socket->read(m_watcher.buf.data(),
                                  m_watcher.buf.size(),
                                  m_rop, std::bind(&client::read_callback_msg,
@@ -148,6 +150,7 @@ void ipc::client::read_callback_init(os::error ec, size_t size) {
 }
 
 void ipc::client::read_callback_msg(os::error ec, size_t size) {
+	// std::cout << "client::read_callback_msg" << std::endl;
 	std::pair<call_return_t, void*> cb;
 	ipc::message::function_reply fnc_reply_msg;
 
@@ -388,11 +391,15 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
 	// 	std::cout << "Failed to wait for the semaphore: " << strerror(errno) << std::endl;
 	// 	// return;
 	// }
+
+	// std::cout << "Client waiting to write for" << cname.c_str() << "::" << fname.c_str() << std::endl;
 	int ret = 0;
 	do {
 	    ret = sem_wait(m_writer_sem);
 	}
  	while (ret == -1 && errno == EINTR);
+
+	// std::cout << "Writing permissions for" << cname.c_str() << "::" << fname.c_str() << std::endl;
 
 	// std::cout << "Decremented semaphore" << std::endl;
 

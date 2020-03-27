@@ -97,6 +97,7 @@ uint32_t os::apple::named_pipe::write(const char *buffer, size_t buffer_length)
         ret = ::write(file_descriptor, buffer, buffer_length);
     }
     while ( ret < 0 );
+    // std::cout << "Wrote " << ret << std::endl;
     err = os::error::Success;
 end:
     close(file_descriptor);
