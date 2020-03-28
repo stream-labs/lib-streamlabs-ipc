@@ -21,13 +21,19 @@
 #include "semaphore.hpp"
 #include "async_request.hpp"
 
+enum SocketType: uint8_t {
+    REQUEST,
+    REPLY
+};
+
 namespace os {
     namespace apple {
         class named_pipe {
             bool created     = false;
             bool connected   = true;
             int file_descriptor = -1;
-            std::string name = "";
+            std::string name_req = "";
+            std::string name_rep = "";
 
 			void handle_accept_callback(os::error code, size_t length);
 
@@ -36,9 +42,9 @@ namespace os {
             named_pipe(os::open_only_t, const std::string name);
             ~named_pipe();
 
-            uint32_t read(char *buffer, size_t buffer_length, std::shared_ptr<os::async_op> &op, os::async_op_cb_t cb, bool is_blocking);
+            uint32_t read(char *buffer, size_t buffer_length, std::shared_ptr<os::async_op> &op, os::async_op_cb_t cb, bool is_blocking, SocketType t);
 
-			uint32_t write(const char *buffer, size_t buffer_length);
+			uint32_t write(const char *buffer, size_t buffer_length, SocketType t);
 
             bool is_created();
 

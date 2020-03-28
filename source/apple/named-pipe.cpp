@@ -4,25 +4,24 @@
 os::apple::named_pipe::named_pipe(os::create_only_t, const std::string name)
 {
     int ret = 0;
-    ret = remove(name.c_str());
-    ret = mkfifo(name.c_str(), S_IRUSR | S_IWUSR);
+    this->name_req = name + "-req";
+    this->name_rep = name + "-rep";
 
-    this->name = name;
     created = true;
 }
 
 os::apple::named_pipe::named_pipe(os::open_only_t, const std::string name)
 {
-    file_descriptor = open(name.c_str(), O_WRONLY);
-    
-    if (file_descriptor < 0) {
-        throw "Couldn't open pipe.";
-    }
+    this->name_req = name + "-req";
+    this->name_rep = name + "-rep";
 
-    this->name = name;
+    int ret = 0;
+    ret = remove(name_req.c_str());
+    ret = mkfifo(name_req.c_str(), S_IRUSR | S_IWUSR);
+    ret = remove(name_rep.c_str());
+    ret = mkfifo(name_rep.c_str(), S_IRUSR | S_IWUSR);
+
     connected = true;
-
-    close(file_descriptor);
 }
 
 os::apple::named_pipe::~named_pipe() {
@@ -36,7 +35,7 @@ void write_cb (int sig) {
     // std::cout << "write cb called!" << std::endl;
 }
 
-uint32_t os::apple::named_pipe::read(char *buffer, size_t buffer_length, std::shared_ptr<os::async_op> &op, os::async_op_cb_t cb, bool is_blocking)
+uint32_t os::apple::named_pipe::read(char *buffer, size_t buffer_length, std::shared_ptr<os::async_op> &op, os::async_op_cb_t cb, bool is_blocking, SocketType t)
 {
     os::error err = os::error::Error;
     int ret = 0;
@@ -52,9 +51,9 @@ uint32_t os::apple::named_pipe::read(char *buffer, size_t buffer_length, std::sh
     ar->set_sem(NULL);
 
     if (is_blocking)
-        file_descriptor = open(name.c_str(), O_RDONLY);// | O_NDELAY);// | O_NONBLOCK);
+        file_descriptor = open(t == REQUEST ? name_req.c_str() : name_rep.c_str(), O_RDONLY);// | O_NDELAY);// | O_NONBLOCK);
     else
-        file_descriptor = open(name.c_str(), O_RDONLY | O_NONBLOCK);
+        file_descriptor = open(t == REQUEST ? name_req.c_str() : name_rep.c_str(), O_RDONLY | O_NONBLOCK);
     if (file_descriptor < 0) {
         std::cout << "Could not open " << strerror(errno) << std::endl;
         goto end;
@@ -82,12 +81,12 @@ end:
     return (uint32_t) err;
 }
 
-uint32_t os::apple::named_pipe::write(const char *buffer, size_t buffer_length)
+uint32_t os::apple::named_pipe::write(const char *buffer, size_t buffer_length, SocketType t)
 {
     os::error err = os::error::Error;
     int ret = 0;
 
-    file_descriptor = open(name.c_str(), O_WRONLY | O_DSYNC);
+    file_descriptor = open(t == REQUEST ? name_req.c_str() : name_rep.c_str(), O_WRONLY | O_DSYNC);
     if (file_descriptor < 0) {
         std::cout << "Could not open " << strerror(errno) << std::endl;
         goto end;

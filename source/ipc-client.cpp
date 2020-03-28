@@ -46,22 +46,17 @@ void ipc::client::worker() {
     
      while (m_socket->is_connected() && !m_watcher.stop) {
           if (!m_rop || !m_rop->is_valid()) {
-//              std::this_thread::sleep_for(std::chrono::milliseconds(100000));
-			if (sem_wait(m_reader_sem) < 0) {
-				std::cout << "Failed to wait for the semaphore: " << strerror(errno) << std::endl;
-				break;
-			}
             if (m_watcher.stop)
                 break;
 			m_watcher.buf.clear();
 			m_watcher.buf.resize(30000);
-			// std::cout << "client::read" << std::endl;
+			sem_post(m_writer_sem);
             ec = (os::error) m_socket->read(m_watcher.buf.data(),
                                  m_watcher.buf.size(),
                                  m_rop, std::bind(&client::read_callback_msg,
                                                   this,
                                                   std::placeholders::_1,
-                                                  std::placeholders::_2), true);
+                                                  std::placeholders::_2), true, REPLY);
 			// std::cout << "Writer semaphore post - start - can write" << std::endl;
 			
 //              if (ec != os::error::Pending && ec != os::error::Success) {
@@ -136,7 +131,7 @@ void ipc::client::read_callback_init(os::error ec, size_t size) {
                                  m_rop, std::bind(&client::read_callback_msg,
                                                   this,
                                                   std::placeholders::_1,
-                                                  std::placeholders::_2), false);
+                                                  std::placeholders::_2), false, REPLY);
 #endif
 			if (ec2 != os::error::Pending && ec2 != os::error::Success) {
 				if (ec2 == os::error::Disconnected) {
@@ -150,7 +145,6 @@ void ipc::client::read_callback_init(os::error ec, size_t size) {
 }
 
 void ipc::client::read_callback_msg(os::error ec, size_t size) {
-	// std::cout << "client::read_callback_msg" << std::endl;
 	std::pair<call_return_t, void*> cb;
 	ipc::message::function_reply fnc_reply_msg;
 
@@ -207,7 +201,7 @@ void ipc::client::read_callback_msg(os::error ec, size_t size) {
 	}
 	ipc::log("(read) \terror: %.*s", fnc_reply_msg.error.value_str.size(), fnc_reply_msg.error.value_str.c_str());
 #endif
-	sem_post(m_writer_sem);
+
 	// Find the callback function.
 	std::unique_lock<std::mutex> ulock(m_lock);
 	auto cb2 = m_cb.find(fnc_reply_msg.uid.value_union.ui64);
@@ -252,11 +246,11 @@ ipc::client::client(std::string socketPath) {
 
 	sem_unlink(reader_sem_name.c_str());
 	remove(reader_sem_name.c_str());
-	m_reader_sem = sem_open(reader_sem_name.c_str(), O_CREAT | O_EXCL, 0644, 0);
+	m_reader_sem = sem_open(reader_sem_name.c_str(), O_CREAT | O_EXCL, 0644, 1);
 
 	sem_unlink(writer_sem_name.c_str());
 	remove(writer_sem_name.c_str());
-	m_writer_sem = sem_open(writer_sem_name.c_str(), O_CREAT | O_EXCL, 0644, 1);
+	m_writer_sem = sem_open(writer_sem_name.c_str(), O_CREAT | O_EXCL, 0644, 0);
 	
 	m_watcher.worker = std::thread(std::bind(&client::worker, this));
 }
@@ -265,6 +259,11 @@ ipc::client::~client() {
 	m_watcher.stop = true;
 	sem_post(m_reader_sem);
 	sem_post(m_writer_sem);
+
+	std::vector<char> buffer;
+	buffer.push_back('1');
+	m_socket->write(buffer.data(), buffer.size(), REPLY);
+
 	if (m_watcher.worker.joinable()) {
 		m_watcher.worker.join();
 	}
@@ -399,13 +398,8 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
 	}
  	while (ret == -1 && errno == EINTR);
 
-	// std::cout << "Writing permissions for" << cname.c_str() << "::" << fname.c_str() << std::endl;
-
-	// std::cout << "Decremented semaphore" << std::endl;
-
-    ec = (os::error) m_socket->write(buf.data(), buf.size());
+    ec = (os::error) m_socket->write(buf.data(), buf.size(), REQUEST);
 	// std::cout << "Reader semaphore post - start - can read" << std::endl;
-	sem_post(m_reader_sem);
 	// if (ec != os::error::Success && ec != os::error::Pending) {
 	// 	cancel(cbid);
 	// 	return false;

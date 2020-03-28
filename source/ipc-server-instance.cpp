@@ -59,10 +59,10 @@ ipc::server_instance::~server_instance() {
 	// Threading
 	m_stopWorkers = true;
 
-	// Unblock current sync read by sendy dummy data
+	// Unblock current sync read by send dummy data
 	std::vector<char> buffer;
 	buffer.push_back('1');
-	m_socket->write(buffer.data(), buffer.size());
+	m_socket->write(buffer.data(), buffer.size(), REQUEST);
 
 	if (m_worker.joinable())
 		m_worker.join();
@@ -86,12 +86,6 @@ void ipc::server_instance::worker() {
 
 	// Loop
 	while ((!m_stopWorkers) && m_socket->is_connected()) {
-		// Read IPC header
-		if (sem_wait(m_reader_sem) < 0) {
-			std::cout << "Failed to wait for the semaphore: " << strerror(errno) << std::endl;
-			break;
-		}
-		// std::cout << "Read" << std::endl;
 		m_rbuf.clear();
         m_rbuf.resize(30000);
         ec =
@@ -101,7 +95,7 @@ void ipc::server_instance::worker() {
                                        std::bind(&server_instance::read_callback_msg,
                                                  this,
                                                  std::placeholders::_1,
-                                                 std::placeholders::_2), true);
+                                                 std::placeholders::_2), true, REQUEST);
 		// std::cout << "End Read" << std::endl;
 
 // 		if (!m_rop || !m_rop->is_valid()) {
@@ -196,7 +190,7 @@ void ipc::server_instance::read_callback_init(os::error ec, size_t size) {
 			                                std::bind(&server_instance::read_callback_msg,
 			                                          this,
 			                                          std::placeholders::_1,
-			                                          std::placeholders::_2), false);
+			                                          std::placeholders::_2), false, REQUEST);
 #endif
 			if (ec2 != os::error::Pending && ec2 != os::error::Success) {
 				if (ec2 == os::error::Disconnected) {
@@ -378,8 +372,7 @@ void ipc::server_instance::read_callback_msg_write(const std::vector<char>& writ
 				return;
 
 			// ipc::log("server::write - start");
-			std::this_thread::sleep_for(std::chrono::milliseconds(10));
-			os::error ec2 = (os::error)m_socket->write(write_buffer.data(), write_buffer.size());
+			os::error ec2 = (os::error)m_socket->write(write_buffer.data(), write_buffer.size(), REPLY);
 			// ipc::log("server::write - end");
 			sem_post(m_reader_sem);
 #endif
