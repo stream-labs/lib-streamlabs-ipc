@@ -87,7 +87,7 @@ void ipc::server_instance::worker() {
 	// Loop
 	while ((!m_stopWorkers) && m_socket->is_connected()) {
 		m_rbuf.clear();
-        m_rbuf.resize(30000);
+        m_rbuf.resize(65000);
 		// ipc::log("server::read - start");
         ec =
             (os::error) m_socket->read(m_rbuf.data(),

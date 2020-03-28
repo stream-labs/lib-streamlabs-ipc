@@ -49,7 +49,7 @@ void ipc::client::worker() {
             if (m_watcher.stop)
                 break;
 			m_watcher.buf.clear();
-			m_watcher.buf.resize(30000);
+			m_watcher.buf.resize(65000);
 			sem_post(m_writer_sem);
 			// std::cout << "ipc::client::read - start" << std::endl;
             ec = (os::error) m_socket->read(m_watcher.buf.data(),
