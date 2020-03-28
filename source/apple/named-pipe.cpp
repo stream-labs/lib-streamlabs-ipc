@@ -25,6 +25,8 @@ os::apple::named_pipe::named_pipe(os::open_only_t, const std::string name)
 }
 
 os::apple::named_pipe::~named_pipe() {
+    remove(name_req.c_str());
+    remove(name_rep.c_str());
 }
 
 void read_cb (int sig) {

@@ -40,58 +40,23 @@ call_return_t g_fn   = NULL;
 void*         g_data = NULL;
 int64_t       g_cbid = NULL;
 
-void ipc::client::worker() {
-	while (m_socket->is_connected() && !m_watcher.stop) {
-		if (!m_rop || !m_rop->is_valid()) {
-			if (m_watcher.stop)
-				break;
-			m_watcher.buf.clear();
-			m_watcher.buf.resize(65000);
-			sem_post(m_writer_sem);
-			m_socket->read(m_watcher.buf.data(),
-							m_watcher.buf.size(),
-							m_rop, std::bind(&client::read_callback_msg,
-											this,
-											std::placeholders::_1,
-											std::placeholders::_2), true, REPLY);
-		}
-	}
-}
+// void ipc::client::worker() {
+// 	while (m_socket->is_connected() && !m_watcher.stop) {
+// 		if (!m_rop || !m_rop->is_valid()) {
+// 			if (m_watcher.stop)
+// 				break;
+// 			m_watcher.buf.resize(65000);
+// 			m_socket->read(m_watcher.buf.data(),
+// 							m_watcher.buf.size(),
+// 							m_rop, std::bind(&client::read_callback_msg,
+// 											this,
+// 											std::placeholders::_1,
+// 											std::placeholders::_2), true, REPLY);
+// 		}
+// 	}
+// }
 
 void ipc::client::read_callback_init(os::error ec, size_t size) {
-	srand(time(NULL));
-//    std::cout << "client - read_callback_init" << std::endl;
-	os::error ec2 = os::error::Success;
-
-	m_rop->invalidate();
-
-	if (ec == os::error::Success || ec == os::error::MoreData) {
-		ipc_size_t n_size = read_size(m_watcher.buf);
-#ifdef _DEBUG
-		std::string hex_msg = ipc::vectortohex(m_watcher.buf);
-		ipc::log("(read) ????????: %.*s => %llu", hex_msg.size(), hex_msg.data(), n_size);
-#endif
-		if (n_size != 0) {
-			m_watcher.buf.resize(n_size);
-#ifdef WIN32
-			ec2 = m_socket->read(m_watcher.buf.data(), m_watcher.buf.size(), m_rop, std::bind(&client::read_callback_msg, this, _1, _2));
-#elif __APPLE__
-             ec = (os::error) m_socket->read(m_watcher.buf.data(),
-                                 m_watcher.buf.size(),
-                                 m_rop, std::bind(&client::read_callback_msg,
-                                                  this,
-                                                  std::placeholders::_1,
-                                                  std::placeholders::_2), false, REPLY);
-#endif
-			if (ec2 != os::error::Pending && ec2 != os::error::Success) {
-				if (ec2 == os::error::Disconnected) {
-					return;
-				} else {
-					throw std::exception((const std::exception&)"Unexpected error.");
-				}
-			}
-		}
-	}
 }
 
 void ipc::client::read_callback_msg(os::error ec, size_t size) {
@@ -101,65 +66,19 @@ void ipc::client::read_callback_msg(os::error ec, size_t size) {
 
 	m_rop->invalidate();
 
-#ifdef _DEBUG
-	ipc::log("(read) ????????: Deserializing Function Reply, ec = %lld, size = %llu", (int64_t)ec, (uint64_t)size);
-	std::string hex_msg = ipc::vectortohex(m_watcher.buf);
-	ipc::log("(read) ????????: %.*s.", hex_msg.size(), hex_msg.data());
-#endif
-
 	try {
 		fnc_reply_msg.deserialize(m_watcher.buf, 0);
 	} catch (std::exception& e) {
 		ipc::log("Deserialize failed with error %s.", e.what());
 		throw e;
 	}
-
-#ifdef _DEBUG
-	ipc::log("(read) %8llu: Deserialized with %lld return values.", 
-		fnc_reply_msg.uid.value_union.ui64,
-		fnc_reply_msg.values.size());
-	for (size_t idx = 0; idx < fnc_reply_msg.values.size(); idx++) {
-		ipc::value& arg = fnc_reply_msg.values[idx];
-		switch (arg.type) {
-			case type::Int32:
-				ipc::log("(read) \t%llu: %ld", idx, arg.value_union.i32);
-				break;
-			case type::Int64:
-				ipc::log("(read) \t%llu: %lld", idx, arg.value_union.i64);
-				break;
-			case type::UInt32:
-				ipc::log("(read) \t%llu: %lu", idx, arg.value_union.ui32);
-				break;
-			case type::UInt64:
-				ipc::log("(read) \t%llu: %llu", idx, arg.value_union.ui64);
-				break;
-			case type::Float:
-				ipc::log("(read) \t%llu: %f", idx, (double)arg.value_union.fp32);
-				break;
-			case type::Double:
-				ipc::log("(read) \t%llu: %f", idx, arg.value_union.fp64);
-				break;
-			case type::String:
-				ipc::log("(read) \t%llu: %.*s", idx, arg.value_str.size(), arg.value_str.c_str());
-				break;
-			case type::Binary:
-				ipc::log("(read) \t%llu: (Binary)", idx);
-				break;
-			case type::Null:
-				ipc::log("(read) \t%llu: (Null)", idx);
-				break;
-		}
-	}
-	ipc::log("(read) \terror: %.*s", fnc_reply_msg.error.value_str.size(), fnc_reply_msg.error.value_str.c_str());
-#endif
+	
+	m_watcher.buf.clear();
 
 	// Find the callback function.
 	std::unique_lock<std::mutex> ulock(m_lock);
 	auto cb2 = m_cb.find(fnc_reply_msg.uid.value_union.ui64);
 	if (cb2 == m_cb.end()) {
-#ifdef _DEBUG
-		ipc::log("(read) %8llu: No callback, returning.", fnc_reply_msg.uid.value_union.ui64);
-#endif
 		return;
 	}
 	cb = cb2->second;
@@ -170,21 +89,11 @@ void ipc::client::read_callback_msg(os::error ec, size_t size) {
 		fnc_reply_msg.values.at(0).value_str = fnc_reply_msg.error.value_str;
 	}
 
-#ifdef _DEBUG
-	ipc::log("(read) %8llu: Calling callback Function Reply...", fnc_reply_msg.uid.value_union.ui64);
-#endif
-
 	// Call Callback
 	cb.first(cb.second, fnc_reply_msg.values);
 
 	// Remove cb entry
-	/// ToDo: Figure out better way of registering functions, perhaps even a way to have "events" across a IPC connection.
 	m_cb.erase(fnc_reply_msg.uid.value_union.ui64);
-
-#ifdef _DEBUG
-	ipc::log("(read) %8llu: Done.", fnc_reply_msg.uid.value_union.ui64);
-#endif
-	// std::cout << "release semaphore" << std::endl;
 }
 
 ipc::client::client(std::string socketPath) {
@@ -195,30 +104,14 @@ ipc::client::client(std::string socketPath) {
 #endif
 	m_watcher.stop   = false;
 
-	sem_unlink(reader_sem_name.c_str());
-	remove(reader_sem_name.c_str());
-	m_reader_sem = sem_open(reader_sem_name.c_str(), O_CREAT | O_EXCL, 0644, 1);
-
 	sem_unlink(writer_sem_name.c_str());
 	remove(writer_sem_name.c_str());
-	m_writer_sem = sem_open(writer_sem_name.c_str(), O_CREAT | O_EXCL, 0644, 0);
-	
-	m_watcher.worker = std::thread(std::bind(&client::worker, this));
+	m_writer_sem = sem_open(writer_sem_name.c_str(), O_CREAT | O_EXCL, 0644, 1);
 }
 
 ipc::client::~client() {
 	m_watcher.stop = true;
-	sem_post(m_reader_sem);
 	sem_post(m_writer_sem);
-
-	std::vector<char> buffer;
-	buffer.push_back('1');
-	m_socket->write(buffer.data(), buffer.size(), REPLY);
-
-	if (m_watcher.worker.joinable()) {
-		m_watcher.worker.join();
-	}
-	sem_close(m_reader_sem);
 	sem_close(m_writer_sem);
 	m_socket = nullptr;
 }
@@ -252,46 +145,6 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
 	fnc_call_msg.function_name = ipc::value(fname);
 	fnc_call_msg.arguments = std::move(args);
 
-#ifdef _DEBUG
-	ipc::log("(write) %8llu: Serializing Function Call for class '%.*s' with function '%.*s' and %llu arguments.",
-		fnc_call_msg.uid.value_union.ui64,
-		(uint64_t)fnc_call_msg.class_name.value_str.size(), fnc_call_msg.class_name.value_str.c_str(),
-		(uint64_t)fnc_call_msg.function_name.value_str.size(), fnc_call_msg.function_name.value_str.c_str(),
-		(uint64_t)fnc_call_msg.arguments.size());
-	for (size_t idx = 0; idx < fnc_call_msg.arguments.size(); idx++) {
-		ipc::value& arg = fnc_call_msg.arguments[idx];
-		switch (arg.type) {
-			case type::Int32:
-				ipc::log("(write) \t%llu: %ld", idx, arg.value_union.i32);
-				break;
-			case type::Int64:
-				ipc::log("(write) \t%llu: %lld", idx, arg.value_union.i64);
-				break;
-			case type::UInt32:
-				ipc::log("(write) \t%llu: %lu", idx, arg.value_union.ui32);
-				break;
-			case type::UInt64:
-				ipc::log("(write) \t%llu: %llu", idx, arg.value_union.ui64);
-				break;
-			case type::Float:
-				ipc::log("(write) \t%llu: %f", idx, (double)arg.value_union.fp32);
-				break;
-			case type::Double:
-				ipc::log("(write) \t%llu: %f", idx, arg.value_union.fp64);
-				break;
-			case type::String:
-				ipc::log("(write) \t%llu: %.*s", idx, arg.value_str.size(), arg.value_str.c_str());
-				break;
-			case type::Binary:
-				ipc::log("(write) \t%llu: (Binary)", idx);
-				break;
-			case type::Null:
-				ipc::log("(write) \t%llu: (Null)", idx);
-				break;
-		}
-	}
-#endif
-
 	// Serialize
 	std::vector<char> buf(fnc_call_msg.size());
 	try {
@@ -307,17 +160,6 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
 		cbid = fnc_call_msg.uid.value_union.ui64;
 	}
 
-#ifdef _DEBUG
-	ipc::log("(write) %8llu: Sending %llu bytes...", fnc_call_msg.uid.value_union.ui64, buf.size());
-	std::string hex_msg = ipc::vectortohex(buf);
-	ipc::log("(write) %8llu: %.*s", fnc_call_msg.uid.value_union.ui64, hex_msg.size(), hex_msg.data());
-#endif
-
-	// ipc::make_sendable(outbuf, buf);
-#ifdef _DEBUG
-	hex_msg = ipc::vectortohex(outbuf);
-	ipc::log("(write) %8llu: %.*s", fnc_call_msg.uid.value_union.ui64, hex_msg.size(), hex_msg.data());
-#endif
 #ifdef WIN32
 	ec = m_socket->write(outbuf.data(), outbuf.size(), write_op, nullptr);
 	if (ec != os::error::Success && ec != os::error::Pending) {
@@ -334,10 +176,17 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
 	}
 #elif __APPLE__
 	sem_wait(m_writer_sem);
+	if (m_watcher.stop)
+		return true;
     ec = (os::error) m_socket->write(buf.data(), buf.size(), REQUEST);
-#endif
-#ifdef _DEBUG
-	ipc::log("(write) %8llu: Sent.", fnc_call_msg.uid.value_union.ui64);
+	m_watcher.buf.resize(65000);
+	m_socket->read(m_watcher.buf.data(),
+				m_watcher.buf.size(),
+				m_rop, std::bind(&client::read_callback_msg,
+								this,
+								std::placeholders::_1,
+								std::placeholders::_2), true, REPLY);
+	sem_post(m_writer_sem);
 #endif
 	return true;
 }

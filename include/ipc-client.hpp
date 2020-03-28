@@ -58,12 +58,10 @@ namespace ipc {
 			std::vector<char> buf;
 		} m_watcher;
 
-		std::string reader_sem_name = "semaphore-client-reader";
 		std::string writer_sem_name = "semaphore-client-writer";
-		sem_t *m_reader_sem;
 		sem_t *m_writer_sem;
 		
-		void worker();
+		// void worker();
 		void read_callback_init(os::error ec, size_t size);
 		void read_callback_msg(os::error ec, size_t size);
 

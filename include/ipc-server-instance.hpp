@@ -55,7 +55,6 @@ namespace ipc {
 
 		std::string reader_sem_name = "semaphore-server-reader";
 		std::string writer_sem_name = "semaphore-server-writer";
-		sem_t *m_reader_sem;
 		sem_t *m_writer_sem;
 
 		void worker_req();
@@ -74,6 +73,9 @@ namespace ipc {
 		std::shared_ptr<os::async_op> m_wop, m_rop;
 		std::vector<char> m_wbuf, m_rbuf;
 		std::queue<std::vector<char>> m_write_queue;
+
+		std::mutex msg_mtx;
+		std::queue<ipc::message::function_call> msgs;
 
 		private:
 		server* m_parent = nullptr;
