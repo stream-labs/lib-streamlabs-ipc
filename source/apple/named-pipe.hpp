@@ -31,7 +31,6 @@ namespace os {
         class named_pipe {
             bool created     = false;
             bool connected   = true;
-            int file_descriptor = -1;
             std::string name_req = "";
             std::string name_rep = "";
 

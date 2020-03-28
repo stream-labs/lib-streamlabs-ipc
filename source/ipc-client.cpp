@@ -51,62 +51,12 @@ void ipc::client::worker() {
 			m_watcher.buf.clear();
 			m_watcher.buf.resize(65000);
 			sem_post(m_writer_sem);
-			// std::cout << "ipc::client::read - start" << std::endl;
             ec = (os::error) m_socket->read(m_watcher.buf.data(),
                                  m_watcher.buf.size(),
                                  m_rop, std::bind(&client::read_callback_msg,
                                                   this,
                                                   std::placeholders::_1,
                                                   std::placeholders::_2), true, REPLY);
-			// std::cout << "Writer semaphore post - start - can write" << std::endl;
-			
-//              if (ec != os::error::Pending && ec != os::error::Success) {
-//                  if (ec == os::error::Disconnected) {
-//                      break;
-//                  } else {
-//                      throw std::exception((const std::exception&)"Unexpected error.");
-//                  }
-//              }
-          }
-
- //         // ec = m_rop->wait(std::chrono::milliseconds(0));
- //         if (ec == os::error::Success) {
- //             continue;
- //         } else {
- //             // ec = m_rop->wait(std::chrono::milliseconds(20));
- //             if (ec == os::error::TimedOut) {
- //                 continue;
- //             } else if (ec == os::error::Disconnected) {
- //                 break;
- //             } else if (ec == os::error::Error) {
- //                 // throw std::exception((const std::exception&)"Error");
- //             }
-          }
-//     }
-
-// 	if (!m_socket->is_connected()) {
-// 		std::string test = "test";
-// 	}
-// #ifdef WIN32
-// #endif
-
-// 	// Call any remaining callbacks.
-// 	proc_rval.resize(1);
-// 	proc_rval[0].type = ipc::type::Null;
-// 	proc_rval[0].value_str = "Lost IPC Connection";
-
-// 	{ // ToDo: Figure out better way of registering functions, perhaps even a way to have "events" across a IPC connection.
-// 		std::unique_lock<std::mutex> ulock(m_lock);
-// 		for (auto& cb : m_cb) {
-// 			cb.second.first(cb.second.second, proc_rval);
-// 		}
-
-// 		m_cb.clear();
-// 	}
-
-//    if (!m_socket->is_connected()) {
-//        exit(1);
-//    }
 }
 
 void ipc::client::read_callback_init(os::error ec, size_t size) {
@@ -384,37 +334,8 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
 		return false;
 	}
 #elif __APPLE__
-    // std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-	// std::cout << "Writer semaphore wait - start" << std::endl;
-	// sem_wait(m_writer_sem);
-
-	// if (sem_wait(m_writer_sem) < 0) {
-	// 	std::cout << "Failed to wait for the semaphore: " << strerror(errno) << std::endl;
-	// 	// return;
-	// }
-
-	// std::cout << "Client waiting to write for" << cname.c_str() << "::" << fname.c_str() << std::endl;
-	int ret = 0;
-	do {
-	    ret = sem_wait(m_writer_sem);
-	}
- 	while (ret == -1 && errno == EINTR);
-
-	// std::cout << "ipc::client::write - start" << std::endl;
+	sem_wait(m_writer_sem);
     ec = (os::error) m_socket->write(buf.data(), buf.size(), REQUEST);
-	// std::cout << "ipc::client::write - end" << std::endl;
-	// std::cout << "Reader semaphore post - start - can read" << std::endl;
-	// if (ec != os::error::Success && ec != os::error::Pending) {
-	// 	cancel(cbid);
-	// 	return false;
-	// }
-
-	// ec = write_op->wait();
-	// if (ec != os::error::Success) {
-	// 	cancel(cbid);
-	// 	write_op->cancel();
-	// 	return false;
-	// }
 #endif
 #ifdef _DEBUG
 	ipc::log("(write) %8llu: Sent.", fnc_call_msg.uid.value_union.ui64);

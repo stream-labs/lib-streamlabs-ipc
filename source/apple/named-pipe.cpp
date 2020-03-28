@@ -41,6 +41,7 @@ uint32_t os::apple::named_pipe::read(char *buffer, size_t buffer_length, std::sh
     int ret = 0;
     int sizeChunks = 8*1024; // 8KB
     int offset = 0;
+    int file_descriptor = -1;
 
     // Set callback
     std::shared_ptr<os::apple::async_request> ar = std::static_pointer_cast<os::apple::async_request>(op);
@@ -88,7 +89,7 @@ uint32_t os::apple::named_pipe::write(const char *buffer, size_t buffer_length, 
     os::error err = os::error::Error;
     int ret = 0;
 
-    file_descriptor = open(t == REQUEST ? name_req.c_str() : name_rep.c_str(), O_WRONLY | O_DSYNC);
+    int file_descriptor = open(t == REQUEST ? name_req.c_str() : name_rep.c_str(), O_WRONLY | O_DSYNC);
     if (file_descriptor < 0) {
         std::cout << "Could not open " << strerror(errno) << std::endl;
         goto end;
