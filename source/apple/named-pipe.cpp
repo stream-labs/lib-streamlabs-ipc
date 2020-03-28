@@ -40,6 +40,7 @@ uint32_t os::apple::named_pipe::read(char *buffer, size_t buffer_length, std::sh
     os::error err = os::error::Error;
     int ret = 0;
     int sizeChunks = 8*1024; // 8KB
+    int offset = 0;
 
     // Set callback
     std::shared_ptr<os::apple::async_request> ar = std::static_pointer_cast<os::apple::async_request>(op);
@@ -59,9 +60,10 @@ uint32_t os::apple::named_pipe::read(char *buffer, size_t buffer_length, std::sh
         goto end;
     }
 
-     do {
+    //  do {
+        // std::cout << "socket read - start" << std::endl;
         ret = ::read(file_descriptor, buffer, buffer_length);
-        int offset = 0;
+        // std::cout << "socket read - end " << ret << std::endl;
         while (ret == sizeChunks) {
             offset += sizeChunks;
             std::vector<char> new_chunks;
@@ -69,8 +71,8 @@ uint32_t os::apple::named_pipe::read(char *buffer, size_t buffer_length, std::sh
             ret = ::read(file_descriptor, new_chunks.data(), new_chunks.size());
             ::memcpy(&buffer[offset], new_chunks.data(), ret);
         }
-    }
-    while ( ret <= 0 && is_blocking);
+    // }
+    // while ( ret == 0 && is_blocking);
 
     close(file_descriptor);
     err = os::error::Success;
@@ -92,10 +94,12 @@ uint32_t os::apple::named_pipe::write(const char *buffer, size_t buffer_length, 
         goto end;
     }
 
-    do {
+    // do {
+        // std::cout << "socket write - start" << std::endl;
         ret = ::write(file_descriptor, buffer, buffer_length);
-    }
-    while ( ret < 0 );
+        // std::cout << "socket write - end " << ret << std::endl;
+    // }
+    // while ( ret < 0 );
     // std::cout << "Wrote " << ret << std::endl;
     err = os::error::Success;
 end:

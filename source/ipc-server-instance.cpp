@@ -88,6 +88,7 @@ void ipc::server_instance::worker() {
 	while ((!m_stopWorkers) && m_socket->is_connected()) {
 		m_rbuf.clear();
         m_rbuf.resize(30000);
+		// ipc::log("server::read - start");
         ec =
             (os::error) m_socket->read(m_rbuf.data(),
                                        m_rbuf.size(),
@@ -204,6 +205,7 @@ void ipc::server_instance::read_callback_init(os::error ec, size_t size) {
 }
 
 void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
+	// ipc::log("server::read - end");
 	/// Processing
 	std::vector<ipc::value> proc_rval;
 	ipc::value proc_tempval;

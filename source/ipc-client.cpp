@@ -51,6 +51,7 @@ void ipc::client::worker() {
 			m_watcher.buf.clear();
 			m_watcher.buf.resize(30000);
 			sem_post(m_writer_sem);
+			// std::cout << "ipc::client::read - start" << std::endl;
             ec = (os::error) m_socket->read(m_watcher.buf.data(),
                                  m_watcher.buf.size(),
                                  m_rop, std::bind(&client::read_callback_msg,
@@ -145,6 +146,7 @@ void ipc::client::read_callback_init(os::error ec, size_t size) {
 }
 
 void ipc::client::read_callback_msg(os::error ec, size_t size) {
+	// std::cout << "ipc::client::read - end" << std::endl;
 	std::pair<call_return_t, void*> cb;
 	ipc::message::function_reply fnc_reply_msg;
 
@@ -398,7 +400,9 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
 	}
  	while (ret == -1 && errno == EINTR);
 
+	// std::cout << "ipc::client::write - start" << std::endl;
     ec = (os::error) m_socket->write(buf.data(), buf.size(), REQUEST);
+	// std::cout << "ipc::client::write - end" << std::endl;
 	// std::cout << "Reader semaphore post - start - can read" << std::endl;
 	// if (ec != os::error::Success && ec != os::error::Pending) {
 	// 	cancel(cbid);
