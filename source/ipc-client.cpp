@@ -41,22 +41,21 @@ void*         g_data = NULL;
 int64_t       g_cbid = NULL;
 
 void ipc::client::worker() {
-     os::error ec = os::error::Success;
-     std::vector<ipc::value> proc_rval;
-    
-     while (m_socket->is_connected() && !m_watcher.stop) {
-          if (!m_rop || !m_rop->is_valid()) {
-            if (m_watcher.stop)
-                break;
+	while (m_socket->is_connected() && !m_watcher.stop) {
+		if (!m_rop || !m_rop->is_valid()) {
+			if (m_watcher.stop)
+				break;
 			m_watcher.buf.clear();
 			m_watcher.buf.resize(65000);
 			sem_post(m_writer_sem);
-            ec = (os::error) m_socket->read(m_watcher.buf.data(),
-                                 m_watcher.buf.size(),
-                                 m_rop, std::bind(&client::read_callback_msg,
-                                                  this,
-                                                  std::placeholders::_1,
-                                                  std::placeholders::_2), true, REPLY);
+			m_socket->read(m_watcher.buf.data(),
+							m_watcher.buf.size(),
+							m_rop, std::bind(&client::read_callback_msg,
+											this,
+											std::placeholders::_1,
+											std::placeholders::_2), true, REPLY);
+		}
+	}
 }
 
 void ipc::client::read_callback_init(os::error ec, size_t size) {
