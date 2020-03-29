@@ -54,13 +54,15 @@ uint32_t os::apple::named_pipe::read(char *buffer, size_t buffer_length, bool is
         goto end;
     }
 
-    ret = ::read(file_descriptor, buffer, buffer_length);
-    while (ret == sizeChunks) {
-        offset += sizeChunks;
-        std::vector<char> new_chunks;
-        new_chunks.resize(sizeChunks);
-        ret = ::read(file_descriptor, new_chunks.data(), new_chunks.size());
-        ::memcpy(&buffer[offset], new_chunks.data(), ret);
+    while (ret == 0) {
+        ret = ::read(file_descriptor, buffer, buffer_length);
+        while (ret == sizeChunks) {
+            offset += sizeChunks;
+            std::vector<char> new_chunks;
+            new_chunks.resize(sizeChunks);
+            ret = ::read(file_descriptor, new_chunks.data(), new_chunks.size());
+            ::memcpy(&buffer[offset], new_chunks.data(), ret);
+        }
     }
 
     close(file_descriptor);
