@@ -41,7 +41,7 @@ namespace os {
             named_pipe(os::open_only_t, const std::string name);
             ~named_pipe();
 
-            uint32_t read(char *buffer, size_t buffer_length, std::shared_ptr<os::async_op> &op, os::async_op_cb_t cb, bool is_blocking, SocketType t);
+            uint32_t read(char *buffer, size_t buffer_length, bool is_blocking, SocketType t);
 
 			uint32_t write(const char *buffer, size_t buffer_length, SocketType t);
 

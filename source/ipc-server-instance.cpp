@@ -86,13 +86,9 @@ void ipc::server_instance::worker_req() {
 	// Loop
 	while ((!m_stopWorkers) && m_socket->is_connected()) {
         m_rbuf.resize(65000);
-		(os::error) m_socket->read(m_rbuf.data(),
-									m_rbuf.size(),
-									m_rop,
-									std::bind(&server_instance::read_callback_msg,
-												this,
-												std::placeholders::_1,
-												std::placeholders::_2), true, REQUEST);
+		os::error ec = (os::error) m_socket->read(m_rbuf.data(),
+						m_rbuf.size(), true, REQUEST);
+		read_callback_msg(ec, m_rbuf.size());
 	}
 }
 
@@ -179,9 +175,9 @@ void ipc::server_instance::read_callback_init(os::error ec, size_t size) {
 void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 	ipc::message::function_call fnc_call_msg;
 
-	if (ec != os::error::Success) {
-		return;
-	}
+	// if (ec != os::error::Success) {
+	// 	return;
+	// }
 
 	try {
 		fnc_call_msg.deserialize(m_rbuf, 0);

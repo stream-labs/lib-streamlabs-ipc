@@ -37,22 +37,13 @@ void write_cb (int sig) {
     // std::cout << "write cb called!" << std::endl;
 }
 
-uint32_t os::apple::named_pipe::read(char *buffer, size_t buffer_length, std::shared_ptr<os::async_op> &op, os::async_op_cb_t cb, bool is_blocking, SocketType t)
+uint32_t os::apple::named_pipe::read(char *buffer, size_t buffer_length, bool is_blocking, SocketType t)
 {
     os::error err = os::error::Error;
     int ret = 0;
     int sizeChunks = 8*1024; // 8KB
     int offset = 0;
     int file_descriptor = -1;
-
-    // Set callback
-    std::shared_ptr<os::apple::async_request> ar = std::static_pointer_cast<os::apple::async_request>(op);
-    if(!ar) {
-        ar = std::make_shared<os::apple::async_request>();
-        op = std::static_pointer_cast<os::async_op>(ar);
-    }
-    ar->set_callback(cb);
-    ar->set_sem(NULL);
 
     if (is_blocking)
         file_descriptor = open(t == REQUEST ? name_req.c_str() : name_rep.c_str(), O_RDONLY);// | O_NDELAY);// | O_NONBLOCK);
@@ -63,25 +54,17 @@ uint32_t os::apple::named_pipe::read(char *buffer, size_t buffer_length, std::sh
         goto end;
     }
 
-    //  do {
-        // std::cout << "socket read - start" << std::endl;
-        ret = ::read(file_descriptor, buffer, buffer_length);
-        // std::cout << "socket read - end " << ret << std::endl;
-        while (ret == sizeChunks) {
-            offset += sizeChunks;
-            std::vector<char> new_chunks;
-            new_chunks.resize(sizeChunks);
-            ret = ::read(file_descriptor, new_chunks.data(), new_chunks.size());
-            ::memcpy(&buffer[offset], new_chunks.data(), ret);
-        }
-    // }
-    // while ( ret == 0 && is_blocking);
+    ret = ::read(file_descriptor, buffer, buffer_length);
+    while (ret == sizeChunks) {
+        offset += sizeChunks;
+        std::vector<char> new_chunks;
+        new_chunks.resize(sizeChunks);
+        ret = ::read(file_descriptor, new_chunks.data(), new_chunks.size());
+        ::memcpy(&buffer[offset], new_chunks.data(), ret);
+    }
 
     close(file_descriptor);
     err = os::error::Success;
-    ar->call_callback(err, buffer_length);
-    ar->cancel();
-
 end:
     return (uint32_t) err;
 }
@@ -97,13 +80,7 @@ uint32_t os::apple::named_pipe::write(const char *buffer, size_t buffer_length, 
         goto end;
     }
 
-    // do {
-        // std::cout << "socket write - start" << std::endl;
-        ret = ::write(file_descriptor, buffer, buffer_length);
-        // std::cout << "socket write - end " << ret << std::endl;
-    // }
-    // while ( ret < 0 );
-    // std::cout << "Wrote " << ret << std::endl;
+    ret = ::write(file_descriptor, buffer, buffer_length);
     err = os::error::Success;
 end:
     close(file_descriptor);

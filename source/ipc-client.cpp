@@ -64,7 +64,7 @@ void ipc::client::read_callback_msg(os::error ec, size_t size) {
 	std::pair<call_return_t, void*> cb;
 	ipc::message::function_reply fnc_reply_msg;
 
-	m_rop->invalidate();
+	// m_rop->invalidate();
 
 	try {
 		fnc_reply_msg.deserialize(m_watcher.buf, 0);
@@ -72,8 +72,6 @@ void ipc::client::read_callback_msg(os::error ec, size_t size) {
 		ipc::log("Deserialize failed with error %s.", e.what());
 		throw e;
 	}
-	
-	m_watcher.buf.clear();
 
 	// Find the callback function.
 	std::unique_lock<std::mutex> ulock(m_lock);
@@ -107,6 +105,8 @@ ipc::client::client(std::string socketPath) {
 	sem_unlink(writer_sem_name.c_str());
 	remove(writer_sem_name.c_str());
 	m_writer_sem = sem_open(writer_sem_name.c_str(), O_CREAT | O_EXCL, 0644, 1);
+
+	m_watcher.buf.resize(65000);
 }
 
 ipc::client::~client() {
@@ -123,6 +123,7 @@ bool ipc::client::cancel(int64_t const& id) {
 }
 
 bool ipc::client::call(const std::string& cname, const std::string& fname, std::vector<ipc::value> args, call_return_t fn, void* data, int64_t& cbid) {
+	// std::cout << "ipc-client::call::" << cname.c_str() << "::" << fname.c_str() << std::endl;
 	static std::mutex mtx;
 	static uint64_t timestamp = 0;
 	os::error ec;
@@ -179,13 +180,10 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
 	if (m_watcher.stop)
 		return true;
     ec = (os::error) m_socket->write(buf.data(), buf.size(), REQUEST);
-	m_watcher.buf.resize(65000);
 	m_socket->read(m_watcher.buf.data(),
-				m_watcher.buf.size(),
-				m_rop, std::bind(&client::read_callback_msg,
-								this,
-								std::placeholders::_1,
-								std::placeholders::_2), true, REPLY);
+				m_watcher.buf.size(), true, REPLY);
+	// std::cout << "buffer size " << m_watcher.buf.size() << std::endl;
+	read_callback_msg(ec, 65000);
 	sem_post(m_writer_sem);
 #endif
 	return true;
