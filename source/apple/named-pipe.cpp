@@ -45,27 +45,34 @@ uint32_t os::apple::named_pipe::read(char *buffer, size_t buffer_length, bool is
     int offset = 0;
     int file_descriptor = -1;
 
-    if (is_blocking)
-        file_descriptor = open(t == REQUEST ? name_req.c_str() : name_rep.c_str(), O_RDONLY);// | O_NDELAY);// | O_NONBLOCK);
-    else
-        file_descriptor = open(t == REQUEST ? name_req.c_str() : name_rep.c_str(), O_RDONLY | O_NONBLOCK);
-    if (file_descriptor < 0) {
-        std::cout << "Could not open " << strerror(errno) << std::endl;
-        goto end;
-    }
 
     while (ret == 0) {
+        if (is_blocking)
+            file_descriptor = open(t == REQUEST ? name_req.c_str() : name_rep.c_str(), O_RDONLY);
+        else
+            file_descriptor = open(t == REQUEST ? name_req.c_str() : name_rep.c_str(), O_RDONLY | O_NONBLOCK);
+
+        if (file_descriptor < 0) {
+            std::cout << "Could not open read pipe " << strerror(errno) << std::endl;
+            break;
+        }
+
         ret = ::read(file_descriptor, buffer, buffer_length);
         while (ret == sizeChunks) {
+            std::cout << "chunk data" << std::endl;
             offset += sizeChunks;
             std::vector<char> new_chunks;
             new_chunks.resize(sizeChunks);
             ret = ::read(file_descriptor, new_chunks.data(), new_chunks.size());
             ::memcpy(&buffer[offset], new_chunks.data(), ret);
         }
+
+        // if (ret == 0) {
+        //     std::cout << "Could not read from pipe " << strerror(errno) << std::endl;
+        // }
+        close(file_descriptor);
     }
 
-    close(file_descriptor);
     err = os::error::Success;
 end:
     return (uint32_t) err;
@@ -78,11 +85,21 @@ uint32_t os::apple::named_pipe::write(const char *buffer, size_t buffer_length, 
 
     int file_descriptor = open(t == REQUEST ? name_req.c_str() : name_rep.c_str(), O_WRONLY | O_DSYNC);
     if (file_descriptor < 0) {
-        std::cout << "Could not open " << strerror(errno) << std::endl;
+        std::cout << "Could not open write pipe " << strerror(errno) << std::endl;
         goto end;
     }
 
     ret = ::write(file_descriptor, buffer, buffer_length);
+
+    // if (ret == 0) {
+    //     std::cout << "Could not write from pipe " << strerror(errno) << std::endl;
+    //     abort();
+    // }
+    // if (ret < buffer_length) {
+    //     std::cout << "Could not write all the data " << strerror(errno) << std::endl;
+    //     abort();
+    // }
+
     err = os::error::Success;
 end:
     close(file_descriptor);
