@@ -70,6 +70,7 @@ void ipc::client::read_callback_msg(os::error ec, size_t size) {
 		fnc_reply_msg.deserialize(m_watcher.buf, 0);
 	} catch (std::exception& e) {
 		ipc::log("Deserialize failed with error %s.", e.what());
+		abort();
 		throw e;
 	}
 
@@ -123,7 +124,7 @@ bool ipc::client::cancel(int64_t const& id) {
 }
 
 bool ipc::client::call(const std::string& cname, const std::string& fname, std::vector<ipc::value> args, call_return_t fn, void* data, int64_t& cbid) {
-	// std::cout << "ipc-client::call::" << cname.c_str() << "::" << fname.c_str() << std::endl;
+	std::cout << "ipc-client::call::" << cname.c_str() << "::" << fname.c_str() << std::endl;
 	static std::mutex mtx;
 	static uint64_t timestamp = 0;
 	os::error ec;
