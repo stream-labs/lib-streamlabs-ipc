@@ -29,10 +29,13 @@ enum SocketType: uint8_t {
 namespace os {
     namespace apple {
         class named_pipe {
+            private:
             bool created     = false;
             bool connected   = true;
             std::string name_req = "";
             std::string name_rep = "";
+            int file_req;
+            int file_rep;
 
 			void handle_accept_callback(os::error code, size_t length);
 

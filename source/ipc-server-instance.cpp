@@ -86,8 +86,10 @@ void ipc::server_instance::worker_req() {
 	// Loop
 	while ((!m_stopWorkers) && m_socket->is_connected()) {
         m_rbuf.resize(65000);
+		// std::cout << "ipc-server::read" << std::endl;
 		os::error ec = (os::error) m_socket->read(m_rbuf.data(),
 						m_rbuf.size(), true, REQUEST);
+		// std::cout << "ipc-server::read - end" << std::endl;
 		read_callback_msg(ec, m_rbuf.size());
 	}
 }
@@ -112,9 +114,12 @@ void ipc::server_instance::worker_rep() {
 		msg_mtx.unlock();
 		// Execute
 		proc_rval.resize(0);
+		// std::cout << "ipc-server::call " << fnc_call_msg.class_name.value_str.c_str()
+		// 	<< "::" << fnc_call_msg.function_name.value_str.c_str() << std::endl;
 		success = m_parent->client_call_function(m_clientId,
 			fnc_call_msg.class_name.value_str, fnc_call_msg.function_name.value_str,
 			fnc_call_msg.arguments, proc_rval, proc_error);
+		// std::cout << "ipc-server::call - end" << std::endl;
 
 		// Set
 		fnc_reply_msg.uid = fnc_call_msg.uid;
@@ -132,7 +137,9 @@ void ipc::server_instance::worker_rep() {
 				fnc_reply_msg.uid.value_union.ui64, e.what());
 			return;
 		}
+		// std::cout << "ipc-server::write" << std::endl;
 		read_callback_msg_write(m_wbuf);
+		// std::cout << "ipc-server::write - end" << std::endl;
 	}
 }
 

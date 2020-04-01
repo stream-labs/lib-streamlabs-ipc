@@ -3,60 +3,80 @@
 
 os::apple::named_pipe::named_pipe(os::create_only_t, const std::string name)
 {
-    int ret = 0;
+    // Server
+    std::cout << "Server create pipes" << std::endl;
     this->name_req = name + "-req";
     this->name_rep = name + "-rep";
+
+    remove(name_req.c_str());
+    std::cout << "Server create request pipe" << std::endl;
+    if (mkfifo(name_req.c_str(), S_IRUSR | S_IWUSR) < 0)
+        throw std::exception(
+                (const std::exception&)"Could not create request pipe");
+    remove(name_rep.c_str());
+    std::cout << "Server create reply pipe" << std::endl;
+    if (mkfifo(name_rep.c_str(), S_IRUSR | S_IWUSR) < 0)
+        throw std::exception(
+                (const std::exception&)"Could not create reply pipe");
+
+    std::cout << "Server open read request pipe" << std::endl;
+    file_req = open(name_req.c_str(), O_RDONLY | O_NONBLOCK);
+    if (file_req < 0)
+        throw std::exception(
+            (const std::exception&)"Could not open reader request pipe");
+
+    std::cout << "Server open write reply pipe" << std::endl;
+    file_rep = open(name_rep.c_str(), O_WRONLY | O_DSYNC);
+    if (file_rep < 0)
+        throw std::exception(
+            (const std::exception&)"Could not open write reply pipe");  
 
     created = true;
 }
 
 os::apple::named_pipe::named_pipe(os::open_only_t, const std::string name)
 {
+    // Client
     this->name_req = name + "-req";
     this->name_rep = name + "-rep";
 
-    int ret = 0;
-    ret = remove(name_req.c_str());
-    ret = mkfifo(name_req.c_str(), S_IRUSR | S_IWUSR);
-    ret = remove(name_rep.c_str());
-    ret = mkfifo(name_rep.c_str(), S_IRUSR | S_IWUSR);
+    std::cout << "Client open read reply pipe" << std::endl;
+    file_rep = open(name_rep.c_str(), O_RDONLY | O_NONBLOCK);
+    if (file_rep < 0)
+        throw std::exception(
+            (const std::exception&)"Could not open reader reply pipe");
+
+    std::cout << "Client open write request pipe" << std::endl;
+    file_req = open(name_req.c_str(), O_WRONLY | O_DSYNC);
+    if (file_req < 0)
+        throw std::exception(
+            (const std::exception&)"Could not open write request pipe");
 
     connected = true;
 }
 
 os::apple::named_pipe::~named_pipe() {
+    close(file_req);
     remove(name_req.c_str());
+    close(file_rep);
     remove(name_rep.c_str());
-}
-
-void read_cb (int sig) {
-    // std::cout << "read cb called!" << std::endl;
-}
-
-void write_cb (int sig) {
-    // std::cout << "write cb called!" << std::endl;
 }
 
 uint32_t os::apple::named_pipe::read(char *buffer, size_t buffer_length, bool is_blocking, SocketType t)
 {
+    // std::cout << "read" << std::endl;
     os::error err = os::error::Error;
     int ret = 0;
     int sizeChunks = 8*1024; // 8KB
     int offset = 0;
-    int file_descriptor = -1;
+    int file_descriptor = t == REQUEST ? file_req : file_rep;
+    std::string typePipe = t == REQUEST ? "request" : "reply";
 
+    if (file_descriptor < 0)
+        goto end;
 
-    while (ret == 0) {
-        if (is_blocking)
-            file_descriptor = open(t == REQUEST ? name_req.c_str() : name_rep.c_str(), O_RDONLY);
-        else
-            file_descriptor = open(t == REQUEST ? name_req.c_str() : name_rep.c_str(), O_RDONLY | O_NONBLOCK);
-
-        if (file_descriptor < 0) {
-            std::cout << "Could not open read pipe " << strerror(errno) << std::endl;
-            break;
-        }
-
+    while (ret <= 0) {
+        // std::cout << "read " << typePipe.c_str() << std::endl;
         ret = ::read(file_descriptor, buffer, buffer_length);
         while (ret == sizeChunks) {
             std::cout << "chunk data" << std::endl;
@@ -66,13 +86,12 @@ uint32_t os::apple::named_pipe::read(char *buffer, size_t buffer_length, bool is
             ret = ::read(file_descriptor, new_chunks.data(), new_chunks.size());
             ::memcpy(&buffer[offset], new_chunks.data(), ret);
         }
-
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
         // if (ret == 0) {
         //     std::cout << "Could not read from pipe " << strerror(errno) << std::endl;
         // }
-        close(file_descriptor);
     }
-
+    // std::cout << "success read " << ret << std::endl;
     err = os::error::Success;
 end:
     return (uint32_t) err;
@@ -80,16 +99,20 @@ end:
 
 uint32_t os::apple::named_pipe::write(const char *buffer, size_t buffer_length, SocketType t)
 {
+    // std::cout << "write" << std::endl;
     os::error err = os::error::Error;
     int ret = 0;
+    int file_descriptor = t == REQUEST ? file_req : file_rep;
+    std::string typePipe = t == REQUEST ? "request" : "reply";
 
-    int file_descriptor = open(t == REQUEST ? name_req.c_str() : name_rep.c_str(), O_WRONLY | O_DSYNC);
-    if (file_descriptor < 0) {
-        std::cout << "Could not open write pipe " << strerror(errno) << std::endl;
+    if (file_descriptor < 0)
         goto end;
-    }
 
+    // std::cout << "write " << typePipe.c_str() << std::endl;
     ret = ::write(file_descriptor, buffer, buffer_length);
+
+    if (ret < 0)
+        goto end;
 
     // if (ret == 0) {
     //     std::cout << "Could not write from pipe " << strerror(errno) << std::endl;
@@ -100,9 +123,9 @@ uint32_t os::apple::named_pipe::write(const char *buffer, size_t buffer_length, 
     //     abort();
     // }
 
+    // std::cout << "success write" << std::endl;
     err = os::error::Success;
 end:
-    close(file_descriptor);
     return (uint32_t) err;
 }
 

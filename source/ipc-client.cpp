@@ -178,14 +178,18 @@ bool ipc::client::call(const std::string& cname, const std::string& fname, std::
 	}
 #elif __APPLE__
 	sem_wait(m_writer_sem);
+	// std::cout << "ipc-client::request start: " << cname.c_str() << "::" << fname.c_str() << std::endl;
 	if (m_watcher.stop)
 		return true;
+	// std::cout << "ipc-client::write" << std::endl;
     ec = (os::error) m_socket->write(buf.data(), buf.size(), REQUEST);
+	// std::cout << "ipc-client::read" << std::endl;
 	m_socket->read(m_watcher.buf.data(),
 				m_watcher.buf.size(), true, REPLY);
 	// std::cout << "buffer size " << m_watcher.buf.size() << std::endl;
 	read_callback_msg(ec, 65000);
 	sem_post(m_writer_sem);
+	// std::cout << "ipc-client::request end" << std::endl;
 #endif
 	return true;
 }

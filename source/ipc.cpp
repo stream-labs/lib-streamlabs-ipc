@@ -109,7 +109,7 @@ size_t ipc::message::function_call::size() {
 	for (ipc::value& v : arguments) {
 		size += v.size();
 	}
-	std::cout << "function_call::size " << size << std::endl;
+	// std::cout << "function_call::size " << size << std::endl;
 	return size;
 }
 
@@ -120,7 +120,7 @@ size_t ipc::message::function_call::serialize(std::vector<char>& buf, size_t off
 	size_t noffset = offset;
 
 	reinterpret_cast<size_t&>(buf[noffset]) = size();
-	std::cout << "size serialized call: " << size() << std::endl;
+	// std::cout << "size serialized call: " << size() << std::endl;
 	noffset += sizeof(size_t);
 
 	noffset += uid.serialize(buf, noffset);
@@ -145,7 +145,7 @@ size_t ipc::message::function_call::deserialize(std::vector<char>& buf, size_t o
 	}
 
 	size_t size = reinterpret_cast<const size_t&>(buf[offset]);
-	std::cout << "size deserialized call: " << size << std::endl;
+	// std::cout << "size deserialized call: " << size << std::endl;
 	if ((buf.size() - offset) < size) {
 		abort();
 		throw std::exception((const std::exception&)"Buffer too small");
@@ -179,7 +179,7 @@ size_t ipc::message::function_reply::size() {
 		size += v.size();
 		// std::cout << "new updated size: " << size << std::endl;
 	}
-	std::cout << "function_reply::size " << size << std::endl;
+	// std::cout << "function_reply::size " << size << std::endl;
 	return size;
 }
 
@@ -191,10 +191,10 @@ size_t ipc::message::function_reply::serialize(std::vector<char>& buf, size_t of
 	size_t noffset = offset;
 
 	reinterpret_cast<size_t&>(buf[noffset]) = size();
-	std::cout << "size serialized reply: " << size() << std::endl;
-	if (size() > 1000) {
-		std::cout << "invalid size serialized" << size() << std::endl;
-	}
+	// std::cout << "size serialized reply: " << size() << std::endl;
+	// if (size() > 1000) {
+	// 	std::cout << "invalid size serialized" << size() << std::endl;
+	// }
 	noffset += sizeof(size_t);
 
 	noffset += uid.serialize(buf, noffset);
@@ -217,7 +217,7 @@ size_t ipc::message::function_reply::deserialize(std::vector<char>& buf, size_t 
 	}
 
 	size_t size = reinterpret_cast<const size_t&>(buf[offset]);
-	std::cout << "size deserialized reply: " << size << std::endl;
+	// std::cout << "size deserialized reply: " << size << std::endl;
 	if ((buf.size() - offset) < size) {
 		std::cout << "aborting 1" << std::endl;
 		abort();
