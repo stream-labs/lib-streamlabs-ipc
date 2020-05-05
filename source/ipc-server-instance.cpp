@@ -19,6 +19,7 @@
 #include "ipc-server-instance.hpp"
 #include <sstream>
 #include <functional>
+#include "windows/utility.hpp"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -298,7 +299,12 @@ void ipc::server_instance::read_callback_msg_write(const std::vector<char>& writ
 				if (ec2 == os::error::Disconnected) {
 					return;
 				} else {
-					ipc::log("Write buffer operation failed with error %d %p", static_cast<int>(ec2), &write_buffer);
+					const DWORD parent_proc_exit_code = os::windows::utility::get_parent_process_exit_code();
+					ipc::log(
+					    "Write buffer operation failed with error %d %p, pp_exit_code=%d",
+					    static_cast<int>(ec2),
+					    &write_buffer,
+					    parent_proc_exit_code);
 					throw std::exception("Write buffer operation failed");
 				}
 			}
