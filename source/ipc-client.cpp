@@ -103,18 +103,21 @@ ipc::client::client(std::string socketPath) {
 #endif
 	m_watcher.stop   = false;
 
+#ifdef __APPLE__
 	sem_unlink(writer_sem_name.c_str());
 	remove(writer_sem_name.c_str());
 	m_writer_sem = sem_open(writer_sem_name.c_str(), O_CREAT | O_EXCL, 0644, 1);
-
+#endif
 	m_watcher.buf.resize(65000);
 }
 
 ipc::client::~client() {
 	m_watcher.stop = true;
+#ifdef __APPLE__
 	sem_post(m_writer_sem);
 	sem_close(m_writer_sem);
 	m_socket = nullptr;
+#endif
 }
 
 

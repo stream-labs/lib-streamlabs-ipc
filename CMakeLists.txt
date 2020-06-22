@@ -144,34 +144,17 @@ IF(WIN32)
 	add_definitions(-DNODEFERWINDOWPOS)
 	add_definitions(-DNOMCX)
 	
-	LIST(APPEND lib-streamlabs-ipc_SOURCES
-	)
-	LIST(APPEND lib-streamlabs-ipc_SOURCES_WINDOWS
-	)
-	LIST(APPEND lib-streamlabs-ipc_DEPS
+	LIST(
+		APPEND
+		lib-streamlabs-ipc_SOURCES
+		${lib-streamlabs-ipc_SOURCES_WINDOWS}
 	)
 ELSEIF(APPLE)
 	# MacOSX
-
-	LIST(APPEND lib-streamlabs-ipc_SOURCES
-	)
-	LIST(APPEND lib-streamlabs-ipc_SOURCES ${lib-streamlabs-ipc_SOURCES_APPLE}
-	)
-	LIST(APPEND lib-streamlabs-ipc_SOURCES ${lib-streamlabs-ipc_DEPS}
-	)
-ELSEIF("${CMAKE_SYSTEM_NAME}" MATCHES "Linux")
-	# Linux
-	
-	LIST(APPEND lib-streamlabs-ipc_SOURCES
-	)
-	LIST(APPEND lib-streamlabs-ipc_DEPS
-	)
-ELSEIF("${CMAKE_SYSTEM_NAME}" MATCHES "FreeBSD")
-	# FreeBSD
-	
-	LIST(APPEND lib-streamlabs-ipc_SOURCES
-	)
-	LIST(APPEND lib-streamlabs-ipc_DEPS
+	LIST(
+		APPEND
+		lib-streamlabs-ipc_SOURCES
+		${lib-streamlabs-ipc_SOURCES_APPLE}
 	)
 ENDIF()
 

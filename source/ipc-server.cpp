@@ -166,14 +166,15 @@ void ipc::server::initialize(std::string socketPath) {
 	try {
 #ifdef WIN32
 		std::unique_lock<std::mutex> ul(m_sockets_mtx);
-		m_sockets.insert(m_sockets.end(),
-			std::make_shared<os::windows::named_pipe>(os::create_only, socketPath, 255,
-				os::windows::pipe_type::Byte, os::windows::pipe_read_mode::Byte, true));
-		for (size_t idx = 1; idx < backlog; idx++) {
-			m_sockets.insert(m_sockets.end(),
-				std::make_shared<os::windows::named_pipe>(os::create_only, socketPath, 255,
-					os::windows::pipe_type::Byte, os::windows::pipe_read_mode::Byte, false));
-		}
+		m_sockets.insert(
+		    m_sockets.end(),
+		    std::make_shared<os::windows::named_pipe>(
+		        os::create_only,
+		        socketPath,
+		        255,
+		        os::windows::pipe_type::Byte,
+		        os::windows::pipe_read_mode::Byte,
+		        true));
 #elif __APPLE__
 		std::unique_lock<std::mutex> ul(m_sockets_mtx);
 		m_sockets.insert(m_sockets.end(),

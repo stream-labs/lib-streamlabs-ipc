@@ -32,8 +32,10 @@ ipc::server_instance::server_instance(ipc::server* owner, std::shared_ptr<os::wi
 	m_socket = conn;
 	m_clientId = 0;
 
+#ifdef __APPLE__
 	m_stopWorkers = false;
 	m_worker = std::thread(std::bind(&server_instance::worker, this));
+#endif
 }
 #elif __APPLE__
 ipc::server_instance::server_instance(ipc::server* owner, std::shared_ptr<os::apple::named_pipe> conn) {
@@ -52,7 +54,9 @@ ipc::server_instance::server_instance(ipc::server* owner, std::shared_ptr<os::ap
 }
 
 #endif
-ipc::server_instance::~server_instance() {
+ipc::server_instance::~server_instance()
+{
+#ifdef __APPLE__
 	ipc::log("destroy start");
 	// Threading
 	m_stopWorkers = true;
@@ -70,18 +74,22 @@ ipc::server_instance::~server_instance() {
 
 	sem_close(m_writer_sem);
 	ipc::log("destroy end");
+#endif
 }
 
 bool ipc::server_instance::is_alive() {
 	if (!m_socket->is_connected())
 		return false;
 
+#ifdef __APPLE__
 	if (m_stopWorkers)
 		return false;
+#endif
 
 	return true;
 }
 
+#ifdef __APPLE__
 void ipc::server_instance::worker_req() {
 	// Loop
 	while ((!m_stopWorkers) && m_socket->is_connected()) {
@@ -142,7 +150,7 @@ void ipc::server_instance::worker_rep() {
 		// std::cout << "ipc-server::write - end" << std::endl;
 	}
 }
-
+#endif
 void ipc::server_instance::read_callback_init(os::error ec, size_t size) {
 // 	os::error ec2 = os::error::Success;
 
@@ -198,7 +206,9 @@ void ipc::server_instance::read_callback_msg(os::error ec, size_t size) {
 	msgs.push(fnc_call_msg);
 	msg_mtx.unlock();
 
+#ifdef __APPLE__
 	sem_post(m_writer_sem);
+#endif
 }
 
 void ipc::server_instance::read_callback_msg_write(const std::vector<char>& write_buffer)

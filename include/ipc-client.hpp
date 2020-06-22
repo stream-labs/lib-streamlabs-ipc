@@ -25,12 +25,13 @@
 #include <queue>
 #include <thread>
 #include <vector>
-#include <semaphore.h>
 
 #ifdef WIN32
 #include "../source/windows/named-pipe.hpp"
+#include "async_op.hpp"
 #elif __APPLE__
 #include "../source/apple/named-pipe.hpp"
+#include <semaphore.h>
 #endif
 
 typedef void (*call_return_t)(void* data, const std::vector<ipc::value>& rval);
@@ -45,6 +46,8 @@ namespace ipc {
 		std::unique_ptr<os::windows::named_pipe> m_socket;
 #elif __APPLE__
 		std::unique_ptr<os::apple::named_pipe> m_socket;
+		std::string writer_sem_name = "semaphore-client-writer";
+		sem_t *m_writer_sem;
 #endif
 		std::shared_ptr<os::async_op> m_rop;
 		bool m_authenticated = false;
@@ -58,8 +61,6 @@ namespace ipc {
 			std::vector<char> buf;
 		} m_watcher;
 
-		std::string writer_sem_name = "semaphore-client-writer";
-		sem_t *m_writer_sem;
 		
 		// void worker();
 		void read_callback_init(os::error ec, size_t size);

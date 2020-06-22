@@ -28,8 +28,8 @@
 #include "../source/windows/named-pipe.hpp"
 #elif __APPLE__
 #include "../source/apple/named-pipe.hpp"
-#endif
 #include <semaphore.h>
+#endif
 
 namespace ipc {
 	class server;
@@ -49,6 +49,7 @@ namespace ipc {
 		bool is_alive();
 
 		private: // Threading
+#ifdef __APPLE__
 		bool m_stopWorkers = false;
 		std::thread m_worker_requests;
 		std::thread m_worker_replies;
@@ -59,6 +60,7 @@ namespace ipc {
 
 		void worker_req();
 		void worker_rep();
+#endif
 		void read_callback_init(os::error ec, size_t size);
 		void read_callback_msg(os::error ec, size_t size);
 		void read_callback_msg_write(const std::vector<char>& write_buffer);
