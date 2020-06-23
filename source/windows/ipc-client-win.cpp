@@ -12,7 +12,7 @@ std::shared_ptr<ipc::client> ipc::client::create(std::string socketPath) {
 }
 
 ipc::client_win::client_win(std::string socketPath) {
-	m_socket = std::make_unique<os::windows::named_pipe>(os::open_only, socketPath, os::windows::pipe_read_mode::Byte);
+	m_socket = os::windows::socket_win::create(os::open_only, socketPath);
 
 	m_watcher.stop   = false;
 	m_watcher.worker = std::thread(std::bind(&ipc::client_win::worker, this));

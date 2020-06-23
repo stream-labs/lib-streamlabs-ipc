@@ -28,7 +28,7 @@ void ipc::server::watcher() {
 		server* parent;
 		std::shared_ptr<os::async_op> op;
 #ifdef WIN32
-		std::shared_ptr<os::windows::named_pipe> socket;
+		std::shared_ptr<os::windows::socket_win> socket;
 #elif __APPLE__
 		std::shared_ptr<os::apple::named_pipe> socket;
 #endif
@@ -47,7 +47,7 @@ void ipc::server::watcher() {
 	};
 
 #ifdef WIN32
-	std::map<std::shared_ptr<os::windows::named_pipe>, pending_accept> pa_map;
+	std::map<std::shared_ptr<os::windows::socket_win>, pending_accept> pa_map;
 #elif __APPLE__
 	std::map<std::shared_ptr<os::apple::named_pipe>, pending_accept> pa_map;
 #endif
@@ -91,7 +91,7 @@ void ipc::server::watcher() {
 		// Wait for sockets to connect.
 		std::vector<os::waitable*> waits;
 #ifdef WIN32
-		std::vector<std::shared_ptr<os::windows::named_pipe>> idx_to_socket;
+		std::vector<std::shared_ptr<os::windows::socket_win>> idx_to_socket;
 #elif __APPLE__
 		std::vector<std::shared_ptr<os::apple::named_pipe>> idx_to_socket;
 #endif
@@ -108,7 +108,7 @@ void ipc::server::watcher() {
 }
 
 #ifdef WIN32
-void ipc::server::spawn_client(std::shared_ptr<os::windows::named_pipe> socket) {
+void ipc::server::spawn_client(std::shared_ptr<os::windows::socket_win> socket) {
 	std::unique_lock<std::mutex>          ul(m_clients_mtx);
 	//std::shared_ptr<ipc::server_instance> client = std::make_shared<ipc::server_instance>(this, socket);
 	std::shared_ptr<ipc::server_instance> client = ipc::server_instance::create(this);
@@ -118,7 +118,7 @@ void ipc::server::spawn_client(std::shared_ptr<os::windows::named_pipe> socket) 
 	m_clients.insert_or_assign(socket, client);
 }
 
-void ipc::server::kill_client(std::shared_ptr<os::windows::named_pipe> socket) {
+void ipc::server::kill_client(std::shared_ptr<os::windows::socket_win> socket) {
 	if (m_handlerDisconnect.first) {
 		m_handlerDisconnect.first(m_handlerDisconnect.second, 0);
 	}
@@ -169,7 +169,7 @@ void ipc::server::initialize(std::string socketPath) {
 		std::unique_lock<std::mutex> ul(m_sockets_mtx);
 		m_sockets.insert(
 		    m_sockets.end(),
-		    std::make_shared<os::windows::named_pipe>(
+		    std::make_shared<os::windows::socket_win>(
 		        os::create_only,
 		        socketPath,
 		        255,

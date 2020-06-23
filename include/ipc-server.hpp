@@ -28,7 +28,7 @@
 #include <thread>
 #include <functional>
 #ifdef WIN32
-#include "../source/windows/named-pipe.hpp"
+#include "../source/windows/ipc-socket-win.hpp"
 #elif __APPLE__
 #include "../source/apple/named-pipe.hpp"
 #endif
@@ -51,7 +51,7 @@ namespace ipc {
 		// Socket
 		std::mutex m_sockets_mtx;
 #ifdef WIN32
-		std::list<std::shared_ptr<os::windows::named_pipe>> m_sockets;
+		std::list<std::shared_ptr<os::windows::socket_win>> m_sockets;
 #elif __APPLE__
 		std::list<std::shared_ptr<os::apple::named_pipe>> m_sockets;
 #endif
@@ -60,7 +60,7 @@ namespace ipc {
 		// Client management.
 		std::mutex m_clients_mtx;
 #ifdef WIN32
-		std::map<std::shared_ptr<os::windows::named_pipe>, std::shared_ptr<server_instance>> m_clients;
+		std::map<std::shared_ptr<os::windows::socket_win>, std::shared_ptr<server_instance>> m_clients;
 #elif __APPLE__
 		std::map<std::shared_ptr<os::apple::named_pipe>, std::shared_ptr<server_instance>> m_clients;
 #endif
@@ -81,8 +81,8 @@ namespace ipc {
 		void watcher();
 
 #ifdef WIN32
-		void spawn_client(std::shared_ptr<os::windows::named_pipe> socket);
-		void kill_client(std::shared_ptr<os::windows::named_pipe> socket);
+		void spawn_client(std::shared_ptr<os::windows::socket_win> socket);
+		void kill_client(std::shared_ptr<os::windows::socket_win> socket);
 #elif __APPLE__
 		void spawn_client(std::shared_ptr<os::apple::named_pipe> socket);
 		void kill_client(std::shared_ptr<os::apple::named_pipe> socket);

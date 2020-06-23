@@ -51,6 +51,7 @@ SET(lib-streamlabs-ipc_SOURCES
 	"${PROJECT_SOURCE_DIR}/include/error.hpp"
 	"${PROJECT_SOURCE_DIR}/include/async_op.hpp"
 	"${PROJECT_SOURCE_DIR}/source/async_op.cpp"
+	"${PROJECT_SOURCE_DIR}/include/ipc-socket.hpp"
 )
 IF (WIN32)
 	SET(lib-streamlabs-ipc_SOURCES_WINDOWS
@@ -60,8 +61,6 @@ IF (WIN32)
 		"${PROJECT_SOURCE_DIR}/source/windows/semaphore.cpp"
 		"${PROJECT_SOURCE_DIR}/source/windows/overlapped.hpp"
 		"${PROJECT_SOURCE_DIR}/source/windows/overlapped.cpp"
-		"${PROJECT_SOURCE_DIR}/source/windows/named-pipe.hpp"
-		"${PROJECT_SOURCE_DIR}/source/windows/named-pipe.cpp"
 		"${PROJECT_SOURCE_DIR}/source/windows/async_request.hpp"
 		"${PROJECT_SOURCE_DIR}/source/windows/async_request.cpp"
 		"${PROJECT_SOURCE_DIR}/source/windows/waitable.cpp"
@@ -69,6 +68,8 @@ IF (WIN32)
 		"${PROJECT_SOURCE_DIR}/source/windows/ipc-client-win.hpp"
 		"${PROJECT_SOURCE_DIR}/source/windows/ipc-server-instance-win.cpp"
 		"${PROJECT_SOURCE_DIR}/source/windows/ipc-server-instance-win.hpp"
+		"${PROJECT_SOURCE_DIR}/source/windows/ipc-socket-win.hpp"
+		"${PROJECT_SOURCE_DIR}/source/windows/ipc-socket-win.cpp"
 	)
 ELSEIF(APPLE)
     SET(lib-streamlabs-ipc_SOURCES_APPLE

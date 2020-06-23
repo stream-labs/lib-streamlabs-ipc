@@ -20,6 +20,7 @@
 #include <string>
 
 #include "ipc.hpp"
+#include "ipc-socket.hpp"
 
 typedef void (*call_return_t)(void* data, const std::vector<ipc::value>& rval);
 extern call_return_t g_fn;

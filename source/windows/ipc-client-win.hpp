@@ -1,6 +1,6 @@
 #include "../include/ipc-client.hpp"
 #include "../include/error.hpp"
-#include "named-pipe.hpp"
+#include "ipc-socket-win.hpp"
 
 #include <mutex>
 #include <map>
@@ -28,8 +28,8 @@ namespace ipc {
             ) override;
 
         private:
-		    std::unique_ptr<os::windows::named_pipe> m_socket;
-		    std::shared_ptr<os::async_op>            m_rop;
+		    std::unique_ptr<os::windows::socket_win> m_socket;
+		    std::shared_ptr<os::async_op> m_rop;
 
 		    bool                                               m_authenticated = false;
 		    std::mutex                                         m_lock;
