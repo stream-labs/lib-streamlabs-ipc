@@ -30,8 +30,10 @@ namespace os {
 	namespace windows {
 		namespace utility {
 			os::error translate_error(DWORD error_code);
-		};
-	} // namespace windows
-} // namespace os
 
-#endif // OS_WINDOWS_UTILITY_HPP
+            DWORD get_parent_process_exit_code();
+		};
+	}
+}
+
+#endif

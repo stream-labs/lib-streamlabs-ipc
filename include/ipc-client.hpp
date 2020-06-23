@@ -17,22 +17,9 @@
 ******************************************************************************/
 
 #pragma once
-#include "ipc.hpp"
 #include <string>
-#include <vector>
-#include <map>
-#include <mutex>
-#include <queue>
-#include <thread>
-#include <vector>
 
-#ifdef WIN32
-#include "../source/windows/named-pipe.hpp"
-#include "async_op.hpp"
-#elif __APPLE__
-#include "../source/apple/named-pipe.hpp"
-#include <semaphore.h>
-#endif
+#include "ipc.hpp"
 
 typedef void (*call_return_t)(void* data, const std::vector<ipc::value>& rval);
 extern call_return_t g_fn;
@@ -40,46 +27,25 @@ extern void*         g_data;
 extern int64_t       g_cbid;
 
 namespace ipc {
-
 	class client {
-#ifdef WIN32
-		std::unique_ptr<os::windows::named_pipe> m_socket;
-#elif __APPLE__
-		std::unique_ptr<os::apple::named_pipe> m_socket;
-		std::string writer_sem_name = "semaphore-client-writer";
-		sem_t *m_writer_sem;
-#endif
-		std::shared_ptr<os::async_op> m_rop;
-		bool m_authenticated = false;
-		std::mutex m_lock;
-		std::map<int64_t, std::pair<call_return_t, void*>> m_cb;
-
-		// Threading
-		struct {
-			std::thread worker;
-			bool stop = false;
-			std::vector<char> buf;
-		} m_watcher;
-
-		
-		// void worker();
-		void read_callback_init(os::error ec, size_t size);
-		void read_callback_msg(os::error ec, size_t size);
-
 		public:
-		client(std::string socketPath);
-		virtual ~client();
+		static std::shared_ptr<client> create(std::string socketPath);
+		client() {};
+		virtual ~client() {};
 
-		bool call(
+		virtual bool call(
 		    const std::string&      cname,
 		    const std::string&      fname,
 		    std::vector<ipc::value> args,
 		    call_return_t           fn   = g_fn,
 		    void*                   data = g_data,
-		    int64_t&                cbid = g_cbid);
+		    int64_t&                cbid = g_cbid
+		) = 0;
 
-		bool cancel(int64_t const& id);
-
-		std::vector<ipc::value> call_synchronous_helper(const std::string & cname, const std::string &fname, const std::vector<ipc::value> & args);
+		virtual std::vector<ipc::value> call_synchronous_helper(
+			const std::string & cname,
+			const std::string &fname,
+			const std::vector<ipc::value> & args
+		) = 0;
 	};
 }

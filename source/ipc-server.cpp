@@ -109,8 +109,9 @@ void ipc::server::watcher() {
 
 #ifdef WIN32
 void ipc::server::spawn_client(std::shared_ptr<os::windows::named_pipe> socket) {
-	std::unique_lock<std::mutex> ul(m_clients_mtx);
-	std::shared_ptr<ipc::server_instance> client = std::make_shared<ipc::server_instance>(this, socket);
+	std::unique_lock<std::mutex>          ul(m_clients_mtx);
+	//std::shared_ptr<ipc::server_instance> client = std::make_shared<ipc::server_instance>(this, socket);
+	std::shared_ptr<ipc::server_instance> client = ipc::server_instance::create(this);
 	if (m_handlerConnect.first) {
 		m_handlerConnect.first(m_handlerConnect.second, 0);
 	}

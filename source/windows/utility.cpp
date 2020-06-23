@@ -17,6 +17,37 @@
 ******************************************************************************/
 
 #include "utility.hpp"
+#include "ipc.hpp"
+#include <tlhelp32.h>
+
+namespace
+{
+	DWORD get_parent_process_id()
+	{
+		DWORD        parent_process_id  = (DWORD)-1;
+		const DWORD  current_process_id = GetCurrentProcessId();
+		const HANDLE snapshot_handle    = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+		if (snapshot_handle == INVALID_HANDLE_VALUE) {
+			return parent_process_id;
+		}
+
+		PROCESSENTRY32 process_entry;
+		ZeroMemory(&process_entry, sizeof(process_entry));
+		process_entry.dwSize = sizeof(process_entry);
+
+		if (Process32First(snapshot_handle, &process_entry)) {
+			do {
+				if (process_entry.th32ProcessID == current_process_id) {
+					parent_process_id = process_entry.th32ParentProcessID;
+					break;
+				}
+			} while (Process32Next(snapshot_handle, &process_entry));
+		}
+
+		CloseHandle(snapshot_handle);
+		return parent_process_id;
+	}
+} // namespace
 
 os::error os::windows::utility::translate_error(DWORD error_code) {
 	switch (error_code) {
@@ -39,4 +70,19 @@ os::error os::windows::utility::translate_error(DWORD error_code) {
 	}
 
 	return os::error::Error;
+}
+
+DWORD os::windows::utility::get_parent_process_exit_code()
+{
+	DWORD        exit_code             = (DWORD)-1;
+	const DWORD  parent_process_id     = get_parent_process_id();
+	const HANDLE parent_process_handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, parent_process_id);
+	if (parent_process_handle != INVALID_HANDLE_VALUE) {
+		if (!GetExitCodeProcess(parent_process_handle, &exit_code)) {
+			ipc::log("get_parent_process_exit_code failed with GetLastError=%d", GetLastError());
+		}
+	}
+
+	CloseHandle(parent_process_handle);
+	return exit_code;
 }

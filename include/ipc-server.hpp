@@ -111,7 +111,7 @@ namespace ipc {
 		public: // Functionality
 		bool register_collection(std::shared_ptr<ipc::collection> cls);
 
-		protected: // Client -> Server
+		public: // Client -> Server
 		bool client_call_function(int64_t cid, const std::string &cname, const std::string &fname,
 			std::vector<ipc::value>& args, std::vector<ipc::value>& rval, std::string& errormsg);
 

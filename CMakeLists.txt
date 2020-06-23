@@ -36,13 +36,11 @@ SET(lib-streamlabs-ipc_SOURCES
 	"${PROJECT_SOURCE_DIR}/include/ipc.hpp"
 	"${PROJECT_SOURCE_DIR}/source/ipc-class.cpp"
 	"${PROJECT_SOURCE_DIR}/include/ipc-class.hpp"
-	"${PROJECT_SOURCE_DIR}/source/ipc-client.cpp"
 	"${PROJECT_SOURCE_DIR}/include/ipc-client.hpp"
 	"${PROJECT_SOURCE_DIR}/source/ipc-function.cpp"
 	"${PROJECT_SOURCE_DIR}/include/ipc-function.hpp"
 	"${PROJECT_SOURCE_DIR}/source/ipc-server.cpp"
 	"${PROJECT_SOURCE_DIR}/include/ipc-server.hpp"
-	"${PROJECT_SOURCE_DIR}/source/ipc-server-instance.cpp"
 	"${PROJECT_SOURCE_DIR}/include/ipc-server-instance.hpp"
 	"${PROJECT_SOURCE_DIR}/source/ipc-value.cpp"
 	"${PROJECT_SOURCE_DIR}/include/ipc-value.hpp"
@@ -67,6 +65,10 @@ IF (WIN32)
 		"${PROJECT_SOURCE_DIR}/source/windows/async_request.hpp"
 		"${PROJECT_SOURCE_DIR}/source/windows/async_request.cpp"
 		"${PROJECT_SOURCE_DIR}/source/windows/waitable.cpp"
+		"${PROJECT_SOURCE_DIR}/source/windows/ipc-client-win.cpp"
+		"${PROJECT_SOURCE_DIR}/source/windows/ipc-client-win.hpp"
+		"${PROJECT_SOURCE_DIR}/source/windows/ipc-server-instance-win.cpp"
+		"${PROJECT_SOURCE_DIR}/source/windows/ipc-server-instance-win.hpp"
 	)
 ELSEIF(APPLE)
     SET(lib-streamlabs-ipc_SOURCES_APPLE
