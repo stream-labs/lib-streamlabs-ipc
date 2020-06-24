@@ -18,13 +18,14 @@
 
 #pragma once
 #include "ipc-server.hpp"
+#include "ipc-socket.hpp"
 
 namespace ipc {
 	class server;
 
 	class server_instance {
 		public:
-			static std::shared_ptr<ipc::server_instance> create(server *owner);
+			static std::shared_ptr<ipc::server_instance> create(server *owner, std::shared_ptr<ipc::socket> socket);
 			server_instance() {};
 			virtual ~server_instance() {};
 	};

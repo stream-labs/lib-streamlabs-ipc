@@ -1,5 +1,6 @@
 #include "../include/ipc-server-instance.hpp"
 #include "../include/error.hpp"
+#include "ipc-socket-win.hpp"
 
 #include "utility.hpp"
 
@@ -10,7 +11,7 @@ namespace ipc {
         private:
 		bool m_stopWorkers = false;
 		std::thread m_worker;
-        std::unique_ptr<os::windows::socket_win> m_socket;
+		std::shared_ptr<os::windows::socket_win> m_socket;
 		std::shared_ptr<os::async_op> m_wop, m_rop;
 		std::vector<char> m_wbuf, m_rbuf;
 		std::queue<std::vector<char>> m_write_queue;
@@ -18,7 +19,7 @@ namespace ipc {
 		int64_t m_clientId;
 
         public:
-        server_instance_win(server *owner);
+		server_instance_win(server* owner, std::shared_ptr<ipc::socket> socket);
         ~server_instance_win();
 
         public:

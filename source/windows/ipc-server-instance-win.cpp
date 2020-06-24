@@ -1,18 +1,28 @@
 
 #include "ipc-server-instance-win.hpp"
 
+#include <memory>
+
 using namespace std::placeholders;
 
-std::shared_ptr<ipc::server_instance> ipc::server_instance::create(server *owner) {
-	return std::make_unique<ipc::server_instance_win>(owner);
+std::shared_ptr<ipc::server_instance> ipc::server_instance::create(server* owner, std::shared_ptr<ipc::socket> socket)
+{
+	return std::make_unique<ipc::server_instance_win>(owner, socket);
 }
 
-ipc::server_instance_win::server_instance_win(server *owner) {
+ipc::server_instance_win::server_instance_win(server *owner, std::shared_ptr<ipc::socket> socket) {
+	m_stopWorkers = false;
+	m_parent = owner;
+	m_clientId = 0;
+	m_socket = std::dynamic_pointer_cast<os::windows::socket_win>(socket);
 	m_worker = std::thread(std::bind(&ipc::server_instance_win::worker, this));
 }
 
 ipc::server_instance_win::~server_instance_win() {
-
+	// Threading
+	m_stopWorkers = true;
+	if (m_worker.joinable())
+		m_worker.join();
 }
 
 void ipc::server_instance_win::worker() {

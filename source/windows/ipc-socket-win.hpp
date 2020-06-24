@@ -1,3 +1,6 @@
+#ifndef SOCKET_WIN_H
+#define SOCKET_WIN_H
+
 #include "../include/ipc-socket.hpp"
 #include "utility.hpp"
 #include "async_request.hpp"
@@ -50,3 +53,5 @@ namespace os {
 		};
 	}
 }
+
+#endif
