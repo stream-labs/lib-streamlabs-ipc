@@ -27,11 +27,7 @@
 #include <string>
 #include <thread>
 #include <functional>
-#ifdef WIN32
-#include "../source/windows/ipc-socket-win.hpp"
-#elif __APPLE__
-#include "../source/apple/named-pipe.hpp"
-#endif
+#include "ipc-socket.hpp"
 
 namespace ipc {
 	class server_instance;
@@ -53,7 +49,7 @@ namespace ipc {
 #ifdef WIN32
 		std::list<std::shared_ptr<ipc::socket>> m_sockets;
 #elif __APPLE__
-		std::list<std::shared_ptr<os::apple::named_pipe>> m_sockets;
+		std::list<std::shared_ptr<ipc::socket>> m_sockets;
 #endif
 		std::string m_socketPath = "";
 
@@ -62,7 +58,7 @@ namespace ipc {
 #ifdef WIN32
 		std::map<std::shared_ptr<ipc::socket>, std::shared_ptr<server_instance>> m_clients;
 #elif __APPLE__
-		std::map<std::shared_ptr<os::apple::named_pipe>, std::shared_ptr<server_instance>> m_clients;
+		std::map<std::shared_ptr<ipc::socket>, std::shared_ptr<server_instance>> m_clients;
 #endif
 
 		// Event Handlers
@@ -84,8 +80,8 @@ namespace ipc {
 		void spawn_client(std::shared_ptr<ipc::socket> socket);
 		void kill_client(std::shared_ptr<ipc::socket> socket);
 #elif __APPLE__
-		void spawn_client(std::shared_ptr<os::apple::named_pipe> socket);
-		void kill_client(std::shared_ptr<os::apple::named_pipe> socket);
+		void spawn_client(std::shared_ptr<ipc::socket> socket);
+		void kill_client(std::shared_ptr<ipc::socket> socket);
 #endif
 
 		public:

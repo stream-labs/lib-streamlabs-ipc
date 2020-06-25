@@ -1,13 +1,15 @@
-#include "async_op.hpp"
-// #include "overlapped.hpp"
+#ifndef ASYNC_REQUEST_H
+#define ASYNC_REQUEST_H
+
+#include "../include/async_op.hpp"
 #include <semaphore.h>
 
 namespace os {
     namespace apple {
-        class named_pipe;
+        class socet_osx;
 
         class async_request: public os::async_op {
-			protected:
+			public:
 			sem_t *sem;
 
 			void set_sem(sem_t *sem);
@@ -33,8 +35,10 @@ namespace os {
 			virtual void *get_waitable() override;
 
 			public:
-			friend class os::apple::named_pipe;
+			friend class os::apple::socet_osx;
 			friend class os::waitable;
         };
     }
 }
+
+#endif

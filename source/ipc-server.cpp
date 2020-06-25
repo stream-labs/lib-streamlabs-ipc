@@ -21,6 +21,9 @@
 #include "../include/error.hpp"
 #include "../include/tags.hpp"
 
+#ifdef __APPLE__
+#include "apple/ipc-socket-osx.hpp"
+#endif
 void ipc::server::watcher() {
 	os::error ec;
     std::cout << "server - start watcher" << std::endl;
@@ -30,7 +33,7 @@ void ipc::server::watcher() {
 #ifdef WIN32
 		std::shared_ptr<ipc::socket> socket;
 #elif __APPLE__
-		std::shared_ptr<os::apple::named_pipe> socket;
+		std::shared_ptr<ipc::socket> socket;
 #endif
 		std::chrono::high_resolution_clock::time_point start;
 
@@ -49,7 +52,7 @@ void ipc::server::watcher() {
 #ifdef WIN32
 	std::map<std::shared_ptr<ipc::socket>, pending_accept> pa_map;
 #elif __APPLE__
-	std::map<std::shared_ptr<os::apple::named_pipe>, pending_accept> pa_map;
+	std::map<std::shared_ptr<ipc::socket>, pending_accept> pa_map;
 #endif
 
 	while (!m_watcher.stop) {
@@ -93,7 +96,7 @@ void ipc::server::watcher() {
 #ifdef WIN32
 		std::vector<std::shared_ptr<ipc::socket>> idx_to_socket;
 #elif __APPLE__
-		std::vector<std::shared_ptr<os::apple::named_pipe>> idx_to_socket;
+		std::vector<std::shared_ptr<ipc::socket>> idx_to_socket;
 #endif
 		for (auto kv : pa_map) {
 			waits.push_back(kv.second.op.get());
@@ -127,18 +130,19 @@ void ipc::server::kill_client(std::shared_ptr<ipc::socket> socket) {
 #endif
 
 #ifdef __APPLE__
-void ipc::server::spawn_client(std::shared_ptr<os::apple::named_pipe> socket) {
+void ipc::server::spawn_client(std::shared_ptr<ipc::socket> socket) {
     std::cout << "Server - spawn_client" << std::endl;
 	std::unique_lock<std::mutex> ul(m_clients_mtx);
 
-	std::shared_ptr<ipc::server_instance> client = std::make_shared<ipc::server_instance>(this, socket);
+	// std::shared_ptr<ipc::server_instance> client = std::make_shared<ipc::server_instance>(this, socket);
+	std::shared_ptr<ipc::server_instance> client = ipc::server_instance::create(this, socket);
 	if (m_handlerConnect.first) {
 		m_handlerConnect.first(m_handlerConnect.second, 0);
 	}
 	m_clients.insert_or_assign(socket, client);
 }
 
-void ipc::server::kill_client(std::shared_ptr<os::apple::named_pipe> socket) {
+void ipc::server::kill_client(std::shared_ptr<ipc::socket> socket) {
 	if (m_handlerDisconnect.first) {
 		m_handlerDisconnect.first(m_handlerDisconnect.second, 0);
 	}
@@ -179,7 +183,7 @@ void ipc::server::initialize(std::string socketPath) {
 #elif __APPLE__
 		std::unique_lock<std::mutex> ul(m_sockets_mtx);
 		m_sockets.insert(m_sockets.end(),
-			std::make_shared<os::apple::named_pipe>(os::create_only, socketPath));
+			std::make_shared<os::apple::socket_osx>(os::create_only, socketPath));
 #endif
 	} catch (std::exception e) {
 		throw e;
