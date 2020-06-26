@@ -23,6 +23,11 @@
 #include <functional>
 #include <stdarg.h>
 
+#ifdef _DEBUG
+#define TRACE_IPC_ENABLED
+#endif 
+
+
 namespace ipc {
 	typedef uint64_t ipc_size_t;
 	typedef uint32_t ipc_size_real_t;

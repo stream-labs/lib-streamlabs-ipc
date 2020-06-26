@@ -69,6 +69,8 @@ os::error os::windows::utility::translate_error(DWORD error_code) {
 		return os::error::TooMuchData;
 	}
 
+	ipc::log("WriteFileEx failed with getErrorCode %d", error_code);
+
 	return os::error::Error;
 }
 
@@ -85,4 +87,8 @@ DWORD os::windows::utility::get_parent_process_exit_code()
 
 	CloseHandle(parent_process_handle);
 	return exit_code;
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> d041597857b5fc66f4e118e7708904c203af3811
