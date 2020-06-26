@@ -19,6 +19,7 @@
 #include "utility.hpp"
 #include "ipc.hpp"
 #include <tlhelp32.h>
+
 namespace
 {
 	DWORD get_parent_process_id()
@@ -86,4 +87,6 @@ DWORD os::windows::utility::get_parent_process_exit_code()
 
 	CloseHandle(parent_process_handle);
 	return exit_code;
+
 }
+

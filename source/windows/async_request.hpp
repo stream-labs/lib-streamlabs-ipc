@@ -28,10 +28,10 @@
 
 namespace os {
 	namespace windows {
-		class named_pipe;
+		class socket_win;
 
 		class async_request : public os::async_op, protected os::windows::overlapped {
-			protected:
+			public:
 			HANDLE                  handle = {0};
 
 			void set_handle(HANDLE handle);
@@ -59,7 +59,7 @@ namespace os {
 			virtual void *get_waitable() override;
 
 			public:
-			friend class os::windows::named_pipe;
+			friend class os::windows::socket_win;
 			friend class os::waitable;
 		};
 	} // namespace windows

@@ -17,6 +17,7 @@
 ******************************************************************************/
 
 #include "ipc-class.hpp"
+#include <iostream>
 
 ipc::collection::collection(const std::string & name): m_name(name) {
 
@@ -41,8 +42,13 @@ bool ipc::collection::register_function(std::shared_ptr<ipc::function> func) {
 
 std::shared_ptr<ipc::function> ipc::collection::get_function(const std::string& name, const std::vector<ipc::type>& params) {
 	std::string fnId = ipc::base::make_unique_id(name, params);
-	if (m_functions.count(fnId) == 0)
-		return nullptr;
+	for (auto fct: m_functions) {
+		if (fct.first.compare(fnId.c_str()) == 0)
+			return fct.second;
+	}
+	// Not working on Mac
+	// if (m_functions.count(name) == 0)
+	// 	return nullptr;
 	return m_functions[fnId];
 }
 

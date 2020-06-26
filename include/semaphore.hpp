@@ -23,12 +23,13 @@
 #include "tags.hpp"
 #include "waitable.hpp"
 #include <memory>
+#include <mutex>
 
 namespace os {
 	class semaphore : public os::waitable {
 		public:
 		virtual os::error signal(uint32_t count = 1) = 0;
 	};
-} // namespace os
+}
 
-#endif // OS_SEMAPHORE_HPP
+#endif

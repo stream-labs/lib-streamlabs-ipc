@@ -27,7 +27,7 @@
 #include <string>
 #include <thread>
 #include <functional>
-#include "../source/windows/named-pipe.hpp"
+#include "ipc-socket.hpp"
 
 namespace ipc {
 	class server_instance;
@@ -46,12 +46,20 @@ namespace ipc {
 
 		// Socket
 		std::mutex m_sockets_mtx;
-		std::list<std::shared_ptr<os::windows::named_pipe>> m_sockets;
+#ifdef WIN32
+		std::list<std::shared_ptr<ipc::socket>> m_sockets;
+#elif __APPLE__
+		std::list<std::shared_ptr<ipc::socket>> m_sockets;
+#endif
 		std::string m_socketPath = "";
 
 		// Client management.
 		std::mutex m_clients_mtx;
-		std::map<std::shared_ptr<os::windows::named_pipe>, std::shared_ptr<server_instance>> m_clients;
+#ifdef WIN32
+		std::map<std::shared_ptr<ipc::socket>, std::shared_ptr<server_instance>> m_clients;
+#elif __APPLE__
+		std::map<std::shared_ptr<ipc::socket>, std::shared_ptr<server_instance>> m_clients;
+#endif
 
 		// Event Handlers
 		std::pair<server_connect_handler_t, void*>    m_handlerConnect;
@@ -68,12 +76,22 @@ namespace ipc {
 
 		void watcher();
 
-		void spawn_client(std::shared_ptr<os::windows::named_pipe> socket);
-		void kill_client(std::shared_ptr<os::windows::named_pipe> socket);
+#ifdef WIN32
+		void spawn_client(std::shared_ptr<ipc::socket> socket);
+		void kill_client(std::shared_ptr<ipc::socket> socket);
+#elif __APPLE__
+		void spawn_client(std::shared_ptr<ipc::socket> socket);
+		void kill_client(std::shared_ptr<ipc::socket> socket);
+#endif
 
 		public:
 		server();
 		~server();
+
+#ifdef __APPLE__
+		std::queue<void*> display_actions;
+		std::mutex display_lock;
+#endif
 
 		public: // Status
 		void initialize(std::string socketPath);
@@ -89,7 +107,7 @@ namespace ipc {
 		public: // Functionality
 		bool register_collection(std::shared_ptr<ipc::collection> cls);
 
-		protected: // Client -> Server
+		public: // Client -> Server
 		bool client_call_function(int64_t cid, const std::string &cname, const std::string &fname,
 			std::vector<ipc::value>& args, std::vector<ipc::value>& rval, std::string& errormsg);
 

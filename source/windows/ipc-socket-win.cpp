@@ -1,26 +1,9 @@
-/******************************************************************************
-    Copyright (C) 2016-2019 by Streamlabs (General Workings Inc)
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-******************************************************************************/
+#include "ipc-socket-win.hpp"
+#include "utility.hpp"
 
 #include <codecvt>
 #include <locale>
 #include <string>
-#include "named-pipe.hpp"
-#include "utility.hpp"
 
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)
@@ -132,7 +115,15 @@ inline void open_logic(HANDLE &handle, std::wstring name, os::windows::pipe_read
 	}
 }
 
-os::windows::named_pipe::named_pipe() {
+std::unique_ptr<os::windows::socket_win> os::windows::socket_win::create(os::create_only_t, const std::string &name) {
+    return std::make_unique<os::windows::socket_win>(os::create_only, name);
+}
+
+std::unique_ptr<os::windows::socket_win> os::windows::socket_win::create(os::open_only_t, const std::string &name) {
+    return std::make_unique<os::windows::socket_win>(os::open_only, name);
+}
+
+os::windows::socket_win::socket_win() {
 	handle  = INVALID_HANDLE_VALUE;
 	created = false;
 	security_attributes.nLength              = sizeof(SECURITY_ATTRIBUTES);
@@ -141,11 +132,12 @@ os::windows::named_pipe::named_pipe() {
 	set_connected(false);
 }
 
-os::windows::named_pipe::named_pipe(os::create_only_t, const std::string & name,
-									size_t         max_instances /*= PIPE_UNLIMITED_INSTANCES*/,
-									pipe_type      type /*= pipe_type::Message*/,
-									pipe_read_mode mode /*= pipe_read_mode::Message*/, bool is_unique /*= false*/)
-	: named_pipe() {
+os::windows::socket_win::socket_win(os::create_only_t,
+    const std::string & name,
+    size_t max_instances,
+    pipe_type type,
+    pipe_read_mode mode,
+    bool is_unique) : socket_win() {
 	validate_create_param(name, max_instances);
 
 	std::wstring wide_name = make_wide_string(make_windows_compatible(name + '\0'));
@@ -153,9 +145,9 @@ os::windows::named_pipe::named_pipe(os::create_only_t, const std::string & name,
 	created = true;
 }
 
-os::windows::named_pipe::named_pipe(os::open_only_t, const std::string & name,
-									pipe_read_mode mode /*= pipe_read_mode::Message*/)
-	: named_pipe() {
+os::windows::socket_win::socket_win(os::open_only_t,
+    const std::string &name,
+    pipe_read_mode mode) : socket_win() {
 	validate_open_param(name);
 
 	std::wstring wide_name = make_wide_string(make_windows_compatible(name + '\0'));
@@ -163,84 +155,26 @@ os::windows::named_pipe::named_pipe(os::open_only_t, const std::string & name,
 	set_connected(true);
 }
 
-os::windows::named_pipe::~named_pipe() {
+os::windows::socket_win::~socket_win() {
 	if (handle) {
 		DisconnectNamedPipe(handle);
 		CloseHandle(handle);
 	}
 }
 
-os::error os::windows::named_pipe::read(char *buffer, size_t buffer_length, std::shared_ptr<os::async_op> &op,
-										os::async_op_cb_t cb) {
-	if (!is_connected()) {
-		return os::error::Disconnected;
-	}
-
-	std::shared_ptr<os::windows::async_request> ar = std::static_pointer_cast<os::windows::async_request>(op);
-	if (!ar) {
-		ar = std::make_shared<os::windows::async_request>();
-		op = std::static_pointer_cast<os::async_op>(ar);
-	}
-	ar->set_callback(cb);
-	ar->set_handle(handle);
-
-	SetLastError(ERROR_SUCCESS);
-	BOOL suc = ReadFileEx(
-		handle, buffer, DWORD(buffer_length),
-		ar->get_overlapped_pointer(),
-		(LPOVERLAPPED_COMPLETION_ROUTINE)&os::windows::async_request::completion_routine
-	);
-
-	os::error ec = utility::translate_error(GetLastError());
-
-	if (suc == 0) {
-		ar->call_callback(ec, buffer_length);
-		ar->cancel();
+void os::windows::socket_win::handle_accept_callback(os::error code, size_t length) {
+	if (code == os::error::Connected || code == os::error::Success) {
+		set_connected(true);
 	} else {
-		ar->set_valid(true);
+		set_connected(false);
 	}
-	return ec;
 }
 
-os::error os::windows::named_pipe::write(const char *buffer, size_t buffer_length, std::shared_ptr<os::async_op> &op,
-										 os::async_op_cb_t cb) {
-	if (!is_connected()) {
-		return os::error::Disconnected;
-	}
-
-	std::shared_ptr<os::windows::async_request> ar = std::static_pointer_cast<os::windows::async_request>(op);
-	if (!ar) {
-		ar = std::make_shared<os::windows::async_request>();
-		op = std::static_pointer_cast<os::async_op>(ar);
-	}
-	ar->set_callback(cb);
-	ar->set_handle(handle);
-
-	SetLastError(ERROR_SUCCESS);
-	BOOL  suc   = WriteFileEx(
-		handle, buffer,
-		DWORD(buffer_length),
-		ar->get_overlapped_pointer(),
-		(LPOVERLAPPED_COMPLETION_ROUTINE)&os::windows::async_request::completion_routine
-	);
-
-	os::error ec = utility::translate_error(GetLastError());
-
-	if (suc == 0) {
-		ar->call_callback(ec, buffer_length);
-		ar->cancel();
-	} else {
-		ar->set_valid(true);
-	}
-
-	return ec;
+bool os::windows::socket_win::is_created() {
+    return created;
 }
 
-bool os::windows::named_pipe::is_created() {
-	return created;
-}
-
-bool os::windows::named_pipe::is_connected() {
+bool os::windows::socket_win::is_connected() {
 	ULONG processId, sessionId;
 
 	if (created) {
@@ -280,7 +214,7 @@ bool os::windows::named_pipe::is_connected() {
 	return true;
 }
 
-void os::windows::named_pipe::set_connected(bool is_connected) {
+void os::windows::socket_win::set_connected(bool is_connected) {
 	if (is_connected) {
 		ULONG processId, sessionId;
 
@@ -306,15 +240,7 @@ void os::windows::named_pipe::set_connected(bool is_connected) {
 	}
 }
 
-void os::windows::named_pipe::handle_accept_callback(os::error code, size_t length) {
-	if (code == os::error::Connected || code == os::error::Success) {
-		set_connected(true);
-	} else {
-		set_connected(false);
-	}
-}
-
-os::error os::windows::named_pipe::accept(std::shared_ptr<os::async_op> &op, os::async_op_cb_t cb) {
+os::error os::windows::socket_win::accept(std::shared_ptr<os::async_op> &op, os::async_op_cb_t cb) {
 	if (!is_created()) {
 		return os::error::Error;
 	}
@@ -326,12 +252,12 @@ os::error os::windows::named_pipe::accept(std::shared_ptr<os::async_op> &op, os:
 	}
 	ar->set_callback(cb);
 	ar->set_system_callback(
-		std::bind(&named_pipe::handle_accept_callback, this, std::placeholders::_1, std::placeholders::_2));
+		std::bind(&os::windows::socket_win::handle_accept_callback, this, std::placeholders::_1, std::placeholders::_2));
 	ar->set_handle(handle);
 
 	SetLastError(ERROR_SUCCESS);
 	BOOL suc = ConnectNamedPipe(handle, ar->get_overlapped_pointer());
-	os::error ec = utility::translate_error(GetLastError());
+	os::error ec = os::windows::utility::translate_error(GetLastError());
 
 	if (ec != os::error::Pending && ec != os::error::Connected) {
 		ar->call_callback(ec, 0);
@@ -343,5 +269,70 @@ os::error os::windows::named_pipe::accept(std::shared_ptr<os::async_op> &op, os:
 			ar->call_callback(ec, 0);
 		}
 	}
+	return ec;
+}
+
+os::error os::windows::socket_win::read(char *buffer, size_t buffer_length, std::shared_ptr<os::async_op> &op, os::async_op_cb_t cb) {
+	if (!is_connected()) {
+		return os::error::Disconnected;
+	}
+
+	std::shared_ptr<os::windows::async_request> ar = std::static_pointer_cast<os::windows::async_request>(op);
+	if (!ar) {
+		ar = std::make_shared<os::windows::async_request>();
+		op = std::static_pointer_cast<os::async_op>(ar);
+	}
+	ar->set_callback(cb);
+	ar->set_handle(handle);
+
+	SetLastError(ERROR_SUCCESS);
+	BOOL suc = ReadFileEx(
+		handle, buffer, DWORD(buffer_length),
+		ar->get_overlapped_pointer(),
+		(LPOVERLAPPED_COMPLETION_ROUTINE)&os::windows::async_request::completion_routine
+	);
+
+	os::error ec = utility::translate_error(GetLastError());
+
+	if (suc == 0) {
+		ar->call_callback(ec, buffer_length);
+		ar->cancel();
+	} else {
+		ar->set_valid(true);
+	}
+	return ec;
+}
+
+os::error os::windows::socket_win::write(const char *buffer, size_t buffer_length, std::shared_ptr<os::async_op> &op,
+				os::async_op_cb_t cb) {
+	if (!is_connected()) {
+		return os::error::Disconnected;
+	}
+
+	std::shared_ptr<os::windows::async_request> ar = std::static_pointer_cast<os::windows::async_request>(op);
+	if (!ar) {
+		ar = std::make_shared<os::windows::async_request>();
+		op = std::static_pointer_cast<os::async_op>(ar);
+	}
+	ar->set_callback(cb);
+	ar->set_handle(handle);
+
+	SetLastError(ERROR_SUCCESS);
+	BOOL  suc   = WriteFileEx(
+		handle, buffer,
+		DWORD(buffer_length),
+		ar->get_overlapped_pointer(),
+		(LPOVERLAPPED_COMPLETION_ROUTINE)&os::windows::async_request::completion_routine
+	);
+
+	os::error ec = utility::translate_error(GetLastError());
+
+	if (suc == 0) {
+		ar->call_callback(ec, buffer_length);
+		ar->cancel();
+	} else {
+		ar->set_valid(true);
+	}
+
 	return ec;
 }

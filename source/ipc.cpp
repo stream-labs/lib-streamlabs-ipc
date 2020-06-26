@@ -18,6 +18,7 @@
 
 #include "ipc.hpp"
 #include <sstream>
+#include <iostream>
 
 std::string ipc::base::make_unique_id(const std::string& name, const std::vector<type> & parameters) {
 	// Implement similar behavior to C/C++ compilers, which put parameter type
@@ -108,16 +109,18 @@ size_t ipc::message::function_call::size() {
 	for (ipc::value& v : arguments) {
 		size += v.size();
 	}
+	// std::cout << "function_call::size " << size << std::endl;
 	return size;
 }
 
 size_t ipc::message::function_call::serialize(std::vector<char>& buf, size_t offset) {
 	if ((buf.size() - offset) < size()) {
-		throw std::exception("Buffer too small");
+		throw std::exception((const std::exception&)"Buffer too small");
 	}
 	size_t noffset = offset;
 
 	reinterpret_cast<size_t&>(buf[noffset]) = size();
+	// std::cout << "size serialized call: " << size() << std::endl;
 	noffset += sizeof(size_t);
 
 	noffset += uid.serialize(buf, noffset);
@@ -135,16 +138,19 @@ size_t ipc::message::function_call::serialize(std::vector<char>& buf, size_t off
 }
 
 size_t ipc::message::function_call::deserialize(std::vector<char>& buf, size_t offset) {
+
 	if ((buf.size() - offset) < sizeof(size_t)) {
-		throw std::exception("Buffer too small");
+		abort();
+		throw std::exception((const std::exception&)"Buffer too small");
 	}
 
 	size_t size = reinterpret_cast<const size_t&>(buf[offset]);
+	// std::cout << "size deserialized call: " << size << std::endl;
 	if ((buf.size() - offset) < size) {
-		throw std::exception("Buffer too small");
+		abort();
+		throw std::exception((const std::exception&)"Buffer too small");
 	}
 	size_t noffset = offset + sizeof(size_t);
-
 	noffset += uid.deserialize(buf, noffset);
 	noffset += class_name.deserialize(buf, noffset);
 	noffset += function_name.deserialize(buf, noffset);
@@ -164,6 +170,7 @@ size_t ipc::message::function_reply::size() {
 		+ uid.size() /* timestamp */
 		+ error.size() /* error */
 		+ sizeof(uint32_t) /* values */;
+
 	for (ipc::value& v : values) {
 		size += v.size();
 	}
@@ -172,11 +179,12 @@ size_t ipc::message::function_reply::size() {
 
 size_t ipc::message::function_reply::serialize(std::vector<char>& buf, size_t offset) {
 	if ((buf.size() - offset) < size()) {
-		throw std::exception("Buffer too small");
+		throw std::exception((const std::exception&)"Buffer too small");
 	}
 	size_t noffset = offset;
 
 	reinterpret_cast<size_t&>(buf[noffset]) = size();
+
 	noffset += sizeof(size_t);
 
 	noffset += uid.serialize(buf, noffset);
@@ -193,12 +201,13 @@ size_t ipc::message::function_reply::serialize(std::vector<char>& buf, size_t of
 
 size_t ipc::message::function_reply::deserialize(std::vector<char>& buf, size_t offset) {
 	if ((buf.size() - offset) < sizeof(size_t)) {
-		throw std::exception("Buffer too small");
+		throw std::exception((const std::exception&)"Buffer too small");
 	}
 
 	size_t size = reinterpret_cast<const size_t&>(buf[offset]);
+
 	if ((buf.size() - offset) < size) {
-		throw std::exception("Buffer too small");
+		throw std::exception((const std::exception&)"Buffer too small");
 	}
 	size_t noffset = offset + sizeof(size_t);
 

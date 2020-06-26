@@ -18,7 +18,7 @@
 
 #include "ipc-function.hpp"
 #include "ipc.hpp"
-
+#include <iostream>
 
 ipc::function::function(const std::string & name, const std::vector<ipc::type>& params, call_handler_t ptr, void* data) {
 	this->m_name = name;
