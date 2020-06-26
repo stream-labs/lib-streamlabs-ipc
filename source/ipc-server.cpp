@@ -21,7 +21,9 @@
 #include "../include/error.hpp"
 #include "../include/tags.hpp"
 
-#ifdef __APPLE__
+#ifdef WIN32
+#include "windows/ipc-socket-win.hpp"
+#elif __APPLE__
 #include "apple/ipc-socket-osx.hpp"
 #endif
 void ipc::server::watcher() {
