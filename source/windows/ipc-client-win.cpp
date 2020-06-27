@@ -8,7 +8,7 @@ int64_t       g_cbid = NULL;
 using namespace std::placeholders;
 
 std::shared_ptr<ipc::client> ipc::client::create(std::string socketPath) {
-	return std::make_unique<ipc::client_win>(socketPath);
+	return std::make_shared<ipc::client_win>(socketPath);
 }
 
 ipc::client_win::client_win(std::string socketPath) {
