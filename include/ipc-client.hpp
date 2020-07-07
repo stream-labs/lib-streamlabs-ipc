@@ -27,6 +27,8 @@ extern call_return_t g_fn;
 extern void*         g_data;
 extern int64_t       g_cbid;
 
+typedef void (*call_on_freez_t)(bool freez_detected, std::string callname, std::string app_state_path);
+
 namespace ipc {
 	class client {
 		public:
@@ -48,5 +50,9 @@ namespace ipc {
 			const std::string &fname,
 			const std::vector<ipc::value> & args
 		) = 0;
+
+		call_on_freez_t freez_cb = nullptr;
+		std::string app_state_path;
+		void set_freez_callback(call_on_freez_t cb, std::string app_state);
 	};
 }
