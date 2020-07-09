@@ -128,11 +128,11 @@ std::vector<ipc::value> ipc::client_win::call_synchronous_helper(
 		freez_flagged = true;
 
 		if (freez_cb)
-			freez_cb(true, cname+std::string("::")+fname, app_state_path);
+			freez_cb(true, app_state_path);
 	}
 	if (freez_flagged) {
 		if (freez_cb)
-			freez_cb(false, cname+std::string("::")+fname, app_state_path);
+			freez_cb(false, app_state_path);
 	}
 	if (!cd.called) {
 		cancel(cbid);
