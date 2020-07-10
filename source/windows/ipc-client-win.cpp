@@ -120,12 +120,31 @@ std::vector<ipc::value> ipc::client_win::call_synchronous_helper(
 		return {};
 	}
 
-	cd.sgn->wait();
+	static std::chrono::nanoseconds freez_timeout = std::chrono::seconds(3); 
+	bool freez_flagged = false;
+	while ( cd.sgn->wait(freez_timeout) == os::error::TimedOut ) {
+		if (freez_flagged)
+			continue;
+		freez_flagged = true;
+
+		if (freez_cb)
+			freez_cb(true, app_state_path);
+	}
+	if (freez_flagged) {
+		if (freez_cb)
+			freez_cb(false, app_state_path);
+	}
 	if (!cd.called) {
 		cancel(cbid);
 		return {};
 	}
 	return std::move(cd.values);
+}
+
+void ipc::client::set_freez_callback(call_on_freez_t cb, std::string app_state)
+{
+	freez_cb = cb;
+	app_state_path = app_state;
 }
 
 void ipc::client_win::worker() {
