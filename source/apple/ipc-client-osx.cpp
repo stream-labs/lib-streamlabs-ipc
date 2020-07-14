@@ -166,3 +166,8 @@ bool ipc::client_osx::cancel(int64_t const& id) {
 	std::unique_lock<std::mutex> ulock(m_lock);
 	return m_cb.erase(id) != 0;
 }
+
+void ipc::client::set_freez_callback(call_on_freez_t cb, std::string app_state)
+{
+
+}
