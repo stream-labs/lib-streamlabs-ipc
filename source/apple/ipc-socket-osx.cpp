@@ -72,6 +72,7 @@ uint32_t os::apple::socket_osx::read(char *buffer, size_t buffer_length, bool is
     int file_descriptor = t == REQUEST ? file_req : file_rep;
     std::string typePipe = t == REQUEST ? "request" : "reply";
 
+    std::cout << "read " << typePipe.c_str() << std::endl;
     if (file_descriptor < 0)
         goto end;
 
@@ -92,7 +93,6 @@ uint32_t os::apple::socket_osx::read(char *buffer, size_t buffer_length, bool is
                 ::memcpy(&buffer[offset], new_chunks.data(), ret);
             std::cout << "chunk data - end" << std::endl;
         }
-        std::cout << "chunk data - end loop" << std::endl;
         std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
     err = os::error::Success;
