@@ -78,11 +78,14 @@ uint32_t os::apple::socket_osx::read(char *buffer, size_t buffer_length, bool is
     while (ret <= 0) {
         ret = ::read(file_descriptor, buffer, buffer_length);
         while (ret == sizeChunks) {
-            std::cout << "chunk data" << std::endl;
+            std::cout << "chunk data - 0" << std::endl;
             offset += sizeChunks;
             std::vector<char> new_chunks;
+            std::cout << "chunk data - 1" << std::endl;
             new_chunks.resize(sizeChunks);
+            std::cout << "chunk data - 2" << std::endl;
             ret = ::read(file_descriptor, new_chunks.data(), new_chunks.size());
+            std::cout << "chunk data - 3" << std::endl;
             ::memcpy(&buffer[offset], new_chunks.data(), ret);
             std::cout << "chunk data - end" << std::endl;
         }
