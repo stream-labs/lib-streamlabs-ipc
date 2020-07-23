@@ -96,7 +96,7 @@ uint32_t os::apple::socket_osx::read(char *buffer, size_t buffer_length, bool is
             else {
                 errnum = errno;
                 std::cout << "Error: " << strerror(errnum) << std::endl;
-                ret = 1;
+                ret = offset;
             }
             std::cout << "chunk data - end" << std::endl;
         }
