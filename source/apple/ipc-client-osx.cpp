@@ -76,6 +76,7 @@ bool ipc::client_osx::call(
     ec = (os::error) m_socket->write(buf.data(), buf.size(), REQUEST);
 	m_socket->read(buffer.data(),
 				buffer.size(), true, REPLY);
+	std::cout << "Client read " << buffer.size() << std::endl;
 	read_callback_msg(ec, 65000);
 	sem_post(m_writer_sem);
 
