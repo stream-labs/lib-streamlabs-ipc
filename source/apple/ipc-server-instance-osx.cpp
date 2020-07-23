@@ -103,21 +103,31 @@ void ipc::server_instance_osx::worker_rep() {
 }
 
 void ipc::server_instance_osx::read_callback_msg(os::error ec, size_t size) {
+	std::cout << "server_instance_osx - read_callback_msg - 0" << std::endl; 
 	ipc::message::function_call fnc_call_msg;
 
 	try {
+	std::cout << "server_instance_osx - read_callback_msg - 1" << std::endl;
 		fnc_call_msg.deserialize(m_rbuf, 0);
+	std::cout << "server_instance_osx - read_callback_msg - 2" << std::endl;
 	} catch (std::exception & e) {
+	std::cout << "server_instance_osx - read_callback_msg - 3" << std::endl;
 		ipc::log("????????: Deserialization of Function Call message failed with error %s.", e.what());
 		return;
 	}
+	std::cout << "server_instance_osx - read_callback_msg - 4" << std::endl;
 	m_rbuf.clear();
 
+	std::cout << "server_instance_osx - read_callback_msg - 5" << std::endl;
 	msg_mtx.lock();
+	std::cout << "server_instance_osx - read_callback_msg - 6" << std::endl;
 	msgs.push(fnc_call_msg);
+	std::cout << "server_instance_osx - read_callback_msg - 7" << std::endl;
 	msg_mtx.unlock();
 
+	std::cout << "server_instance_osx - read_callback_msg - 8" << std::endl;
 	sem_post(m_writer_sem);
+	std::cout << "server_instance_osx - read_callback_msg - 9" << std::endl;
 }
 
 void ipc::server_instance_osx::read_callback_msg_write(const std::vector<char>& write_buffer)
