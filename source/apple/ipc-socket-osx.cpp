@@ -119,7 +119,7 @@ uint32_t os::apple::socket_osx::write(const char *buffer, size_t buffer_length, 
     if (file_descriptor < 0)
         goto end;
 
-    std::cout << "write - " << typePipe.c_str() << " - " << buffer_length << std:endl;
+    std::cout << "write - " << typePipe.c_str() << " - " << buffer_length << std::endl;
     ret = ::write(file_descriptor, buffer, buffer_length);
     std::cout << "write - end - " << ret << std::endl;
 
