@@ -104,7 +104,7 @@ uint32_t os::apple::socket_osx::read(char *buffer, size_t buffer_length, bool is
     }
     err = os::error::Success;
 
-    std::cout << "read " << typePipe.c_str() << " - end" << std::endl;
+    std::cout << "read " << typePipe.c_str() << " " << ret << " - end" << std::endl;
 end:
     return (uint32_t) err;
 }
