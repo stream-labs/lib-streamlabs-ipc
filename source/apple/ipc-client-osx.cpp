@@ -72,11 +72,11 @@ bool ipc::client_osx::call(
 	sem_wait(m_writer_sem);
 
 	std::cout << "function" << cname.c_str() << "::" << fname.c_str() << std::endl;
-	std::cout << "client write " << buf.size() << std::endl;
+	std::cout << "ipc-client write " << buf.size() << std::endl;
     ec = (os::error) m_socket->write(buf.data(), buf.size(), REQUEST);
 	m_socket->read(buffer.data(),
 				buffer.size(), true, REPLY);
-	std::cout << "Client read " << buffer.size() << std::endl;
+	std::cout << "ipc-client read " << buffer.size() << std::endl;
 	read_callback_msg(ec, 65000);
 	sem_post(m_writer_sem);
 

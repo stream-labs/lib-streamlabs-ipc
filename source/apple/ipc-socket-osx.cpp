@@ -70,42 +70,36 @@ uint32_t os::apple::socket_osx::read(char *buffer, size_t buffer_length, bool is
     int sizeChunks = 8*1024; // 8KB
     int offset = 0;
     int file_descriptor = t == REQUEST ? file_req : file_rep;
-    std::string typePipe = t == REQUEST ? "request" : "reply";
+    std::string typePipe = t == REQUEST ? "server" : "client";
 
-    std::cout << "read " << typePipe.c_str() << std::endl;
     if (file_descriptor < 0)
         goto end;
 
     while (ret <= 0 || ret == sizeChunks) {
+        std::cout << "read " << typePipe.c_str() << std::endl;
         ret = ::read(file_descriptor, buffer, buffer_length);
-        std::cout << "reading " << ret << std::endl;
-        std::cout << "Size read: " << ret << std::endl;
+        std::cout << "Size read: " << typePipe.c_str() << ret << std::endl;
         while (ret == sizeChunks) {
-            std::cout << "chunk data - 0" << std::endl;
             offset += sizeChunks;
             std::vector<char> new_chunks;
-            std::cout << "chunk data - 1" << std::endl;
             new_chunks.resize(sizeChunks);
-            std::cout << "chunk data - 2" << std::endl;
             ret = ::read(file_descriptor, new_chunks.data(), new_chunks.size());
-            std::cout << "chunk data - 3" << std::endl;
-            std::cout << "ret " << ret << std::endl;
+            std::cout << "sub reading ret " << ret << std::endl;
             std::cout << "new_chunks.size() " << new_chunks.size() << std::endl;
             int errnum;
             if (ret > 0)
                 ::memcpy(&buffer[offset], new_chunks.data(), ret);
             else {
                 errnum = errno;
-                std::cout << "Error: " << strerror(errnum) << std::endl;
+                // std::cout << "Error: " << strerror(errnum) << std::endl;
                 ret = offset;
             }
-            std::cout << "chunk data - end" << std::endl;
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
     err = os::error::Success;
 
-    std::cout << "read " << typePipe.c_str() << " " << ret << " - end" << std::endl;
+    std::cout << "read " << typePipe.c_str() << " - end" << std::endl;
 end:
     return (uint32_t) err;
 }
@@ -115,7 +109,7 @@ uint32_t os::apple::socket_osx::write(const char *buffer, size_t buffer_length, 
     os::error err = os::error::Error;
     int ret = 0;
     int file_descriptor = t == REQUEST ? file_req : file_rep;
-    std::string typePipe = t == REQUEST ? "request" : "reply";
+    std::string typePipe = t == REQUEST ? "client" : "server";
 
     if (file_descriptor < 0)
         goto end;

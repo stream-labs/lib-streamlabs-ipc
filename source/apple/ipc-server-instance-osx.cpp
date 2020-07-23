@@ -54,6 +54,7 @@ void ipc::server_instance_osx::worker_req() {
         m_rbuf.resize(65000);
 		os::error ec = (os::error) m_socket->read(m_rbuf.data(),
 						m_rbuf.size(), true, REQUEST);
+		std::cout << "ipc-server read " << m_rbuf.size() << std::endl;
 		read_callback_msg(ec, m_rbuf.size());
 	}
 }
@@ -134,7 +135,7 @@ void ipc::server_instance_osx::read_callback_msg_write(const std::vector<char>& 
 {
 	if (write_buffer.size() != 0) {
 		if ((!m_wop || !m_wop->is_valid()) && (m_write_queue.size() == 0)) {
-			std::cout << "server write " << write_buffer.size() << std::endl;
+			std::cout << "ipc-server write " << write_buffer.size() << std::endl;
 			os::error ec2 = (os::error)m_socket->write(write_buffer.data(), write_buffer.size(), REPLY);
 		} else {
 			m_write_queue.push(std::move(write_buffer));
