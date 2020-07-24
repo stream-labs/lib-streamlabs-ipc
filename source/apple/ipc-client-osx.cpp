@@ -40,6 +40,8 @@ bool ipc::client_osx::call(
 	std::shared_ptr<os::async_op> write_op;
 	ipc::message::function_call fnc_call_msg;
 	std::vector<char> outbuf;
+	std::vector<char> local_buffer;
+	local_buffer.resize(65000);
 
 	if (!m_socket)
 		return false;
@@ -87,9 +89,9 @@ bool ipc::client_osx::call(
 
 	std::cout << "ipc-client write " << buf.size() << std::endl;
     ec = (os::error) m_socket->write(buf.data(), buf.size(), REQUEST);
-	m_socket->read(buffer.data(),
-				buffer.size(), true, REPLY);
-	std::cout << "ipc-client read " << buffer.size() << std::endl;
+	m_socket->read(local_buffer.data(),
+				local_buffer.size(), true, REPLY);
+	std::cout << "ipc-client read " << local_buffer.size() << std::endl;
 	read_callback_msg(ec, 65000);
 	std::cout << "call - 14" << std::endl;
 	sem_post(m_writer_sem);
@@ -164,22 +166,29 @@ std::vector<ipc::value> ipc::client_osx::call_synchronous_helper(
 }
 
 void ipc::client_osx::read_callback_msg(os::error ec, size_t size) {
+	std::cout << "read_callback_msg - 0" << std::endl;
 	std::pair<call_return_t, void*> cb;
 	ipc::message::function_reply fnc_reply_msg;
 
+	std::cout << "read_callback_msg - 1" << std::endl;
 	try {
+	std::cout << "read_callback_msg - 2" << std::endl;
 		fnc_reply_msg.deserialize(buffer, 0);
+	std::cout << "read_callback_msg - 3" << std::endl;
 	} catch (std::exception& e) {
+	std::cout << "read_callback_msg - 4" << std::endl;
 		ipc::log("Deserialize failed with error %s.", e.what());
 		throw e;
 	}
 
+	std::cout << "read_callback_msg - 5" << std::endl;
 	// Find the callback function.
 	std::unique_lock<std::mutex> ulock(m_lock);
 	auto cb2 = m_cb.find(fnc_reply_msg.uid.value_union.ui64);
 	if (cb2 == m_cb.end()) {
 		return;
 	}
+	std::cout << "read_callback_msg - 6" << std::endl;
 	cb = cb2->second;
 	// Decode return values or errors.
 	if (fnc_reply_msg.error.value_str.size() > 0) {
@@ -187,12 +196,15 @@ void ipc::client_osx::read_callback_msg(os::error ec, size_t size) {
 		fnc_reply_msg.values.at(0).type = ipc::type::Null;
 		fnc_reply_msg.values.at(0).value_str = fnc_reply_msg.error.value_str;
 	}
+	std::cout << "read_callback_msg - 7" << std::endl;
 
 	// Call Callback
 	cb.first(cb.second, fnc_reply_msg.values);
 
+	std::cout << "read_callback_msg - 8" << std::endl;
 	// Remove cb entry
 	m_cb.erase(fnc_reply_msg.uid.value_union.ui64);
+	std::cout << "read_callback_msg - 9" << std::endl;
 }
 
 bool ipc::client_osx::cancel(int64_t const& id) {

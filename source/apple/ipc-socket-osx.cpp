@@ -75,7 +75,7 @@ uint32_t os::apple::socket_osx::read(char *buffer, size_t buffer_length, bool is
     if (file_descriptor < 0)
         goto end;
 
-    while (ret <= 0 || ret == sizeChunks) {
+    while (ret <= 0) {
         // std::cout << "read " << typePipe.c_str() << std::endl;
         ret = ::read(file_descriptor, buffer, buffer_length);
         std::cout << "Size first read: " << typePipe.c_str() << ret << std::endl;
