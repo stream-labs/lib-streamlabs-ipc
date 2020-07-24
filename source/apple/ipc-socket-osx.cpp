@@ -78,7 +78,7 @@ uint32_t os::apple::socket_osx::read(char *buffer, size_t buffer_length, bool is
     while (ret <= 0 || ret == sizeChunks) {
         // std::cout << "read " << typePipe.c_str() << std::endl;
         ret = ::read(file_descriptor, buffer, buffer_length);
-        // std::cout << "Size read: " << typePipe.c_str() << ret << std::endl;
+        std::cout << "Size first read: " << typePipe.c_str() << ret << std::endl;
         while (ret == sizeChunks) {
             std::cout << "Size read: " << typePipe.c_str() << ret << std::endl;
             offset += sizeChunks;
