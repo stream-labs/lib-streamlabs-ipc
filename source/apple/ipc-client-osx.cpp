@@ -80,6 +80,7 @@ bool ipc::client_osx::call(
 	read_callback_msg(ec, 65000);
 	sem_post(m_writer_sem);
 
+	std::cout << "ipc-client call - end " << cname.c_str() << "::" << fname.c_str() << std::endl;
 	return true;
 }
 
