@@ -76,10 +76,11 @@ uint32_t os::apple::socket_osx::read(char *buffer, size_t buffer_length, bool is
         goto end;
 
     while (ret <= 0 || ret == sizeChunks) {
-        std::cout << "read " << typePipe.c_str() << std::endl;
+        // std::cout << "read " << typePipe.c_str() << std::endl;
         ret = ::read(file_descriptor, buffer, buffer_length);
-        std::cout << "Size read: " << typePipe.c_str() << ret << std::endl;
+        // std::cout << "Size read: " << typePipe.c_str() << ret << std::endl;
         while (ret == sizeChunks) {
+            std::cout << "Size read: " << typePipe.c_str() << ret << std::endl;
             offset += sizeChunks;
             std::vector<char> new_chunks;
             new_chunks.resize(sizeChunks);
@@ -108,6 +109,7 @@ uint32_t os::apple::socket_osx::write(const char *buffer, size_t buffer_length, 
 {
     os::error err = os::error::Error;
     int ret = 0;
+    int sizeChunks = 8*1024; // 8KB
     int file_descriptor = t == REQUEST ? file_req : file_rep;
     std::string typePipe = t == REQUEST ? "client" : "server";
 
@@ -115,7 +117,18 @@ uint32_t os::apple::socket_osx::write(const char *buffer, size_t buffer_length, 
         goto end;
 
     std::cout << "write - " << typePipe.c_str() << " - " << buffer_length << std::endl;
-    ret = ::write(file_descriptor, buffer, buffer_length);
+    if (buffer_length <= sizeChunks) {
+        ret = ::write(file_descriptor, buffer, buffer_length);
+    } else {
+        int size_wrote = 0;
+        while (size_wrote < buffer_length) {
+            bool end = (buffer_length - size_wrote) <= sizeChunks;
+            int size_to_write = end ? buffer_length - size_wrote : sizeChunks;
+            std::cout << "writing " << size_to_write << std::endl;
+            ret = ::write(file_descriptor, &buffer[size_wrote], size_to_write);
+            size_wrote += size_to_write;
+        }
+    }
     std::cout << "write - end - " << ret << std::endl;
 
     if (ret < 0)
