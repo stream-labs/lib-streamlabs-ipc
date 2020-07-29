@@ -89,7 +89,8 @@ bool ipc::client_osx::call(
     ec = (os::error) m_socket->write(buf.data(), buf.size(), REQUEST);
 	m_socket->read(buffer.data(),
 				buffer.size(), true, REPLY);
-	std::cout << "ipc-client read " << buffer.size() << std::endl;
+	// std::cout << "ipc-client read " << buffer.size() << std::endl;
+	std::cout << "reading response from: " << cname.c_str() << "::" << fname.c_str() << std::endl;
 	read_callback_msg(ec, 65000);
 	std::cout << "call - 14" << std::endl;
 	sem_post(m_writer_sem);
