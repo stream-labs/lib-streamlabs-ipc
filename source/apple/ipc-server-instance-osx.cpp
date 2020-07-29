@@ -52,10 +52,12 @@ void ipc::server_instance_osx::worker_req() {
 	// Loop
 	while ((!m_stopWorkers) && m_socket->is_connected()) {
         m_rbuf.resize(65000);
+		std::cout << "ipc-server waiting to read" << std::endl;
 		os::error ec = (os::error) m_socket->read(m_rbuf.data(),
 						m_rbuf.size(), true, REQUEST);
 		std::cout << "ipc-server read " << m_rbuf.size() << std::endl;
 		read_callback_msg(ec, m_rbuf.size());
+		std::cout << "ipc-server end read " << std::endl;
 	}
 }
 
@@ -99,7 +101,9 @@ void ipc::server_instance_osx::worker_rep() {
 				fnc_reply_msg.uid.value_union.ui64, e.what());
 			return;
 		}
+		std::cout << "read_callback_msg_write - start" << std::endl;
 		read_callback_msg_write(m_wbuf);
+		std::cout << "read_callback_msg_write - end" << std::endl;
 	}
 }
 
