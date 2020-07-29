@@ -40,8 +40,6 @@ bool ipc::client_osx::call(
 	std::shared_ptr<os::async_op> write_op;
 	ipc::message::function_call fnc_call_msg;
 	std::vector<char> outbuf;
-	std::vector<char> local_buffer;
-	local_buffer.resize(65000);
 
 	if (!m_socket)
 		return false;
@@ -89,9 +87,9 @@ bool ipc::client_osx::call(
 
 	std::cout << "ipc-client write " << buf.size() << std::endl;
     ec = (os::error) m_socket->write(buf.data(), buf.size(), REQUEST);
-	m_socket->read(local_buffer.data(),
-				local_buffer.size(), true, REPLY);
-	std::cout << "ipc-client read " << local_buffer.size() << std::endl;
+	m_socket->read(buffer.data(),
+				buffer.size(), true, REPLY);
+	std::cout << "ipc-client read " << buffer.size() << std::endl;
 	read_callback_msg(ec, 65000);
 	std::cout << "call - 14" << std::endl;
 	sem_post(m_writer_sem);
