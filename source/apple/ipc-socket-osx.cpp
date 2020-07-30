@@ -76,24 +76,21 @@ uint32_t os::apple::socket_osx::read(char *buffer, size_t buffer_length, bool is
         goto end;
 
     while (ret <= 0) {
-        // std::cout << "read " << typePipe.c_str() << std::endl;
         ret = ::read(file_descriptor, buffer, buffer_length);
-        // std::cout << "Size first read: " << typePipe.c_str() << ret << std::endl;
-        while (ret == sizeChunks) {
-            std::cout << "Size read: " << typePipe.c_str() << ret << std::endl;
-            offset += sizeChunks;
+        if (ret > 0)
+            offset += ret;
+        while (ret == sizeChunks || offset == sizeChunks) {
+            std::cout << "Size read: " << typePipe.c_str()<< " " << ret << std::endl;
             std::vector<char> new_chunks;
             new_chunks.resize(sizeChunks);
             ret = ::read(file_descriptor, new_chunks.data(), new_chunks.size());
             std::cout << "sub reading ret " << ret << std::endl;
             std::cout << "new_chunks.size() " << new_chunks.size() << std::endl;
             int errnum;
-            if (ret > 0)
-                ::memcpy(&buffer[offset], new_chunks.data(), ret);
-            else {
-                errnum = errno;
-                // std::cout << "Error: " << strerror(errnum) << std::endl;
-                ret = offset;
+            if (ret > 0) {
+                std::cout << "copying " << ret << " at index " << offset << std::endl;
+                ::memcpy(buffer + offset, new_chunks.data(), ret);
+                offset += ret;
             }
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(2));
@@ -124,8 +121,8 @@ uint32_t os::apple::socket_osx::write(const char *buffer, size_t buffer_length, 
         while (size_wrote < buffer_length) {
             bool end = (buffer_length - size_wrote) <= sizeChunks;
             int size_to_write = end ? buffer_length - size_wrote : sizeChunks;
-            std::cout << "writing " << size_to_write << std::endl;
-            ret = ::write(file_descriptor, &buffer[size_wrote], size_to_write);
+            std::cout << "writing " << size_to_write << " at index: " << size_wrote << std::endl;
+            ret = ::write(file_descriptor, buffer + size_wrote, size_to_write);
             size_wrote += size_to_write;
         }
     }

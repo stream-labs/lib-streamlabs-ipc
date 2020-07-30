@@ -69,6 +69,7 @@ bool ipc::client_osx::call(
 	std::cout << "call - 8" << std::endl;
 	} catch (std::exception& e) {
 	std::cout << "call - 9" << std::endl;
+		abort();
 		ipc::log("(write) %8llu: Failed to serialize, error %s.", fnc_call_msg.uid.value_union.ui64, e.what());
 		throw e;
 	}
@@ -177,6 +178,7 @@ void ipc::client_osx::read_callback_msg(os::error ec, size_t size) {
 	} catch (std::exception& e) {
 	std::cout << "read_callback_msg - 4" << std::endl;
 		ipc::log("Deserialize failed with error %s.", e.what());
+		abort();
 		throw e;
 	}
 
