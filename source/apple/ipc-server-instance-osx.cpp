@@ -52,12 +52,9 @@ void ipc::server_instance_osx::worker_req() {
 	// Loop
 	while ((!m_stopWorkers) && m_socket->is_connected()) {
         m_rbuf.resize(65000);
-		// std::cout << "ipc-server waiting to read" << std::endl;
 		os::error ec = (os::error) m_socket->read(m_rbuf.data(),
 						m_rbuf.size(), true, REQUEST);
-		// std::cout << "ipc-server read " << m_rbuf.size() << std::endl;
 		read_callback_msg(ec, m_rbuf.size());
-		// std::cout << "ipc-server end read " << std::endl;
 	}
 }
 
@@ -101,45 +98,32 @@ void ipc::server_instance_osx::worker_rep() {
 				fnc_reply_msg.uid.value_union.ui64, e.what());
 			return;
 		}
-		// std::cout << "read_callback_msg_write - start" << std::endl;
 		read_callback_msg_write(m_wbuf);
-		// std::cout << "read_callback_msg_write - end" << std::endl;
 	}
 }
 
 void ipc::server_instance_osx::read_callback_msg(os::error ec, size_t size) {
-	// std::cout << "server_instance_osx - read_callback_msg - 0" << std::endl; 
 	ipc::message::function_call fnc_call_msg;
 
 	try {
-	// std::cout << "server_instance_osx - read_callback_msg - 1" << std::endl;
 		fnc_call_msg.deserialize(m_rbuf, 0);
-	// std::cout << "server_instance_osx - read_callback_msg - 2" << std::endl;
 	} catch (std::exception & e) {
-	// std::cout << "server_instance_osx - read_callback_msg - 3" << std::endl;
 		ipc::log("????????: Deserialization of Function Call message failed with error %s.", e.what());
 		return;
 	}
-	// std::cout << "server_instance_osx - read_callback_msg - 4" << std::endl;
 	m_rbuf.clear();
 
-	// std::cout << "server_instance_osx - read_callback_msg - 5" << std::endl;
 	msg_mtx.lock();
-	// std::cout << "server_instance_osx - read_callback_msg - 6" << std::endl;
 	msgs.push(fnc_call_msg);
-	// std::cout << "server_instance_osx - read_callback_msg - 7" << std::endl;
 	msg_mtx.unlock();
 
-	// std::cout << "server_instance_osx - read_callback_msg - 8" << std::endl;
 	sem_post(m_writer_sem);
-	// std::cout << "server_instance_osx - read_callback_msg - 9" << std::endl;
 }
 
 void ipc::server_instance_osx::read_callback_msg_write(const std::vector<char>& write_buffer)
 {
 	if (write_buffer.size() != 0) {
 		if ((!m_wop || !m_wop->is_valid()) && (m_write_queue.size() == 0)) {
-			// std::cout << "ipc-server write " << write_buffer.size() << std::endl;
 			os::error ec2 = (os::error)m_socket->write(write_buffer.data(), write_buffer.size(), REPLY);
 		} else {
 			m_write_queue.push(std::move(write_buffer));

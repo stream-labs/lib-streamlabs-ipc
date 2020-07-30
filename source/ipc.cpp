@@ -115,7 +115,6 @@ size_t ipc::message::function_call::size() {
 
 size_t ipc::message::function_call::serialize(std::vector<char>& buf, size_t offset) {
 	if ((buf.size() - offset) < size()) {
-		abort();
 		throw std::exception((const std::exception&)"Buffer too small");
 	}
 	size_t noffset = offset;
@@ -180,7 +179,6 @@ size_t ipc::message::function_reply::size() {
 
 size_t ipc::message::function_reply::serialize(std::vector<char>& buf, size_t offset) {
 	if ((buf.size() - offset) < size()) {
-		abort();
 		throw std::exception((const std::exception&)"Buffer too small");
 	}
 	size_t noffset = offset;
@@ -203,14 +201,12 @@ size_t ipc::message::function_reply::serialize(std::vector<char>& buf, size_t of
 
 size_t ipc::message::function_reply::deserialize(std::vector<char>& buf, size_t offset) {
 	if ((buf.size() - offset) < sizeof(size_t)) {
-		abort();
 		throw std::exception((const std::exception&)"Buffer too small");
 	}
 
 	size_t size = reinterpret_cast<const size_t&>(buf[offset]);
 
 	if ((buf.size() - offset) < size) {
-		abort();
 		throw std::exception((const std::exception&)"Buffer too small");
 	}
 	size_t noffset = offset + sizeof(size_t);
