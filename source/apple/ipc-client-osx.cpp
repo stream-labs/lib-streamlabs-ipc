@@ -35,6 +35,7 @@ bool ipc::client_osx::call(
 	static std::mutex mtx;
 	static uint64_t timestamp = 0;
 	os::error ec;
+
 	std::shared_ptr<os::async_op> write_op;
 	ipc::message::function_call fnc_call_msg;
 	std::vector<char> outbuf;
@@ -48,7 +49,7 @@ bool ipc::client_osx::call(
 		fnc_call_msg.uid = ipc::value(timestamp);
 	}
 
-	// Set
+	// Set	
 	fnc_call_msg.class_name = ipc::value(cname);
 	fnc_call_msg.function_name = ipc::value(fname);
 	fnc_call_msg.arguments = std::move(args);
@@ -58,7 +59,6 @@ bool ipc::client_osx::call(
 	try {
 		fnc_call_msg.serialize(buf, 0);
 	} catch (std::exception& e) {
-		abort();
 		ipc::log("(write) %8llu: Failed to serialize, error %s.", fnc_call_msg.uid.value_union.ui64, e.what());
 		throw e;
 	}
@@ -136,7 +136,6 @@ void ipc::client_osx::read_callback_msg(os::error ec, size_t size) {
 		fnc_reply_msg.deserialize(buffer, 0);
 	} catch (std::exception& e) {
 		ipc::log("Deserialize failed with error %s.", e.what());
-		abort();
 		throw e;
 	}
 
