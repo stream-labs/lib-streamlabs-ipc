@@ -116,7 +116,6 @@ std::vector<ipc::value> ipc::client_osx::call_synchronous_helper(
 	if (!success) {
 		return {};
 	}
-
 	sem_wait(cd.sem);
 	sem_close(cd.sem);
 	sem_unlink(path.c_str());
@@ -126,7 +125,6 @@ std::vector<ipc::value> ipc::client_osx::call_synchronous_helper(
 		cancel(cbid);
 		return {};
 	}
-
 	return std::move(cd.values);
 }
 

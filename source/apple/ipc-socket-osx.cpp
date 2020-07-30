@@ -70,20 +70,23 @@ uint32_t os::apple::socket_osx::read(char *buffer, size_t buffer_length, bool is
     int sizeChunks = 8*1024; // 8KB
     int offset = 0;
     int file_descriptor = t == REQUEST ? file_req : file_rep;
-    std::string typePipe = t == REQUEST ? "request" : "reply";
+    std::string typePipe = t == REQUEST ? "server" : "client";
 
     if (file_descriptor < 0)
         goto end;
 
     while (ret <= 0) {
         ret = ::read(file_descriptor, buffer, buffer_length);
-        while (ret == sizeChunks) {
-            std::cout << "chunk data" << std::endl;
-            offset += sizeChunks;
+        if (ret > 0)
+            offset += ret;
+        while (ret == sizeChunks || offset == sizeChunks) {
             std::vector<char> new_chunks;
             new_chunks.resize(sizeChunks);
             ret = ::read(file_descriptor, new_chunks.data(), new_chunks.size());
-            ::memcpy(&buffer[offset], new_chunks.data(), ret);
+            if (ret > 0) {
+                ::memcpy(buffer + offset, new_chunks.data(), ret);
+                offset += ret;
+            }
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
@@ -97,13 +100,27 @@ uint32_t os::apple::socket_osx::write(const char *buffer, size_t buffer_length, 
 {
     os::error err = os::error::Error;
     int ret = 0;
+    int sizeChunks = 8*1024; // 8KB
     int file_descriptor = t == REQUEST ? file_req : file_rep;
-    std::string typePipe = t == REQUEST ? "request" : "reply";
+    std::string typePipe = t == REQUEST ? "client" : "server";
 
     if (file_descriptor < 0)
         goto end;
 
-    ret = ::write(file_descriptor, buffer, buffer_length);
+    if (buffer_length <= sizeChunks) {
+        ret = ::write(file_descriptor, buffer, buffer_length);
+    } else {
+        int size_wrote = 0;
+        while (size_wrote < buffer_length) {
+            bool end = (buffer_length - size_wrote) <= sizeChunks;
+            int size_to_write = end ? buffer_length - size_wrote : sizeChunks;
+            ret = ::write(file_descriptor, buffer + size_wrote, size_to_write);
+            if (ret < 0)
+                goto end;
+            size_wrote += size_to_write;
+        }
+    }
+
     if (ret < 0)
         goto end;
 
