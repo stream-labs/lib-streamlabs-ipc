@@ -83,7 +83,6 @@ uint32_t os::apple::socket_osx::read(char *buffer, size_t buffer_length, bool is
             std::vector<char> new_chunks;
             new_chunks.resize(sizeChunks);
             ret = ::read(file_descriptor, new_chunks.data(), new_chunks.size());
-            int errnum;
             if (ret > 0) {
                 ::memcpy(buffer + offset, new_chunks.data(), ret);
                 offset += ret;
@@ -116,6 +115,8 @@ uint32_t os::apple::socket_osx::write(const char *buffer, size_t buffer_length, 
             bool end = (buffer_length - size_wrote) <= sizeChunks;
             int size_to_write = end ? buffer_length - size_wrote : sizeChunks;
             ret = ::write(file_descriptor, buffer + size_wrote, size_to_write);
+            if (ret < 0)
+                goto end;
             size_wrote += size_to_write;
         }
     }
