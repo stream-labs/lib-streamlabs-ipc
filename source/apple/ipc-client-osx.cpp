@@ -15,7 +15,7 @@ ipc::client_osx::client_osx(std::string socketPath) {
 	remove(writer_sem_name.c_str());
 	m_writer_sem = sem_open(writer_sem_name.c_str(), O_CREAT | O_EXCL, 0644, 1);
 
-	buffer.resize(65000);
+	buffer.resize(130000);
 }
 
 ipc::client_osx::~client_osx() {
@@ -74,7 +74,7 @@ bool ipc::client_osx::call(
     ec = (os::error) m_socket->write(buf.data(), buf.size(), REQUEST);
 	m_socket->read(buffer.data(),
 				buffer.size(), true, REPLY);
-	read_callback_msg(ec, 65000);
+	read_callback_msg(ec, 130000);
 	sem_post(m_writer_sem);
 
 	return true;

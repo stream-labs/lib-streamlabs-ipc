@@ -51,7 +51,7 @@ bool ipc::server_instance_osx::is_alive() {
 void ipc::server_instance_osx::worker_req() {
 	// Loop
 	while ((!m_stopWorkers) && m_socket->is_connected()) {
-        m_rbuf.resize(65000);
+        m_rbuf.resize(130000);
 		os::error ec = (os::error) m_socket->read(m_rbuf.data(),
 						m_rbuf.size(), true, REQUEST);
 		read_callback_msg(ec, m_rbuf.size());
