@@ -90,7 +90,6 @@ uint32_t os::apple::socket_osx::read(char *buffer, size_t buffer_length, bool is
                 offset += ret;
             }
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
     err = os::error::Success;
 
