@@ -8,7 +8,7 @@ namespace ipc {
     class socket {
         public:
         socket(){};
-		~socket(){};
+		virtual ~socket(){};
 
 
         virtual void handle_accept_callback(os::error code, size_t length) = 0;

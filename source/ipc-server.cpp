@@ -202,8 +202,8 @@ void ipc::server::finalize() {
 
 	// Lock sockets mutex so that watcher pauses.
 	std::unique_lock<std::mutex> ul(m_sockets_mtx);
-// 
-	{ // Kill/Disconnect any clients
+
+	{
 		std::unique_lock<std::mutex> ul(m_clients_mtx);
 		while (m_clients.size() > 0) {
 			kill_client(m_clients.begin()->first);

@@ -25,7 +25,7 @@ os::apple::socket_osx::socket_osx(os::create_only_t, const std::string name)
         throw std::exception(
                 (const std::exception&)"Could not create reply pipe");
 
-    file_req = open(name_req.c_str(), O_RDONLY | O_NONBLOCK);
+    file_req = open(name_req.c_str(), O_RDWR | O_NONBLOCK);
     if (file_req < 0)
         throw std::exception(
             (const std::exception&)"Could not open reader request pipe");
@@ -56,7 +56,9 @@ os::apple::socket_osx::socket_osx(os::open_only_t, const std::string name)
     connected = true;
 }
 
-os::apple::socket_osx::~socket_osx() {
+os::apple::socket_osx::~socket_osx() {}
+
+void os::apple::socket_osx::clean_file_descriptors() {
     close(file_req);
     remove(name_req.c_str());
     close(file_rep);

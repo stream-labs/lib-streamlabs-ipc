@@ -36,6 +36,7 @@ ipc::server_instance_osx::~server_instance_osx() {
 		m_worker_requests.join();
 
 	sem_close(m_writer_sem);
+	m_socket->clean_file_descriptors();
 }
 
 bool ipc::server_instance_osx::is_alive() {

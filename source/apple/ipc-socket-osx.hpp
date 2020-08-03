@@ -34,6 +34,8 @@ namespace os {
 			virtual void set_connected(bool is_connected) override;
 			virtual os::error accept(std::shared_ptr<os::async_op> &op, os::async_op_cb_t cb) override;
 
+            void clean_file_descriptors();
+
             private:
             bool created     = false;
             bool connected   = true;
