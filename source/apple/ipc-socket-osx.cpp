@@ -25,16 +25,7 @@ os::apple::socket_osx::socket_osx(os::create_only_t, const std::string name)
         throw std::exception(
                 (const std::exception&)"Could not create reply pipe");
 
-    file_req = open(name_req.c_str(), O_RDWR | O_NONBLOCK);
-    if (file_req < 0)
-        throw std::exception(
-            (const std::exception&)"Could not open reader request pipe");
-
-    file_rep = open(name_rep.c_str(), O_WRONLY | O_DSYNC);
-    if (file_rep < 0)
-        throw std::exception(
-            (const std::exception&)"Could not open write reply pipe");  
-
+    fd_write = -1;
     created = true;
 }
 
@@ -43,25 +34,17 @@ os::apple::socket_osx::socket_osx(os::open_only_t, const std::string name)
     this->name_req = name + "-req";
     this->name_rep = name + "-rep";
 
-    file_rep = open(name_rep.c_str(), O_RDONLY | O_NONBLOCK);
-    if (file_rep < 0)
-        throw std::exception(
-            (const std::exception&)"Could not open reader reply pipe");
-
-    file_req = open(name_req.c_str(), O_WRONLY | O_DSYNC);
-    if (file_req < 0)
-        throw std::exception(
-            (const std::exception&)"Could not open write request pipe");
-
+    fd_write = -1;
     connected = true;
 }
 
 os::apple::socket_osx::~socket_osx() {}
 
 void os::apple::socket_osx::clean_file_descriptors() {
-    close(file_req);
+    if (fd_write > 0)
+        close(fd_write);
+
     remove(name_req.c_str());
-    close(file_rep);
     remove(name_rep.c_str());
 }
 
@@ -71,25 +54,38 @@ uint32_t os::apple::socket_osx::read(char *buffer, size_t buffer_length, bool is
     int ret = 0;
     int sizeChunks = 8*1024; // 8KB
     int offset = 0;
-    int file_descriptor = t == REQUEST ? file_req : file_rep;
     std::string typePipe = t == REQUEST ? "server" : "client";
+    int file_descriptor = -1;
 
-    if (file_descriptor < 0)
+    if (is_blocking)
+        file_descriptor = open(t == REQUEST ? name_req.c_str() : name_rep.c_str(), O_RDWR);
+    else
+        file_descriptor = open(t == REQUEST ? name_req.c_str() : name_rep.c_str(), O_RDWR | O_NONBLOCK);
+
+    if (file_descriptor < 0) {
         goto end;
+    }
 
     while (ret <= 0) {
         ret = ::read(file_descriptor, buffer, buffer_length);
+
         if (ret > 0)
             offset += ret;
-        while (ret == sizeChunks || offset % sizeChunks == 0) {
+
+        while ((ret == sizeChunks || (offset % sizeChunks == 0 && offset != 0)) && ret != 0) {
             std::vector<char> new_chunks;
             new_chunks.resize(sizeChunks);
             ret = ::read(file_descriptor, new_chunks.data(), new_chunks.size());
+
             if (ret > 0) {
                 ::memcpy(buffer + offset, new_chunks.data(), ret);
                 offset += ret;
             }
         }
+    }
+    close(file_descriptor);
+    if (ret < 0) {
+        goto end;
     }
     err = os::error::Success;
 
@@ -102,30 +98,35 @@ uint32_t os::apple::socket_osx::write(const char *buffer, size_t buffer_length, 
     os::error err = os::error::Error;
     int ret = 0;
     int sizeChunks = 8*1024; // 8KB
-    int file_descriptor = t == REQUEST ? file_req : file_rep;
     std::string typePipe = t == REQUEST ? "client" : "server";
 
-    if (file_descriptor < 0)
+    if (fd_write > 0)
+        close(fd_write);
+
+    fd_write = open(t == REQUEST ? name_req.c_str() : name_rep.c_str(), O_WRONLY | O_DSYNC);
+    if (fd_write < 0) {
         goto end;
+    }
 
     if (buffer_length <= sizeChunks) {
-        ret = ::write(file_descriptor, buffer, buffer_length);
+        ret = ::write(fd_write, buffer, buffer_length);
     } else {
         int size_wrote = 0;
         while (size_wrote < buffer_length) {
             bool end = (buffer_length - size_wrote) <= sizeChunks;
             int size_to_write = end ? buffer_length - size_wrote : sizeChunks;
-            ret = ::write(file_descriptor, buffer + size_wrote, size_to_write);
+            ret = ::write(fd_write, buffer + size_wrote, size_to_write);
             if (ret < 0)
-                goto end;
+                break;
             size_wrote += size_to_write;
         }
     }
 
-    if (ret < 0)
+    if (ret < 0) {
         goto end;
-
+    }
     err = os::error::Success;
+
 end:
     return (uint32_t) err;
 }

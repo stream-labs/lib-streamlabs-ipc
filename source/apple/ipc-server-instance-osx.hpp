@@ -17,6 +17,7 @@ namespace ipc {
 		std::string reader_sem_name = "semaphore-server-reader";
 		std::string writer_sem_name = "semaphore-server-writer";
 		sem_t *m_writer_sem;
+		sem_t *m_reader_sem;
 		std::shared_ptr<os::apple::socket_osx> m_socket;
 		std::shared_ptr<os::async_op> m_wop, m_rop;
 		std::vector<char> m_wbuf, m_rbuf;
@@ -32,6 +33,7 @@ namespace ipc {
 		bool is_alive();
 		void worker_req();
 		void worker_rep();
+		void read_callback_init(os::error ec, size_t size);
 		void read_callback_msg(os::error ec, size_t size);
 		void read_callback_msg_write(const std::vector<char>& write_buffer);
 		void write_callback(os::error ec, size_t size);		

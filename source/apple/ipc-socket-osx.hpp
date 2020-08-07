@@ -43,6 +43,7 @@ namespace os {
             std::string name_rep = "";
             int file_req;
             int file_rep;
+            int fd_write;
 		};
 	}
 }
