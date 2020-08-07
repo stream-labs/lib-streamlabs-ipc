@@ -121,6 +121,8 @@ void ipc::server_instance_osx::read_callback_init(os::error ec, size_t size) {
 			ec2 = (os::error) m_socket->read(m_rbuf.data(),
 				m_rbuf.size(), false, REQUEST);
 			read_callback_msg(ec, m_rbuf.size());
+		} else {
+			sem_post(m_writer_sem);
 		}
 	}
 }
