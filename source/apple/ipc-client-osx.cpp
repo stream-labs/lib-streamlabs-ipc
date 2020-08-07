@@ -34,7 +34,7 @@ bool ipc::client_osx::call(
 {
 	static std::mutex mtx;
 	static uint64_t timestamp = 0;
-	os::error ec;
+	os::error ec = os::error::Error;
 
 	std::shared_ptr<os::async_op> write_op;
 	ipc::message::function_call fnc_call_msg;
@@ -71,10 +71,16 @@ bool ipc::client_osx::call(
 
 	sem_wait(m_writer_sem);
 
-    ec = (os::error) m_socket->write(buf.data(), buf.size(), REQUEST);
-	m_socket->read(buffer.data(),
-				buffer.size(), true, REPLY);
-	read_callback_msg(ec, 130000);
+	while (ec == os::error::Error) {
+		ec = (os::error) m_socket->write(buf.data(), buf.size(), REQUEST);
+		if (ec == os::error::Error)
+			std::this_thread::sleep_for(std::chrono::milliseconds(2));
+	}
+	std::vector<char> l_buffer;
+	l_buffer.resize(130000);
+	m_socket->read(l_buffer.data(),
+				l_buffer.size(), true, REPLY);
+	read_callback_msg(ec, 130000, l_buffer);
 	sem_post(m_writer_sem);
 
 	return true;
@@ -128,12 +134,12 @@ std::vector<ipc::value> ipc::client_osx::call_synchronous_helper(
 	return std::move(cd.values);
 }
 
-void ipc::client_osx::read_callback_msg(os::error ec, size_t size) {
+void ipc::client_osx::read_callback_msg(os::error ec, size_t size, std::vector<char> l_buffer) {
 	std::pair<call_return_t, void*> cb;
 	ipc::message::function_reply fnc_reply_msg;
 
 	try {
-		fnc_reply_msg.deserialize(buffer, 0);
+		fnc_reply_msg.deserialize(l_buffer, 0);
 	} catch (std::exception& e) {
 		ipc::log("Deserialize failed with error %s.", e.what());
 		throw e;

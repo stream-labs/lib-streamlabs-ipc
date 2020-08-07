@@ -12,6 +12,10 @@ ipc::server_instance_osx::server_instance_osx(ipc::server* owner, std::shared_pt
 
 	m_stopWorkers = false;
 
+	sem_unlink(reader_sem_name.c_str());
+	remove(reader_sem_name.c_str());
+	m_reader_sem = sem_open(reader_sem_name.c_str(), O_CREAT | O_EXCL, 0644, 1);
+
 	sem_unlink(writer_sem_name.c_str());
 	remove(writer_sem_name.c_str());
 	m_writer_sem = sem_open(writer_sem_name.c_str(), O_CREAT | O_EXCL, 0644, 0);
@@ -52,6 +56,7 @@ bool ipc::server_instance_osx::is_alive() {
 void ipc::server_instance_osx::worker_req() {
 	// Loop
 	while ((!m_stopWorkers) && m_socket->is_connected()) {
+		sem_wait(m_reader_sem);
         m_rbuf.resize(130000);
 		os::error ec = (os::error) m_socket->read(m_rbuf.data(),
 						m_rbuf.size(), true, REQUEST);
@@ -100,6 +105,7 @@ void ipc::server_instance_osx::worker_rep() {
 			return;
 		}
 		read_callback_msg_write(m_wbuf);
+		sem_post(m_reader_sem);
 	}
 }
 
