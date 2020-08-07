@@ -86,7 +86,7 @@ uint32_t os::apple::socket_osx::read(char *buffer, size_t buffer_length, bool is
             }
         }
     }
-    std::cout << typePipe.c_str() << " read 3" << std::endl;
+    std::cout << typePipe.c_str() << " read 3 " << ret << std::endl;
     close(file_descriptor);
     if (ret < 0) {
         goto end;
@@ -131,7 +131,7 @@ uint32_t os::apple::socket_osx::write(const char *buffer, size_t buffer_length, 
         }
     }
 
-    std::cout << typePipe.c_str() << " write 3" << std::endl;
+    std::cout << typePipe.c_str() << " write 3 " << ret << std::endl;
     if (ret < 0) {
         goto end;
     }
