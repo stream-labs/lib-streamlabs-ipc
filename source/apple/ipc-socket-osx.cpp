@@ -57,15 +57,18 @@ uint32_t os::apple::socket_osx::read(char *buffer, size_t buffer_length, bool is
     std::string typePipe = t == REQUEST ? "server" : "client";
     int file_descriptor = -1;
 
+    std::cout << typePipe.c_str() << " read 0" << std::endl;
     if (is_blocking)
         file_descriptor = open(t == REQUEST ? name_req.c_str() : name_rep.c_str(), O_RDWR);
     else
         file_descriptor = open(t == REQUEST ? name_req.c_str() : name_rep.c_str(), O_RDWR | O_NONBLOCK);
 
+    std::cout << typePipe.c_str() << " read 1" << std::endl;
     if (file_descriptor < 0) {
         goto end;
     }
 
+    std::cout << typePipe.c_str() << " read 2" << std::endl;
     while (ret <= 0) {
         ret = ::read(file_descriptor, buffer, buffer_length);
 
@@ -83,13 +86,16 @@ uint32_t os::apple::socket_osx::read(char *buffer, size_t buffer_length, bool is
             }
         }
     }
+    std::cout << typePipe.c_str() << " read 3" << std::endl;
     close(file_descriptor);
     if (ret < 0) {
         goto end;
     }
+    std::cout << typePipe.c_str() << " read 4" << std::endl;
     err = os::error::Success;
 
 end:
+    std::cout << typePipe.c_str() << " read 5" << std::endl;
     return (uint32_t) err;
 }
 
@@ -100,14 +106,17 @@ uint32_t os::apple::socket_osx::write(const char *buffer, size_t buffer_length, 
     int sizeChunks = 8*1024; // 8KB
     std::string typePipe = t == REQUEST ? "client" : "server";
 
+    std::cout << typePipe.c_str() << " write 0" << std::endl;
     if (fd_write > 0)
         close(fd_write);
 
+    std::cout << typePipe.c_str() << " write 1" << std::endl;
     fd_write = open(t == REQUEST ? name_req.c_str() : name_rep.c_str(), O_WRONLY | O_DSYNC);
     if (fd_write < 0) {
         goto end;
     }
 
+    std::cout << typePipe.c_str() << " write 2" << std::endl;
     if (buffer_length <= sizeChunks) {
         ret = ::write(fd_write, buffer, buffer_length);
     } else {
@@ -122,11 +131,13 @@ uint32_t os::apple::socket_osx::write(const char *buffer, size_t buffer_length, 
         }
     }
 
+    std::cout << typePipe.c_str() << " write 3" << std::endl;
     if (ret < 0) {
         goto end;
     }
     err = os::error::Success;
 
+    std::cout << typePipe.c_str() << " write 4" << std::endl;
 end:
     return (uint32_t) err;
 }

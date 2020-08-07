@@ -56,21 +56,31 @@ bool ipc::server_instance_osx::is_alive() {
 }
 
 void ipc::server_instance_osx::worker_req() {
+	std::cout << "worker_req - 0" << std::endl;
 	// Loop
 	while ((!m_stopWorkers) && m_socket->is_connected()) {
+		std::cout << "worker_req - 1" << std::endl;
 		sem_wait(m_reader_sem);
+		std::cout << "worker_req - 2" << std::endl;
         m_rbuf.resize(sizeof(ipc_size_t));
+		std::cout << "worker_req - 3" << std::endl;
 		os::error ec = (os::error) m_socket->read(m_rbuf.data(),
 						m_rbuf.size(), true, REQUEST);
+		std::cout << "worker_req - 4" << std::endl;
 		read_callback_init(ec, m_rbuf.size());
+		std::cout << "worker_req - 5" << std::endl;
 	}
+	std::cout << "worker_req - 6" << std::endl;
 }
 
 void ipc::server_instance_osx::worker_rep() {
+	std::cout << "worker_rep - 0" << std::endl;
 	// Loop
 	while ((!m_stopWorkers) && m_socket->is_connected()) {
+		std::cout << "worker_rep - 1" << std::endl;
 		sem_wait(m_writer_sem);
 
+		std::cout << "worker_rep - 2" << std::endl;
 		if (m_stopWorkers)
 			return;
 
@@ -80,16 +90,19 @@ void ipc::server_instance_osx::worker_rep() {
 		ipc::message::function_reply fnc_reply_msg;
 		bool success = false;
 
+		std::cout << "worker_rep - 3" << std::endl;
 		msg_mtx.lock();
 		fnc_call_msg = msgs.front();
 		msgs.pop();
 		msg_mtx.unlock();
 
+		std::cout << "worker_rep - 4" << std::endl;
 		proc_rval.resize(0);
 		success = m_parent->client_call_function(m_clientId,
 			fnc_call_msg.class_name.value_str, fnc_call_msg.function_name.value_str,
 			fnc_call_msg.arguments, proc_rval, proc_error);
 
+		std::cout << "worker_rep - 5" << std::endl;
 		// Set
 		fnc_reply_msg.uid = fnc_call_msg.uid;
 		std::swap(proc_rval, fnc_reply_msg.values);
@@ -97,8 +110,10 @@ void ipc::server_instance_osx::worker_rep() {
 			fnc_reply_msg.error = ipc::value(proc_error);
 		}
 
+		std::cout << "worker_rep - 6" << std::endl;
 		// Serialize
 		m_wbuf.resize(fnc_reply_msg.size());
+		std::cout << "worker_rep - 7" << std::endl;
 		try {
 			fnc_reply_msg.serialize(m_wbuf, 0);
 		} catch (std::exception & e) {
@@ -106,9 +121,13 @@ void ipc::server_instance_osx::worker_rep() {
 				fnc_reply_msg.uid.value_union.ui64, e.what());
 			return;
 		}
+		std::cout << "worker_rep - 8" << std::endl;
 		read_callback_msg_write(m_wbuf);
+		std::cout << "worker_rep - 9" << std::endl;
 		sem_post(m_reader_sem);
+		std::cout << "worker_rep - 10" << std::endl;
 	}
+	std::cout << "worker_rep - 11" << std::endl;
 }
 
 void ipc::server_instance_osx::read_callback_init(os::error ec, size_t size) {

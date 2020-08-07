@@ -72,17 +72,23 @@ bool ipc::client_osx::call(
 	ipc::make_sendable(outbuf, buf);
 
 	sem_wait(m_writer_sem);
+	std::cout << "call 0" << std::endl;
 	while (ec == os::error::Error) {
 		ec = (os::error) m_socket->write(outbuf.data(), outbuf.size(), REQUEST);
 		if (ec == os::error::Error)
 			std::this_thread::sleep_for(std::chrono::milliseconds(2));
 	}
 
+	std::cout << "call 1" << std::endl;
 	buffer.resize(sizeof(ipc_size_t));
+	std::cout << "call 2" << std::endl;
 	m_socket->read(buffer.data(),
 				buffer.size(), true, REPLY);
+	std::cout << "call 3" << std::endl;
 	read_callback_init(ec, buffer.size());
+	std::cout << "call 4" << std::endl;
 	sem_post(m_writer_sem);
+	std::cout << "call 5" << std::endl;
 
 	return true;
 }
