@@ -69,18 +69,19 @@ bool ipc::client_osx::call(
 		cbid = fnc_call_msg.uid.value_union.ui64;
 	}
 
-	sem_wait(m_writer_sem);
+	ipc::make_sendable(outbuf, buf);
 
+	sem_wait(m_writer_sem);
 	while (ec == os::error::Error) {
-		ec = (os::error) m_socket->write(buf.data(), buf.size(), REQUEST);
+		ec = (os::error) m_socket->write(outbuf.data(), outbuf.size(), REQUEST);
 		if (ec == os::error::Error)
 			std::this_thread::sleep_for(std::chrono::milliseconds(2));
 	}
-	std::vector<char> l_buffer;
-	l_buffer.resize(130000);
-	m_socket->read(l_buffer.data(),
-				l_buffer.size(), true, REPLY);
-	read_callback_msg(ec, 130000, l_buffer);
+
+	buffer.resize(sizeof(ipc_size_t));
+	m_socket->read(buffer.data(),
+				buffer.size(), true, REPLY);
+	read_callback_init(ec, buffer.size());
 	sem_post(m_writer_sem);
 
 	return true;
@@ -132,6 +133,20 @@ std::vector<ipc::value> ipc::client_osx::call_synchronous_helper(
 		return {};
 	}
 	return std::move(cd.values);
+}
+
+void ipc::client_osx::read_callback_init(os::error ec, size_t size) {
+	os::error ec2 = os::error::Success;
+
+	if (ec == os::error::Success || ec == os::error::MoreData) {
+		ipc_size_t n_size = read_size(buffer);
+		if (n_size != 0) {
+			buffer.resize(n_size);
+			ec2 = (os::error) 	m_socket->read(buffer.data(),
+				buffer.size(), false, REPLY);
+			read_callback_msg(ec, buffer.size(), buffer);
+		}
+	}
 }
 
 void ipc::client_osx::read_callback_msg(os::error ec, size_t size, std::vector<char> l_buffer) {

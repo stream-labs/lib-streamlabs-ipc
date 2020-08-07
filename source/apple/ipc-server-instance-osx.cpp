@@ -31,7 +31,9 @@ ipc::server_instance_osx::~server_instance_osx() {
 	// Unblock current sync read by send dummy data
 	std::vector<char> buffer;
 	buffer.push_back('1');
-	m_socket->write(buffer.data(), buffer.size(), REQUEST);
+	std::vector<char> outbuffer;
+	ipc::make_sendable(outbuffer, buffer);
+	m_socket->write(outbuffer.data(), outbuffer.size(), REQUEST);
 
 	if (m_worker_replies.joinable())
 		m_worker_replies.join();
@@ -57,10 +59,10 @@ void ipc::server_instance_osx::worker_req() {
 	// Loop
 	while ((!m_stopWorkers) && m_socket->is_connected()) {
 		sem_wait(m_reader_sem);
-        m_rbuf.resize(130000);
+        m_rbuf.resize(sizeof(ipc_size_t));
 		os::error ec = (os::error) m_socket->read(m_rbuf.data(),
 						m_rbuf.size(), true, REQUEST);
-		read_callback_msg(ec, m_rbuf.size());
+		read_callback_init(ec, m_rbuf.size());
 	}
 }
 
@@ -109,6 +111,20 @@ void ipc::server_instance_osx::worker_rep() {
 	}
 }
 
+void ipc::server_instance_osx::read_callback_init(os::error ec, size_t size) {
+	os::error ec2 = os::error::Success;
+
+	if (ec == os::error::Success || ec == os::error::MoreData) {
+		ipc_size_t n_size = read_size(m_rbuf);
+		if (n_size > 1) {
+			m_rbuf.resize(n_size);
+			ec2 = (os::error) m_socket->read(m_rbuf.data(),
+				m_rbuf.size(), false, REQUEST);
+			read_callback_msg(ec, m_rbuf.size());
+		}
+	}
+}
+
 void ipc::server_instance_osx::read_callback_msg(os::error ec, size_t size) {
 	ipc::message::function_call fnc_call_msg;
 
@@ -131,6 +147,7 @@ void ipc::server_instance_osx::read_callback_msg_write(const std::vector<char>& 
 {
 	if (write_buffer.size() != 0) {
 		if ((!m_wop || !m_wop->is_valid()) && (m_write_queue.size() == 0)) {
+			ipc::make_sendable(m_wbuf, write_buffer);
 			os::error ec2 = (os::error)m_socket->write(write_buffer.data(), write_buffer.size(), REPLY);
 		} else {
 			m_write_queue.push(std::move(write_buffer));

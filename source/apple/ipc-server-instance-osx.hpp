@@ -33,6 +33,7 @@ namespace ipc {
 		bool is_alive();
 		void worker_req();
 		void worker_rep();
+		void read_callback_init(os::error ec, size_t size);
 		void read_callback_msg(os::error ec, size_t size);
 		void read_callback_msg_write(const std::vector<char>& write_buffer);
 		void write_callback(os::error ec, size_t size);		

@@ -25,6 +25,7 @@ os::apple::socket_osx::socket_osx(os::create_only_t, const std::string name)
         throw std::exception(
                 (const std::exception&)"Could not create reply pipe");
 
+    fd_write = -1;
     created = true;
 }
 
@@ -33,12 +34,16 @@ os::apple::socket_osx::socket_osx(os::open_only_t, const std::string name)
     this->name_req = name + "-req";
     this->name_rep = name + "-rep";
 
+    fd_write = -1;
     connected = true;
 }
 
 os::apple::socket_osx::~socket_osx() {}
 
 void os::apple::socket_osx::clean_file_descriptors() {
+    if (fd_write > 0)
+        close(fd_write);
+
     remove(name_req.c_str());
     remove(name_rep.c_str());
 }
@@ -52,19 +57,22 @@ uint32_t os::apple::socket_osx::read(char *buffer, size_t buffer_length, bool is
     std::string typePipe = t == REQUEST ? "server" : "client";
     int file_descriptor = -1;
 
-    file_descriptor = open(t == REQUEST ? name_req.c_str() : name_rep.c_str(), O_RDWR);
+    if (is_blocking)
+        file_descriptor = open(t == REQUEST ? name_req.c_str() : name_rep.c_str(), O_RDWR);
+    else
+        file_descriptor = open(t == REQUEST ? name_req.c_str() : name_rep.c_str(), O_RDWR | O_NONBLOCK);
+
     if (file_descriptor < 0) {
         goto end;
     }
 
     while (ret <= 0) {
-
         ret = ::read(file_descriptor, buffer, buffer_length);
 
         if (ret > 0)
             offset += ret;
 
-        while ((ret == sizeChunks || offset % sizeChunks == 0) && ret != 0) {
+        while ((ret == sizeChunks || (offset % sizeChunks == 0 && offset != 0)) && ret != 0) {
             std::vector<char> new_chunks;
             new_chunks.resize(sizeChunks);
             ret = ::read(file_descriptor, new_chunks.data(), new_chunks.size());
@@ -90,27 +98,30 @@ uint32_t os::apple::socket_osx::write(const char *buffer, size_t buffer_length, 
     os::error err = os::error::Error;
     int ret = 0;
     int sizeChunks = 8*1024; // 8KB
-    int file_descriptor = -1;
     std::string typePipe = t == REQUEST ? "client" : "server";
 
-    file_descriptor = open(t == REQUEST ? name_req.c_str() : name_rep.c_str(), O_WRONLY | O_DSYNC);
-    if (file_descriptor < 0) {
+    if (fd_write > 0)
+        close(fd_write);
+
+    fd_write = open(t == REQUEST ? name_req.c_str() : name_rep.c_str(), O_WRONLY | O_DSYNC);
+    if (fd_write < 0) {
         goto end;
     }
 
     if (buffer_length <= sizeChunks) {
-        ret = ::write(file_descriptor, buffer, buffer_length);
+        ret = ::write(fd_write, buffer, buffer_length);
     } else {
         int size_wrote = 0;
         while (size_wrote < buffer_length) {
             bool end = (buffer_length - size_wrote) <= sizeChunks;
             int size_to_write = end ? buffer_length - size_wrote : sizeChunks;
-            ret = ::write(file_descriptor, buffer + size_wrote, size_to_write);
+            ret = ::write(fd_write, buffer + size_wrote, size_to_write);
             if (ret < 0)
-                goto end;
+                break;
             size_wrote += size_to_write;
         }
     }
+
     if (ret < 0) {
         goto end;
     }
