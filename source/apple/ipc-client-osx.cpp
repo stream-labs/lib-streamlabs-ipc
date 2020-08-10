@@ -148,6 +148,7 @@ void ipc::client_osx::read_callback_init(os::error ec, size_t size) {
 		ipc_size_t n_size = read_size(buffer);
 		if (n_size != 0) {
 			buffer.resize(n_size);
+			std::cout << "client Actual message size " << n_size << std::endl;
 			ec2 = (os::error) 	m_socket->read(buffer.data(),
 				buffer.size(), false, REPLY);
 			read_callback_msg(ec, buffer.size(), buffer);

@@ -138,6 +138,7 @@ void ipc::server_instance_osx::read_callback_init(os::error ec, size_t size) {
 		ipc_size_t n_size = read_size(m_rbuf);
 		if (n_size > 1) {
 			m_rbuf.resize(n_size);
+			std::cout << "server Actual message size " << n_size << std::endl;
 			ec2 = (os::error) m_socket->read(m_rbuf.data(),
 				m_rbuf.size(), false, REQUEST);
 			read_callback_msg(ec, m_rbuf.size());
