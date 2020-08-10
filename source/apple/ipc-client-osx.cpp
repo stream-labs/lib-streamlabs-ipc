@@ -82,7 +82,7 @@ bool ipc::client_osx::call(
 	std::cout << "call 1" << std::endl;
 	buffer.resize(sizeof(ipc_size_t));
 	std::cout << "call 2" << std::endl;
-	m_socket->read(buffer.data(),
+	ec = (os::error) m_socket->read(buffer.data(),
 				buffer.size(), true, REPLY);
 	std::cout << "call 3" << std::endl;
 	read_callback_init(ec, buffer.size());
