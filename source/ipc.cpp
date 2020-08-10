@@ -200,26 +200,37 @@ size_t ipc::message::function_reply::serialize(std::vector<char>& buf, size_t of
 }
 
 size_t ipc::message::function_reply::deserialize(std::vector<char>& buf, size_t offset) {
+	std::cout << "deserialize 0" << std::endl;
 	if ((buf.size() - offset) < sizeof(size_t)) {
+	std::cout << "deserialize 1" << std::endl;
 		throw std::exception((const std::exception&)"Buffer too small");
+	std::cout << "deserialize 2" << std::endl;
 	}
 
 	size_t size = reinterpret_cast<const size_t&>(buf[offset]);
 
 	if ((buf.size() - offset) < size) {
+	std::cout << "deserialize 3" << std::endl;
 		throw std::exception((const std::exception&)"Buffer too small");
+	std::cout << "deserialize 4" << std::endl;
 	}
+	std::cout << "deserialize 5" << std::endl;
 	size_t noffset = offset + sizeof(size_t);
 
+	std::cout << "deserialize 6" << std::endl;
 	noffset += uid.deserialize(buf, noffset);
+	std::cout << "deserialize 7" << std::endl;
 	noffset += error.deserialize(buf, noffset);
 
+	std::cout << "deserialize 8" << std::endl;
 	uint32_t cnt = reinterpret_cast<uint32_t&>(buf[noffset]);
 	noffset += sizeof(uint32_t);
 	this->values.resize(cnt);
+	std::cout << "deserialize 9" << std::endl;
 	for (size_t idx = 0; idx < cnt; idx++) {
 		noffset += this->values[idx].deserialize(buf, noffset);
 	}
 
+	std::cout << "deserialize 10" << std::endl;
 	return noffset - offset;
 }
