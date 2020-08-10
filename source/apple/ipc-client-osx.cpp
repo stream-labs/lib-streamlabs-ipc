@@ -72,7 +72,7 @@ bool ipc::client_osx::call(
 	ipc::make_sendable(outbuf, buf);
 
 	sem_wait(m_writer_sem);
-	std::cout << "call 0" << std::endl;
+	std::cout << "call 0 " << cname.c_str() << "::" << fname.c_str() << std::endl;
 	while (ec == os::error::Error) {
 		ec = (os::error) m_socket->write(outbuf.data(), outbuf.size(), REQUEST);
 		if (ec == os::error::Error)

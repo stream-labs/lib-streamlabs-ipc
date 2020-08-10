@@ -102,7 +102,8 @@ void ipc::server_instance_osx::worker_rep() {
 			fnc_call_msg.class_name.value_str, fnc_call_msg.function_name.value_str,
 			fnc_call_msg.arguments, proc_rval, proc_error);
 
-		std::cout << "worker_rep - 5" << std::endl;
+		std::cout << "worker_rep - 5 " << fnc_call_msg.class_name.value_str.c_str() << "::" <<
+			fnc_call_msg.function_name.value_str.c_str() << std::endl;
 		// Set
 		fnc_reply_msg.uid = fnc_call_msg.uid;
 		std::swap(proc_rval, fnc_reply_msg.values);
