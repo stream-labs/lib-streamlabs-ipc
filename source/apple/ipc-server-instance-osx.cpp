@@ -89,6 +89,7 @@ void ipc::server_instance_osx::worker_rep() {
 		ipc::message::function_call fnc_call_msg;
 		ipc::message::function_reply fnc_reply_msg;
 		bool success = false;
+		std::vector<char> write_buffer;
 
 		std::cout << "worker_rep - 3" << std::endl;
 		msg_mtx.lock();
@@ -113,17 +114,17 @@ void ipc::server_instance_osx::worker_rep() {
 
 		std::cout << "worker_rep - 6" << std::endl;
 		// Serialize
-		m_wbuf.resize(fnc_reply_msg.size());
+		write_buffer.resize(fnc_reply_msg.size());
 		std::cout << "worker_rep - 7" << std::endl;
 		try {
-			fnc_reply_msg.serialize(m_wbuf, 0);
+			fnc_reply_msg.serialize(write_buffer, 0);
 		} catch (std::exception & e) {
 			ipc::log("%8llu: Serialization of Function Reply message failed with error %s.",
 				fnc_reply_msg.uid.value_union.ui64, e.what());
 			return;
 		}
 		std::cout << "worker_rep - 8" << std::endl;
-		read_callback_msg_write(m_wbuf);
+		read_callback_msg_write(write_buffer);
 		std::cout << "worker_rep - 9" << std::endl;
 		sem_post(m_reader_sem);
 		std::cout << "worker_rep - 10" << std::endl;
