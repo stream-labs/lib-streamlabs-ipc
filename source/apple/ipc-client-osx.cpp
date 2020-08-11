@@ -85,6 +85,8 @@ bool ipc::client_osx::call(
 	ec = (os::error) m_socket->read(buffer.data(),
 				buffer.size(), true, REPLY);
 	std::cout << "call 3" << std::endl;
+	ipc_size_t n_size = read_size(buffer);
+	std::cout << "call 3.1 size: " << n_size << std::endl;
 	read_callback_init(ec, buffer.size());
 	std::cout << "call 4" << std::endl;
 	sem_post(m_writer_sem);
