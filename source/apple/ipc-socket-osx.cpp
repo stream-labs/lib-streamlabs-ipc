@@ -87,7 +87,7 @@ uint32_t os::apple::socket_osx::read(char *buffer, size_t buffer_length, bool is
         if (ret > 0)
             offset += ret;
 
-        while ((ret == (sizeChunks - 8) || (offset % (sizeChunks - 8) == 0 && offset != 0)) && ret != 0) {
+        while (ret != 0 && (ret == (sizeChunks - 8) || ret == sizeChunks || ret < 0)) {
             std::vector<char> new_chunks;
             new_chunks.resize(sizeChunks);
             ret = ::read(file_descriptor, new_chunks.data(), new_chunks.size());
