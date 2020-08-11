@@ -171,7 +171,7 @@ void ipc::server_instance_osx::read_callback_msg_write(const std::vector<char>& 
 	if (write_buffer.size() != 0) {
 		if ((!m_wop || !m_wop->is_valid()) && (m_write_queue.size() == 0)) {
 			ipc::make_sendable(m_wbuf, write_buffer);
-			os::error ec2 = (os::error)m_socket->write(write_buffer.data(), write_buffer.size(), REPLY);
+			os::error ec2 = (os::error)m_socket->write(m_wbuf.data(), m_wbuf.size(), REPLY);
 		} else {
 			m_write_queue.push(std::move(write_buffer));
 		}
