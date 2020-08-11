@@ -79,7 +79,7 @@ bool ipc::client_osx::call(
 	}
 
 	buffer.resize(sizeof(ipc_size_t));
-	m_socket->read(buffer.data(),
+	ec = (os::error) m_socket->read(buffer.data(),
 				buffer.size(), true, REPLY);
 	read_callback_init(ec, buffer.size());
 	sem_post(m_writer_sem);
