@@ -44,6 +44,8 @@ namespace os {
             int file_req;
             int file_rep;
             int fd_write;
+            int fd_read_b;
+            int fd_read_nb;
 		};
 	}
 }
