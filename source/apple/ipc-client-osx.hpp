@@ -41,7 +41,7 @@ namespace ipc {
         std::vector<char> buffer;
 
         void read_callback_init(os::error ec, size_t size);
-        void read_callback_msg(os::error ec, size_t size, std::vector<char> l_buffer);
+        void read_callback_msg(os::error ec, size_t size);
         bool cancel(int64_t const& id);
     };
 }

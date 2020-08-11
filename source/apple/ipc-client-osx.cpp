@@ -79,11 +79,9 @@ bool ipc::client_osx::call(
 	}
 
 	buffer.resize(sizeof(ipc_size_t));
-	m_socket->read(buffer.data(),
+	ec = (os::error) m_socket->read(buffer.data(),
 				buffer.size(), true, REPLY);
 	read_callback_init(ec, buffer.size());
-	sem_post(m_writer_sem);
-
 	return true;
 }
 
@@ -132,6 +130,7 @@ std::vector<ipc::value> ipc::client_osx::call_synchronous_helper(
 		cancel(cbid);
 		return {};
 	}
+	sem_post(m_writer_sem);
 	return std::move(cd.values);
 }
 
@@ -144,17 +143,17 @@ void ipc::client_osx::read_callback_init(os::error ec, size_t size) {
 			buffer.resize(n_size);
 			ec2 = (os::error) 	m_socket->read(buffer.data(),
 				buffer.size(), false, REPLY);
-			read_callback_msg(ec, buffer.size(), buffer);
+			read_callback_msg(ec, buffer.size());
 		}
 	}
 }
 
-void ipc::client_osx::read_callback_msg(os::error ec, size_t size, std::vector<char> l_buffer) {
+void ipc::client_osx::read_callback_msg(os::error ec, size_t size) {
 	std::pair<call_return_t, void*> cb;
 	ipc::message::function_reply fnc_reply_msg;
 
 	try {
-		fnc_reply_msg.deserialize(l_buffer, 0);
+		fnc_reply_msg.deserialize(buffer, 0);
 	} catch (std::exception& e) {
 		ipc::log("Deserialize failed with error %s.", e.what());
 		throw e;
@@ -164,6 +163,7 @@ void ipc::client_osx::read_callback_msg(os::error ec, size_t size, std::vector<c
 	std::unique_lock<std::mutex> ulock(m_lock);
 	auto cb2 = m_cb.find(fnc_reply_msg.uid.value_union.ui64);
 	if (cb2 == m_cb.end()) {
+		sem_post(m_writer_sem);
 		return;
 	}
 	cb = cb2->second;
