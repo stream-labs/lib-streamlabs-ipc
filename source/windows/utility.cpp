@@ -50,6 +50,12 @@ namespace
 } // namespace
 
 os::error os::windows::utility::translate_error(DWORD error_code) {
+	static DWORD prev_error_code = 0;
+	if (prev_error_code != error_code) {
+		ipc::log("IPC write to pipe failed with code %d", error_code);
+		prev_error_code = error_code;
+	}
+
 	switch (error_code) {
 	case ERROR_SUCCESS:
 		return os::error::Success;
@@ -67,9 +73,9 @@ os::error os::windows::utility::translate_error(DWORD error_code) {
 	case ERROR_TOO_MANY_POSTS:
 		// !FIXME! Should this have its own error code?
 		return os::error::TooMuchData;
+	case ERROR_NO_DATA:
+		return os::error::Disconnected;		
 	}
-
-	ipc::log("WriteFileEx failed with getErrorCode %d", error_code);
 
 	return os::error::Error;
 }
