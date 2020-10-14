@@ -32,7 +32,7 @@ std::string ipc::collection::get_name() {
 }
 
 bool ipc::collection::register_function(std::shared_ptr<ipc::function> func) {
-	std::string fnId = func->get_unique_name();
+	std::string fnId = func->get_name();
 	if (m_functions.count(fnId) > 0)
 		return false;
 
@@ -41,15 +41,11 @@ bool ipc::collection::register_function(std::shared_ptr<ipc::function> func) {
 }
 
 std::shared_ptr<ipc::function> ipc::collection::get_function(const std::string& name, const std::vector<ipc::type>& params) {
-	std::string fnId = ipc::base::make_unique_id(name, params);
 	for (auto fct: m_functions) {
-		if (fct.first.compare(fnId.c_str()) == 0)
+		if (fct.first.compare(name.c_str()) == 0)
 			return fct.second;
 	}
-	// Not working on Mac
-	// if (m_functions.count(name) == 0)
-	// 	return nullptr;
-	return m_functions[fnId];
+	return m_functions[name];
 }
 
 std::shared_ptr<ipc::function> ipc::collection::get_function(const std::string& name, const std::vector<ipc::value>& params) {
