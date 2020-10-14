@@ -40,19 +40,10 @@ bool ipc::collection::register_function(std::shared_ptr<ipc::function> func) {
 	return true;
 }
 
-std::shared_ptr<ipc::function> ipc::collection::get_function(const std::string& name, const std::vector<ipc::type>& params) {
+std::shared_ptr<ipc::function> ipc::collection::get_function(const std::string& name) {
 	for (auto fct: m_functions) {
 		if (fct.first.compare(name.c_str()) == 0)
 			return fct.second;
 	}
 	return m_functions[name];
-}
-
-std::shared_ptr<ipc::function> ipc::collection::get_function(const std::string& name, const std::vector<ipc::value>& params) {
-	std::vector<ipc::type> argts;
-	argts.reserve(params.size());
-	for (const auto& v : params) {
-		argts.push_back(v.type);
-	}
-	return get_function(name, argts);
 }

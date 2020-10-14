@@ -249,7 +249,7 @@ bool ipc::server::client_call_function(int64_t cid, const std::string & cname, c
 	}
 	auto cls = m_classes.at(cname);
 
-	auto fnc = cls->get_function(fname, args);
+	auto fnc = cls->get_function(fname);
 	if (!fnc) {
 		errormsg = "Function '" + fname + "' not found in class '" + cname + "'.";
 		return false;
