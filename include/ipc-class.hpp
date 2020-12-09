@@ -31,8 +31,7 @@ namespace ipc {
 
 		std::string get_name();
 		bool register_function(std::shared_ptr<function> func);
-		std::shared_ptr<function> get_function(const std::string& name, const std::vector<ipc::type>& params);
-		std::shared_ptr<function> get_function(const std::string& name, const std::vector<ipc::value>& params);
+		std::shared_ptr<function> get_function(const std::string& name);
 
 		private:
 		std::string m_name;

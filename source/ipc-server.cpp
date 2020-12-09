@@ -57,7 +57,8 @@ void ipc::server::watcher() {
 	std::map<std::shared_ptr<ipc::socket>, pending_accept> pa_map;
 #endif
 
-	while (!m_watcher.stop) {
+	bool socketConnected = false;
+	while (!m_watcher.stop && !socketConnected) {
 		// Verify the state of sockets.
 		{
 			// std::cout << "Checking sockets" << std::endl;
@@ -90,6 +91,9 @@ void ipc::server::watcher() {
 						pa_map.insert_or_assign(socket, pa);
 					}
 #endif
+					else if (ec == os::error::Connected) {
+						socketConnected = true;
+					}
 				}
 			}
 		}
@@ -249,7 +253,7 @@ bool ipc::server::client_call_function(int64_t cid, const std::string & cname, c
 	}
 	auto cls = m_classes.at(cname);
 
-	auto fnc = cls->get_function(fname, args);
+	auto fnc = cls->get_function(fname);
 	if (!fnc) {
 		errormsg = "Function '" + fname + "' not found in class '" + cname + "'.";
 		return false;

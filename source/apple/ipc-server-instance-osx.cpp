@@ -32,7 +32,7 @@ ipc::server_instance_osx::~server_instance_osx() {
 	std::vector<char> buffer;
 	buffer.push_back('1');
 	std::vector<char> outbuffer;
-	ipc::make_sendable(outbuffer, buffer);
+	ipc::make_sendable(buffer);
 	m_socket->write(outbuffer.data(), outbuffer.size(), REQUEST);
 
 	if (m_worker_replies.joinable())
@@ -99,9 +99,9 @@ void ipc::server_instance_osx::worker_rep() {
 		}
 
 		// Serialize
-		write_buffer.resize(fnc_reply_msg.size());
+		write_buffer.resize(fnc_reply_msg.size() + sizeof(ipc_size_t));
 		try {
-			fnc_reply_msg.serialize(write_buffer, 0);
+			fnc_reply_msg.serialize(write_buffer, sizeof(ipc_size_t));
 		} catch (std::exception & e) {
 			ipc::log("%8llu: Serialization of Function Reply message failed with error %s.",
 				fnc_reply_msg.uid.value_union.ui64, e.what());
@@ -146,12 +146,12 @@ void ipc::server_instance_osx::read_callback_msg(os::error ec, size_t size) {
 	sem_post(m_writer_sem);
 }
 
-void ipc::server_instance_osx::read_callback_msg_write(const std::vector<char>& write_buffer)
+void ipc::server_instance_osx::read_callback_msg_write(std::vector<char>& write_buffer)
 {
 	if (write_buffer.size() != 0) {
 		if ((!m_wop || !m_wop->is_valid()) && (m_write_queue.size() == 0)) {
-			ipc::make_sendable(m_wbuf, write_buffer);
-			os::error ec2 = (os::error)m_socket->write(m_wbuf.data(), m_wbuf.size(), REPLY);
+			ipc::make_sendable(write_buffer);
+			os::error ec2 = (os::error)m_socket->write(write_buffer.data(), write_buffer.size(), REPLY);
 		} else {
 			m_write_queue.push(std::move(write_buffer));
 		}

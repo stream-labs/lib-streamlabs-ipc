@@ -55,6 +55,10 @@ std::string ipc::function::get_unique_name() {
 	return m_nameUnique;
 }
 
+std::string ipc::function::get_name() {
+	return m_name;
+}
+
 void ipc::function::call(const int64_t id, const std::vector<ipc::value>& args, std::vector<ipc::value>& rval) {
 	if (m_callHandler.first) {
 		return m_callHandler.first(m_callHandler.second, id, args, rval);
