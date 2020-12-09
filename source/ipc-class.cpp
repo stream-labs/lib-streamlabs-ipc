@@ -45,5 +45,5 @@ std::shared_ptr<ipc::function> ipc::collection::get_function(const std::string& 
 		if (fct.first.compare(name.c_str()) == 0)
 			return fct.second;
 	}
-	return m_functions[name];
+	return nullptr;
 }
