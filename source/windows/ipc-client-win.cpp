@@ -1,3 +1,7 @@
+#include <algorithm>
+#include <iterator>
+#include <set>
+
 #include "ipc-client-win.hpp"
 #include "semaphore.hpp"
 
