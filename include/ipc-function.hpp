@@ -45,6 +45,8 @@ namespace ipc {
 		 */
 		std::string get_unique_name();
 
+		std::string get_name();
+
 		/** Call this function
 		*
 		*/

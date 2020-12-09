@@ -24,6 +24,7 @@ namespace os {
 		class socket_win : public ipc::socket {
 			HANDLE              handle;
 			bool                created = false;
+			bool                connected = false;
 			SECURITY_ATTRIBUTES security_attributes;
 			struct {
 				ULONG sessionId;
