@@ -175,69 +175,11 @@ bool os::windows::socket_win::is_created() {
 }
 
 bool os::windows::socket_win::is_connected() {
-	ULONG processId, sessionId;
-
-	if (created) {
-		if (!GetNamedPipeClientProcessId(handle, &processId)) {
-			return false;
-		}
-		if (!GetNamedPipeClientSessionId(handle, &sessionId)) {
-			return false;
-		}
-	} else {
-		if (!GetNamedPipeServerProcessId(handle, &processId)) {
-			return false;
-		}
-		if (!GetNamedPipeServerSessionId(handle, &sessionId)) {
-			return false;
-		}
-	}
-
-	if ((processId != remoteId.processId) || (processId == 0)) {
-		remoteId.processId = 0;
-		remoteId.sessionId = 0;
-		return false;
-	}
-
-	if ((sessionId != remoteId.sessionId) || (sessionId == 0)) {
-		remoteId.processId = 0;
-		remoteId.sessionId = 0;
-		return false;
-	}
-
-	if (!PeekNamedPipe(handle, NULL, NULL, NULL, NULL, NULL)) {
-		DWORD err = GetLastError();
-		return false;
-	}
-
-	remoteId = {sessionId, processId};
-	return true;
+	return connected;
 }
 
 void os::windows::socket_win::set_connected(bool is_connected) {
-	if (is_connected) {
-		ULONG processId, sessionId;
-
-		if (created) {
-			if (!GetNamedPipeClientProcessId(handle, &processId)) {
-				return;
-			}
-			if (!GetNamedPipeClientSessionId(handle, &sessionId)) {
-				return;
-			}
-		} else {
-			if (!GetNamedPipeServerProcessId(handle, &processId)) {
-				return;
-			}
-			if (!GetNamedPipeServerSessionId(handle, &sessionId)) {
-				return;
-			}
-		}
-
-		remoteId = {sessionId, processId};
-	} else {
-		remoteId = {0, 0};
-	}
+	connected = is_connected;
 }
 
 os::error os::windows::socket_win::accept(std::shared_ptr<os::async_op> &op, os::async_op_cb_t cb) {

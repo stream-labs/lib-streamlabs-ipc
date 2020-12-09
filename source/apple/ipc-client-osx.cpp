@@ -55,9 +55,9 @@ bool ipc::client_osx::call(
 	fnc_call_msg.arguments = std::move(args);
 
 	// Serialize
-	std::vector<char> buf(fnc_call_msg.size());
+	std::vector<char> buf(fnc_call_msg.size() + sizeof(ipc_size_t));
 	try {
-		fnc_call_msg.serialize(buf, 0);
+		fnc_call_msg.serialize(buf, sizeof(ipc_size_t));
 	} catch (std::exception& e) {
 		ipc::log("(write) %8llu: Failed to serialize, error %s.", fnc_call_msg.uid.value_union.ui64, e.what());
 		throw e;
@@ -69,11 +69,11 @@ bool ipc::client_osx::call(
 		cbid = fnc_call_msg.uid.value_union.ui64;
 	}
 
-	ipc::make_sendable(outbuf, buf);
+	ipc::make_sendable(buf);
 
 	sem_wait(m_writer_sem);
 	while (ec == os::error::Error) {
-		ec = (os::error) m_socket->write(outbuf.data(), outbuf.size(), REQUEST);
+		ec = (os::error) m_socket->write(buf.data(), buf.size(), REQUEST);
 		if (ec == os::error::Error)
 			std::this_thread::sleep_for(std::chrono::milliseconds(2));
 	}

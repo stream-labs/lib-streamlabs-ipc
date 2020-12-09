@@ -69,15 +69,8 @@ namespace ipc {
 			static std::string getDescription(DWORD key);
 	};
 
-
-	inline void make_sendable(std::vector<char>& out, std::vector<char> const& in) {
-		out.resize(in.size() + sizeof(ipc_size_t));
-		std::copy(in.begin(), in.end(), out.begin() + sizeof(ipc_size_t));
-		out[0] = 0;
-		out[1] = 1;
-		out[2] = 2;
-		out[3] = 3;
-		reinterpret_cast<ipc_size_real_t&>(out[sizeof(ipc_size_real_t)]) = ipc_size_real_t(in.size());
+	inline void make_sendable(std::vector<char> &in) {
+		reinterpret_cast<ipc_size_real_t&>(in[sizeof(ipc_size_real_t)]) = ipc_size_real_t(in.size() - sizeof(ipc_size_t));
 	}
 
 	inline ipc_size_t read_size(std::vector<char> const& in) {

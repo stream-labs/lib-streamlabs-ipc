@@ -45,8 +45,8 @@ void ipc::server_instance_win::worker() {
 		if (!m_wop || !m_wop->is_valid()) {
 			if (m_write_queue.size() > 0) {
 				std::vector<char>& fbuf = m_write_queue.front();
-				ipc::make_sendable(m_wbuf, fbuf);
-				ec = m_socket->write(m_wbuf.data(), m_wbuf.size(), m_wop, std::bind(&ipc::server_instance_win::write_callback, this, _1, _2));
+				ipc::make_sendable(fbuf);
+				ec = m_socket->write(fbuf.data(), fbuf.size(), m_wop, std::bind(&ipc::server_instance_win::write_callback, this, _1, _2));
 				if (ec != os::error::Pending && ec != os::error::Success) {
 					if (ec == os::error::Disconnected) {
 						break;
@@ -143,9 +143,9 @@ void ipc::server_instance_win::read_callback_msg(os::error ec, size_t size) {
 	}
 
 	// Serialize
-	write_buffer.resize(fnc_reply_msg.size());
+	write_buffer.resize(fnc_reply_msg.size() + sizeof(ipc_size_t));
 	try {
-		fnc_reply_msg.serialize(write_buffer, 0);
+		fnc_reply_msg.serialize(write_buffer, sizeof(ipc_size_t));
 	} catch (std::exception & e) {
 		ipc::log("%8llu: Serialization of Function Reply message failed with error %s.",
 			fnc_reply_msg.uid.value_union.ui64, e.what());
@@ -155,11 +155,11 @@ void ipc::server_instance_win::read_callback_msg(os::error ec, size_t size) {
 	read_callback_msg_write(write_buffer);
 }
 
-void ipc::server_instance_win::read_callback_msg_write(const std::vector<char>& write_buffer) {
+void ipc::server_instance_win::read_callback_msg_write(std::vector<char>& write_buffer) {
 	if (write_buffer.size() != 0) {
 		if ((!m_wop || !m_wop->is_valid()) && (m_write_queue.size() == 0)) {
-			ipc::make_sendable(m_wbuf, write_buffer);
-			os::error ec2 = m_socket->write(m_wbuf.data(), m_wbuf.size(), m_wop, std::bind(&ipc::server_instance_win::write_callback, this, _1, _2));
+			ipc::make_sendable(write_buffer);
+			os::error ec2 = m_socket->write(write_buffer.data(), write_buffer.size(), m_wop, std::bind(&ipc::server_instance_win::write_callback, this, _1, _2));
 			if (ec2 != os::error::Success && ec2 != os::error::Pending) {
 				if (ec2 == os::error::Disconnected) {
 					return;
