@@ -18,7 +18,7 @@
 
 #pragma once
 #include <string>
-
+#include <memory>
 #include "ipc.hpp"
 #include "ipc-socket.hpp"
 
