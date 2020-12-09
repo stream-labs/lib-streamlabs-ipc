@@ -20,6 +20,7 @@
 #include "ipc-value.hpp"
 #include <string>
 #include <vector>
+#include <map>
 #include <functional>
 #include <stdarg.h>
 
