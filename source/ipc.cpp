@@ -20,6 +20,29 @@
 #include <sstream>
 #include <iostream>
 
+using namespace ipc;
+
+std::string ipc::ProcessInfo::getDescription(DWORD key)
+{
+	ProcessInfo::ExitCode k = static_cast<ProcessInfo::ExitCode>(key);
+	if (descriptions.find(k) != descriptions.end()) {
+		return descriptions[k];
+	}
+	return "Generic Error";
+}
+
+ipc::ProcessInfo::ProcessDescriptionMap ProcessInfo::initDescriptions()
+{
+	ProcessDescriptionMap descriptions;
+	descriptions[ProcessInfo::ExitCode::STILL_RUNNING]    = "Still runnings";
+	descriptions[ProcessInfo::ExitCode::NORMAL_EXIT]      = "Normal exit";
+	descriptions[ProcessInfo::ExitCode::OTHER_ERROR]      = "Unknown error - check logs";
+	descriptions[ProcessInfo::ExitCode::VERSION_MISMATCH] = "Version mismatch";
+	return descriptions;
+}
+
+ipc::ProcessInfo::ProcessDescriptionMap ProcessInfo::descriptions = ProcessInfo::initDescriptions(); 
+
 std::string ipc::base::make_unique_id(const std::string& name, const std::vector<type> & parameters) {
 	// Implement similar behavior to C/C++ compilers, which put parameter type
 	//  into the generated function name in order to allow overloading of the

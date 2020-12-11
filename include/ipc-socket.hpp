@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include "error.hpp"
 #include "tags.hpp"
 #include "async_op.hpp"
@@ -9,7 +10,6 @@ namespace ipc {
         public:
         socket(){};
 		virtual ~socket(){};
-
 
         virtual void handle_accept_callback(os::error code, size_t length) = 0;
         virtual bool is_created() = 0;

@@ -20,6 +20,7 @@
 #include "ipc-value.hpp"
 #include <string>
 #include <vector>
+#include <map>
 #include <functional>
 #include <stdarg.h>
 
@@ -28,10 +29,45 @@
 #endif 
 
 
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#else
+#define DWORD unsigned long
+#endif
+
 namespace ipc {
 	typedef uint64_t ipc_size_t;
 	typedef uint32_t ipc_size_real_t;
 	typedef std::function<void(void* data, const char* fmt, va_list args)> log_callback_t;
+
+	struct ProcessInfo
+	{
+		uint64_t handle;
+		uint64_t id;
+		DWORD    exit_code;
+
+		enum ExitCode
+		{
+			STILL_RUNNING = 259,
+			VERSION_MISMATCH = 252,
+			OTHER_ERROR = 253,
+			NORMAL_EXIT = 0
+		};
+
+		typedef std::map<ProcessInfo::ExitCode, std::string> ProcessDescriptionMap;
+
+		private:
+			static ProcessDescriptionMap descriptions;
+			static ProcessDescriptionMap initDescriptions();
+
+		public:
+			ProcessInfo() : handle(0), id(0), exit_code(0) {}
+			ProcessInfo(uint64_t h, uint64_t i) : handle(h), id(i), exit_code(0) {}
+			static std::string getDescription(DWORD key);
+	};
 
 	inline void make_sendable(std::vector<char> &in) {
 		reinterpret_cast<ipc_size_real_t&>(in[sizeof(ipc_size_real_t)]) = ipc_size_real_t(in.size() - sizeof(ipc_size_t));
