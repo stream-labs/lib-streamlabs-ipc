@@ -31,9 +31,8 @@ ipc::server_instance_osx::~server_instance_osx() {
 	// Unblock current sync read by send dummy data
 	std::vector<char> buffer;
 	buffer.push_back('1');
-	std::vector<char> outbuffer;
 	ipc::make_sendable(buffer);
-	m_socket->write(outbuffer.data(), outbuffer.size(), REQUEST);
+	m_socket->write(buffer.data(), buffer.size(), REQUEST);
 
 	if (m_worker_replies.joinable())
 		m_worker_replies.join();
