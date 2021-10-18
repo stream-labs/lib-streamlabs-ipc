@@ -124,19 +124,24 @@ std::vector<ipc::value> ipc::client_win::call_synchronous_helper(
 		return {};
 	}
 
-	static std::chrono::nanoseconds freez_timeout = std::chrono::seconds(3); 
+	static std::chrono::nanoseconds freez_timeout = std::chrono::seconds(1);
 	bool freez_flagged = false;
 	while ( cd.sgn->wait(freez_timeout) == os::error::TimedOut ) {
 		if (freez_flagged)
 			continue;
 		freez_flagged = true;
 
+		int t = std::chrono::duration_cast<std::chrono::milliseconds>(
+				std::chrono::high_resolution_clock::now() - cd.start).count();
+
 		if (freez_cb)
-			freez_cb(true, app_state_path);
+			freez_cb(true, app_state_path, cname+"::"+fname, t);
 	}
 	if (freez_flagged) {
+		int t = std::chrono::duration_cast<std::chrono::milliseconds>(
+				std::chrono::high_resolution_clock::now() - cd.start).count();
 		if (freez_cb)
-			freez_cb(false, app_state_path);
+			freez_cb(false, app_state_path, cname+"::"+fname, t);
 	}
 	if (!cd.called) {
 		cancel(cbid);
