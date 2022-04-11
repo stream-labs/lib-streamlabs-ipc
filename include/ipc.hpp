@@ -54,6 +54,7 @@ namespace ipc {
 			STILL_RUNNING = 259,
 			VERSION_MISMATCH = 252,
 			OTHER_ERROR = 253,
+			MISSING_DEPENDENCY = 254,
 			NORMAL_EXIT = 0
 		};
 
