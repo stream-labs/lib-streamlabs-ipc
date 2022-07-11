@@ -124,10 +124,13 @@ void ipc::server::spawn_client(std::shared_ptr<ipc::socket> socket) {
 }
 
 void ipc::server::kill_client(std::shared_ptr<ipc::socket> socket) {
+	// First, destroy the server instance.
+	// This will wait for currently executing requests to be finished.
+	m_clients.erase(socket);
+	// Then notify the consumer about the disconnection.
 	if (m_handlerDisconnect.first) {
 		m_handlerDisconnect.first(m_handlerDisconnect.second, 0);
-	}
-	m_clients.erase(socket);
+	}	
 }
 #endif
 
