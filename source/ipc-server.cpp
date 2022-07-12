@@ -148,10 +148,10 @@ void ipc::server::spawn_client(std::shared_ptr<ipc::socket> socket) {
 }
 
 void ipc::server::kill_client(std::shared_ptr<ipc::socket> socket) {
-	if (m_handlerDisconnect.first) {
+	m_clients.erase(socket);
+	if (m_handlerDisconnect.first)
 		m_handlerDisconnect.first(m_handlerDisconnect.second, 0);
 	}
-	m_clients.erase(socket);
 }
 #endif
 
