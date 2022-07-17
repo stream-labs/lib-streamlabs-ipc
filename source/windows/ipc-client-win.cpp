@@ -11,23 +11,49 @@ int64_t       g_cbid = NULL;
 
 using namespace std::placeholders;
 
+std::shared_ptr<ipc::client> ipc::client::create(
+	const std::string& socketPath,
+	call_on_disconnect_t disconnectionCallback)
+{
+	return std::make_unique<ipc::client_win>(socketPath, disconnectionCallback);
+}
+
 std::shared_ptr<ipc::client> ipc::client::create(std::string socketPath) {
 	return std::make_unique<ipc::client_win>(socketPath);
 }
 
-ipc::client_win::client_win(std::string socketPath) {
-	m_socket = os::windows::socket_win::create(os::open_only, socketPath);
+ipc::client_win::client_win(
+	const std::string& socketPath,
+	call_on_disconnect_t disconnectionCallback)
+: m_socketPath(socketPath), m_disconnectionCallback(disconnectionCallback)
+{
+	start();
+}
 
-	m_watcher.stop   = false;
-	m_watcher.worker = std::thread(std::bind(&ipc::client_win::worker, this));
+ipc::client_win::client_win(std::string socketPath)
+: m_socketPath(socketPath)
+{
+	start();
 }
 
 ipc::client_win::~client_win() {
-	m_watcher.stop = true;
-	if (m_watcher.worker.joinable()) {
-		m_watcher.worker.join();
+	stop();
+}
+
+void ipc::client_win::start() {
+	if (m_watcher.stop.exchange(false)) {
+		m_socket = os::windows::socket_win::create(os::open_only, m_socketPath);
+		m_watcher.worker = std::thread(std::bind(&ipc::client_win::worker, this));
 	}
-	m_socket = nullptr;
+}
+
+void ipc::client_win::stop() {
+	if (!m_watcher.stop.exchange(true)) {
+		if (m_watcher.worker.joinable()) {
+			m_watcher.worker.join();
+		}
+		m_socket = nullptr;
+	}
 }
 
 bool ipc::client_win::call(
@@ -203,7 +229,11 @@ void ipc::client_win::worker() {
 	}
 
 	if (!m_socket->is_connected()) {
-		exit(1);
+		if (m_disconnectionCallback) {
+			m_disconnectionCallback();
+		} else {
+			exit(1);
+		}
 	}
 }
 

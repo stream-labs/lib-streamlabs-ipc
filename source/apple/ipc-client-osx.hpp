@@ -3,6 +3,7 @@
 #include "ipc-socket-osx.hpp"
 #include "async_request.hpp"
 
+#include <atomic>
 #include <mutex>
 #include <map>
 #include <semaphore.h>
@@ -16,6 +17,9 @@ namespace ipc {
 		    ~client_osx();
 
         public:
+
+            void stop() override;
+
             virtual bool call(
                 const std::string&      cname,
                 const std::string&      fname,
@@ -32,6 +36,7 @@ namespace ipc {
             ) override;
 
         private:
+        std::atomic_bool m_stop = true;
         std::unique_ptr<os::apple::socket_osx> m_socket;
         std::string writer_sem_name = "semaphore-client-writer";
 		sem_t *m_writer_sem;
