@@ -29,7 +29,7 @@ ipc::client_osx::~client_osx() {
 	stop();
 }
 
-void ipc::client_win::stop() {
+void ipc::client_osx::stop() {
 	if (!m_stop.exchange(true)) {
 		sem_post(m_writer_sem);
 		sem_close(m_writer_sem);
