@@ -25,14 +25,14 @@ std::shared_ptr<ipc::client> ipc::client::create(std::string socketPath) {
 ipc::client_win::client_win(
 	const std::string& socketPath,
 	call_on_disconnect_t disconnectionCallback)
-: m_socketPath(socketPath)
-, m_disconnectionCallback(disconnectionCallback)
+	: m_socketPath(socketPath)
+	, m_disconnectionCallback(disconnectionCallback)
 {
 	start();
 }
 
 ipc::client_win::client_win(std::string socketPath)
-: m_socketPath(socketPath)
+	: m_socketPath(socketPath)
 {
 	start();
 }
