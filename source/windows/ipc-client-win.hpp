@@ -2,16 +2,23 @@
 #include "../include/error.hpp"
 #include "ipc-socket-win.hpp"
 
+#include <atomic>
 #include <mutex>
 #include <map>
 
 namespace ipc {
 	class client_win : public ipc::client {
         public:
+
+            client_win(const std::string& socketPath, call_on_disconnect_t disconnectionCallback);
             client_win(std::string socketPath);
 		    ~client_win();
 
         public:
+
+            void start();
+            void stop() override;
+
             virtual bool call(
                 const std::string&      cname,
                 const std::string&      fname,
@@ -28,6 +35,8 @@ namespace ipc {
             ) override;
 
         private:
+		    std::string m_socketPath;
+		    call_on_disconnect_t m_disconnectionCallback;
 		    std::unique_ptr<os::windows::socket_win> m_socket;
 		    std::shared_ptr<os::async_op> m_rop;
 
@@ -39,7 +48,7 @@ namespace ipc {
 		    struct
 		    {
 			    std::thread       worker;
-			    bool              stop = false;
+			    std::atomic_bool  stop = true;
 			    std::vector<char> buf;
 		    } m_watcher;
 

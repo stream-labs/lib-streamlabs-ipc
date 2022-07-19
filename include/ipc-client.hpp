@@ -17,6 +17,7 @@
 ******************************************************************************/
 
 #pragma once
+#include <functional>
 #include <string>
 #include <memory>
 #include "ipc.hpp"
@@ -32,9 +33,25 @@ typedef void (*call_on_freez_t)(bool freez_detected, std::string app_state_path,
 namespace ipc {
 	class client {
 		public:
+		
+		using call_on_disconnect_t = std::function<void()>;
+		
+		// |disconnectionCallback| is called when the server disconnection is detected.
+		// If the callback is not set or you use the other constructor,
+		// the client will just call |exit(1)| when the server disconnects.
+		static std::shared_ptr<client> create(
+			const std::string& socketPath,
+			call_on_disconnect_t disconnectionCallback);
+
 		static std::shared_ptr<client> create(std::string socketPath);
 		client() {};
 		virtual ~client() {};
+
+		// Stop all internal threads and the background disconnection detection.
+		// Call this if you do not plan to use the object anymore
+		// but also do not want to completely destroy it.
+		// The destructor will call the method anyways.
+		virtual void stop() = 0;
 
 		virtual bool call(
 		    const std::string&      cname,

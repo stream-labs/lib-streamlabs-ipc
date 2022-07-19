@@ -4,6 +4,11 @@ call_return_t g_fn   = NULL;
 void*         g_data = NULL;
 int64_t       g_cbid = NULL;
 
+std::shared_ptr<ipc::client> ipc::client::create(const std::string& socketPath, call_on_disconnect_t) {
+	// There is not a worker thread on macOS, so we do not care about the disconnection callback.
+	return std::make_unique<ipc::client_osx>(socketPath);
+}
+
 std::shared_ptr<ipc::client> ipc::client::create(std::string socketPath) {
 	return std::make_unique<ipc::client_osx>(socketPath);
 }
@@ -16,12 +21,20 @@ ipc::client_osx::client_osx(std::string socketPath) {
 	m_writer_sem = sem_open(writer_sem_name.c_str(), O_CREAT | O_EXCL, 0644, 1);
 
 	buffer.resize(130000);
+
+	m_stop = false;
 }
 
 ipc::client_osx::~client_osx() {
-	sem_post(m_writer_sem);
-	sem_close(m_writer_sem);
-	m_socket = nullptr;
+	stop();
+}
+
+void ipc::client_osx::stop() {
+	if (!m_stop.exchange(true)) {
+		sem_post(m_writer_sem);
+		sem_close(m_writer_sem);
+		m_socket = nullptr;
+	}
 }
 
 bool ipc::client_osx::call(
