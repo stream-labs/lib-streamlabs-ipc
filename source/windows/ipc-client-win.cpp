@@ -232,8 +232,6 @@ void ipc::client_win::worker() {
 	if (!m_socket->is_connected()) {
 		if (m_disconnectionCallback) {
 			m_disconnectionCallback();
-		} else {
-			exit(1);
 		}
 	}
 }
