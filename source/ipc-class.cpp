@@ -19,19 +19,17 @@
 #include "ipc-class.hpp"
 #include <iostream>
 
-ipc::collection::collection(const std::string & name): m_name(name) {
+ipc::collection::collection(const std::string &name) : m_name(name) {}
 
-}
+ipc::collection::~collection() {}
 
-ipc::collection::~collection() {
-
-}
-
-std::string ipc::collection::get_name() {
+std::string ipc::collection::get_name()
+{
 	return m_name;
 }
 
-bool ipc::collection::register_function(std::shared_ptr<ipc::function> func) {
+bool ipc::collection::register_function(std::shared_ptr<ipc::function> func)
+{
 	std::string fnId = func->get_name();
 	if (m_functions.count(fnId) > 0)
 		return false;
@@ -40,8 +38,9 @@ bool ipc::collection::register_function(std::shared_ptr<ipc::function> func) {
 	return true;
 }
 
-std::shared_ptr<ipc::function> ipc::collection::get_function(const std::string& name) {
-	for (auto fct: m_functions) {
+std::shared_ptr<ipc::function> ipc::collection::get_function(const std::string &name)
+{
+	for (auto fct : m_functions) {
 		if (fct.first.compare(name.c_str()) == 0)
 			return fct.second;
 	}

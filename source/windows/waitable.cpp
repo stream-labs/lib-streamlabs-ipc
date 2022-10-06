@@ -24,8 +24,9 @@
 #include "async_op.hpp"
 #include "waitable.hpp"
 
-os::error os::waitable::wait(waitable *item, std::chrono::nanoseconds timeout) {
-	HANDLE  handle     = (HANDLE)item->get_waitable();
+os::error os::waitable::wait(waitable *item, std::chrono::nanoseconds timeout)
+{
+	HANDLE handle = (HANDLE)item->get_waitable();
 	int64_t ms_timeout = std::chrono::duration_cast<std::chrono::milliseconds>(timeout).count();
 
 wait_retry:
@@ -46,20 +47,19 @@ wait_retry:
 	} else if (result == WAIT_ABANDONED) {
 		return os::error::Disconnected; // Disconnected Semaphore from original Owner
 	} else if (result == WAIT_IO_COMPLETION) {
-		ms_timeout -=
-			std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start)
-				.count();
+		ms_timeout -= std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count();
 		goto wait_retry;
 	}
 	return os::error::Error;
 }
 
-os::error os::waitable::wait(waitable *item) {
+os::error os::waitable::wait(waitable *item)
+{
 	return wait(item, std::chrono::milliseconds(INFINITE));
 }
 
-os::error os::waitable::wait_any(waitable **items, size_t items_count, size_t &signalled_index,
-								 std::chrono::nanoseconds timeout) {
+os::error os::waitable::wait_any(waitable **items, size_t items_count, size_t &signalled_index, std::chrono::nanoseconds timeout)
+{
 	if (items == nullptr) {
 		throw std::invalid_argument("'items' can't be nullptr.");
 	} else if (items_count > MAXIMUM_WAIT_OBJECTS) {
@@ -67,14 +67,14 @@ os::error os::waitable::wait_any(waitable **items, size_t items_count, size_t &s
 	}
 
 	// Need to create a sequential array of HANDLEs here.
-	size_t              valid_handles = 0;
+	size_t valid_handles = 0;
 	std::vector<HANDLE> handles(items_count);
 	std::vector<size_t> idxToTrueIdx(items_count);
 	for (size_t idx = 0, eidx = items_count; idx < eidx; idx++) {
 		waitable *obj = items[idx];
 		if (obj) {
 			handles[valid_handles] = (HANDLE)obj->get_waitable();
-			idxToTrueIdx[idx]      = valid_handles;
+			idxToTrueIdx[idx] = valid_handles;
 			valid_handles++;
 		}
 	}
@@ -104,9 +104,7 @@ wait_any_retry:
 		signalled_index = idxToTrueIdx[result - WAIT_ABANDONED_0];
 		return os::error::Disconnected; // Disconnected Semaphore from original Owner
 	} else if (result == WAIT_IO_COMPLETION) {
-		ms_timeout -=
-			std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start)
-				.count();
+		ms_timeout -= std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count();
 		goto wait_any_retry;
 	}
 	return os::error::Error;

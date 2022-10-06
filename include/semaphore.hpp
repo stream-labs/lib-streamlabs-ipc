@@ -26,10 +26,10 @@
 #include <mutex>
 
 namespace os {
-	class semaphore : public os::waitable {
-		public:
-		virtual os::error signal(uint32_t count = 1) = 0;
-	};
+class semaphore : public os::waitable {
+public:
+	virtual os::error signal(uint32_t count = 1) = 0;
+};
 }
 
 #endif

@@ -24,17 +24,17 @@
 #include <memory>
 
 namespace ipc {
-	class collection {
-		public:
-		collection(const std::string & name);
-		virtual ~collection();
+class collection {
+public:
+	collection(const std::string &name);
+	virtual ~collection();
 
-		std::string get_name();
-		bool register_function(std::shared_ptr<function> func);
-		std::shared_ptr<function> get_function(const std::string& name);
+	std::string get_name();
+	bool register_function(std::shared_ptr<function> func);
+	std::shared_ptr<function> get_function(const std::string &name);
 
-		private:
-		std::string m_name;
-		std::map<std::string, std::shared_ptr<function>> m_functions;
-	};
+private:
+	std::string m_name;
+	std::map<std::string, std::shared_ptr<function>> m_functions;
+};
 }

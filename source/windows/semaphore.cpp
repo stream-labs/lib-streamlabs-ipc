@@ -21,7 +21,8 @@
 #include <string>
 #include "semaphore.hpp"
 
-os::windows::semaphore::semaphore(int32_t initial_count /*= 0*/, int32_t maximum_count /*= UINT32_MAX*/) {
+os::windows::semaphore::semaphore(int32_t initial_count /*= 0*/, int32_t maximum_count /*= UINT32_MAX*/)
+{
 	if (initial_count > maximum_count) {
 		throw std::invalid_argument("initial_count can't be larger than maximum_count");
 	} else if (maximum_count == 0) {
@@ -37,13 +38,15 @@ os::windows::semaphore::semaphore(int32_t initial_count /*= 0*/, int32_t maximum
 	}
 }
 
-os::windows::semaphore::~semaphore() {
+os::windows::semaphore::~semaphore()
+{
 	if (handle) {
 		CloseHandle(handle);
 	}
 }
 
-os::error os::windows::semaphore::signal(uint32_t count /*= 1*/) {
+os::error os::windows::semaphore::signal(uint32_t count /*= 1*/)
+{
 	SetLastError(ERROR_SUCCESS);
 	DWORD result = ReleaseSemaphore(handle, count, NULL);
 	if (!result) {
@@ -56,6 +59,7 @@ os::error os::windows::semaphore::signal(uint32_t count /*= 1*/) {
 	return os::error::Success;
 }
 
-void *os::windows::semaphore::get_waitable() {
+void *os::windows::semaphore::get_waitable()
+{
 	return (void *)handle;
 }

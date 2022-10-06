@@ -24,24 +24,19 @@
 #include "error.hpp"
 
 namespace os {
-	class waitable {
-		public:
-		virtual void *get_waitable() = 0;
+class waitable {
+public:
+	virtual void *get_waitable() = 0;
 
-		inline os::error wait() {
-			return os::waitable::wait(this);
-		};
-		inline os::error wait(std::chrono::nanoseconds timeout) {
-			return os::waitable::wait(this, timeout);
-		};
+	inline os::error wait() { return os::waitable::wait(this); };
+	inline os::error wait(std::chrono::nanoseconds timeout) { return os::waitable::wait(this, timeout); };
 
-		static os::error wait(waitable *item);
+	static os::error wait(waitable *item);
 
-		static os::error wait(waitable *item, std::chrono::nanoseconds timeout);
+	static os::error wait(waitable *item, std::chrono::nanoseconds timeout);
 
-		static os::error wait_any(waitable **items, size_t items_count, size_t &signalled_index,
-								  std::chrono::nanoseconds timeout);
-	};
+	static os::error wait_any(waitable **items, size_t items_count, size_t &signalled_index, std::chrono::nanoseconds timeout);
+};
 } // namespace os
 
 #endif // OS_WAITABLE_HPP

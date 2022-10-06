@@ -24,47 +24,47 @@
 #include <string>
 
 namespace os {
-	enum class error {
-		// Unknown
-		Unknown = -1,
+enum class error {
+	// Unknown
+	Unknown = -1,
 
-		// Everything went right
-		Ok      = 0,
-		Success = Ok,
+	// Everything went right
+	Ok = 0,
+	Success = Ok,
 
-		// Generic Error
-		Error,
+	// Generic Error
+	Error,
 
-		// The buffer you passed is invalid.
-		InvalidBuffer,
+	// The buffer you passed is invalid.
+	InvalidBuffer,
 
-		// Buffer too small.
-		BufferTooSmall,
+	// Buffer too small.
+	BufferTooSmall,
 
-		// Buffer too large.
-		BufferTooLarge,
+	// Buffer too large.
+	BufferTooLarge,
 
-		// read() has more data available.
-		MoreData,
+	// read() has more data available.
+	MoreData,
 
-		// Timed out
-		TimedOut,
+	// Timed out
+	TimedOut,
 
-		// Disconnected
-		Disconnected,
+	// Disconnected
+	Disconnected,
 
-		// Too Much Data
-		TooMuchData,
+	// Too Much Data
+	TooMuchData,
 
-		// Connected (opposite of Disconnected, if you didn't know)
-		Connected,
+	// Connected (opposite of Disconnected, if you didn't know)
+	Connected,
 
-		// Pending IO or similar.
-		Pending,
+	// Pending IO or similar.
+	Pending,
 
-		// Buffer Overflow
-		BufferOverflow,
-	};
+	// Buffer Overflow
+	BufferOverflow,
+};
 }
 
 #endif // OS_ERROR_HPP

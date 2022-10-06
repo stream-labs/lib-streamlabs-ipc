@@ -26,24 +26,24 @@
 #include "waitable.hpp"
 
 namespace os {
-	namespace windows {
-		class overlapped {
-			OVERLAPPED *      ov;
-			std::vector<char> ov_buf;
+namespace windows {
+class overlapped {
+	OVERLAPPED *ov;
+	std::vector<char> ov_buf;
 
-			public:
-			overlapped();
-			~overlapped();
+public:
+	overlapped();
+	~overlapped();
 
-			OVERLAPPED *get_overlapped_pointer();
+	OVERLAPPED *get_overlapped_pointer();
 
-			static overlapped *get_pointer_from_overlapped(OVERLAPPED * ov);
+	static overlapped *get_pointer_from_overlapped(OVERLAPPED *ov);
 
-			void signal();
+	void signal();
 
-			virtual void *get_waitable();
-		};
-	} // namespace windows
+	virtual void *get_waitable();
+};
+} // namespace windows
 } // namespace os
 
 #endif // OS_WINDOWS_OVERLAPPED_HPP

@@ -30,87 +30,86 @@
 #include "ipc-socket.hpp"
 
 namespace ipc {
-	class server_instance;
+class server_instance;
 
-	typedef bool(*server_connect_handler_t)(void*, int64_t);
-	typedef void(*server_disconnect_handler_t)(void*, int64_t);
-	typedef void(*server_message_handler_t)(void*, int64_t, const std::vector<char>&);
-	typedef void(*server_pre_callback_t)(std::string, std::string, const std::vector<ipc::value>&, void*);
-	typedef void(*server_post_callback_t)(std::string, std::string, const std::vector<ipc::value>&, void*);
+typedef bool (*server_connect_handler_t)(void *, int64_t);
+typedef void (*server_disconnect_handler_t)(void *, int64_t);
+typedef void (*server_message_handler_t)(void *, int64_t, const std::vector<char> &);
+typedef void (*server_pre_callback_t)(std::string, std::string, const std::vector<ipc::value> &, void *);
+typedef void (*server_post_callback_t)(std::string, std::string, const std::vector<ipc::value> &, void *);
 
-	class server {
-		bool m_isInitialized = false;
+class server {
+	bool m_isInitialized = false;
 
-		// Functions		
-		std::map<std::string, std::shared_ptr<ipc::collection>> m_classes;
+	// Functions
+	std::map<std::string, std::shared_ptr<ipc::collection>> m_classes;
 
-		// Socket
-		std::mutex m_sockets_mtx;
+	// Socket
+	std::mutex m_sockets_mtx;
 #ifdef WIN32
-		std::list<std::shared_ptr<ipc::socket>> m_sockets;
+	std::list<std::shared_ptr<ipc::socket>> m_sockets;
 #elif __APPLE__
-		std::list<std::shared_ptr<ipc::socket>> m_sockets;
+	std::list<std::shared_ptr<ipc::socket>> m_sockets;
 #endif
-		std::string m_socketPath = "";
+	std::string m_socketPath = "";
 
-		// Client management.
-		std::mutex m_clients_mtx;
+	// Client management.
+	std::mutex m_clients_mtx;
 #ifdef WIN32
-		std::map<std::shared_ptr<ipc::socket>, std::shared_ptr<server_instance>> m_clients;
+	std::map<std::shared_ptr<ipc::socket>, std::shared_ptr<server_instance>> m_clients;
 #elif __APPLE__
-		std::map<std::shared_ptr<ipc::socket>, std::shared_ptr<server_instance>> m_clients;
-#endif
-
-		// Event Handlers
-		std::pair<server_connect_handler_t, void*>    m_handlerConnect;
-		std::pair<server_disconnect_handler_t, void*> m_handlerDisconnect;
-		std::pair<server_message_handler_t, void*>    m_handlerMessage;
-		std::pair<server_pre_callback_t, void*>       m_preCallback;
-		std::pair<server_post_callback_t, void*>      m_postCallback;
-
-		// Worker
-		struct {
-			std::thread worker;
-			bool stop = false;
-		} m_watcher;
-
-		void watcher();
-
-#ifdef WIN32
-		void spawn_client(std::shared_ptr<ipc::socket> socket);
-		void kill_client(std::shared_ptr<ipc::socket> socket);
-#elif __APPLE__
-		void spawn_client(std::shared_ptr<ipc::socket> socket);
-		void kill_client(std::shared_ptr<ipc::socket> socket);
+	std::map<std::shared_ptr<ipc::socket>, std::shared_ptr<server_instance>> m_clients;
 #endif
 
-		public:
-		server();
-		~server();
+	// Event Handlers
+	std::pair<server_connect_handler_t, void *> m_handlerConnect;
+	std::pair<server_disconnect_handler_t, void *> m_handlerDisconnect;
+	std::pair<server_message_handler_t, void *> m_handlerMessage;
+	std::pair<server_pre_callback_t, void *> m_preCallback;
+	std::pair<server_post_callback_t, void *> m_postCallback;
+
+	// Worker
+	struct {
+		std::thread worker;
+		bool stop = false;
+	} m_watcher;
+
+	void watcher();
+
+#ifdef WIN32
+	void spawn_client(std::shared_ptr<ipc::socket> socket);
+	void kill_client(std::shared_ptr<ipc::socket> socket);
+#elif __APPLE__
+	void spawn_client(std::shared_ptr<ipc::socket> socket);
+	void kill_client(std::shared_ptr<ipc::socket> socket);
+#endif
+
+public:
+	server();
+	~server();
 
 #ifdef __APPLE__
-		std::queue<void*> display_actions;
-		std::mutex display_lock;
+	std::queue<void *> display_actions;
+	std::mutex display_lock;
 #endif
 
-		public: // Status
-		void initialize(std::string socketPath);
-		void finalize();
+public: // Status
+	void initialize(std::string socketPath);
+	void finalize();
 
-		public: // Events
-		void set_connect_handler(server_connect_handler_t handler, void* data);
-		void set_disconnect_handler(server_disconnect_handler_t handler, void* data);
-		void set_message_handler(server_message_handler_t handler, void* data);
-		void set_pre_callback(server_pre_callback_t handler, void* data);
-		void set_post_callback(server_post_callback_t handler, void* data);
+public: // Events
+	void set_connect_handler(server_connect_handler_t handler, void *data);
+	void set_disconnect_handler(server_disconnect_handler_t handler, void *data);
+	void set_message_handler(server_message_handler_t handler, void *data);
+	void set_pre_callback(server_pre_callback_t handler, void *data);
+	void set_post_callback(server_post_callback_t handler, void *data);
 
-		public: // Functionality
-		bool register_collection(std::shared_ptr<ipc::collection> cls);
+public: // Functionality
+	bool register_collection(std::shared_ptr<ipc::collection> cls);
 
-		public: // Client -> Server
-		bool client_call_function(int64_t cid, const std::string &cname, const std::string &fname,
-			std::vector<ipc::value>& args, std::vector<ipc::value>& rval, std::string& errormsg);
+public: // Client -> Server
+	bool client_call_function(int64_t cid, const std::string &cname, const std::string &fname, std::vector<ipc::value> &args, std::vector<ipc::value> &rval, std::string &errormsg);
 
-		friend class server_instance;
-	};
+	friend class server_instance;
+};
 }

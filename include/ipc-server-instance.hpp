@@ -21,12 +21,12 @@
 #include "ipc-socket.hpp"
 
 namespace ipc {
-	class server;
+class server;
 
-	class server_instance {
-		public:
-			static std::shared_ptr<ipc::server_instance> create(server *owner, std::shared_ptr<ipc::socket> socket);
-			server_instance() {};
-			virtual ~server_instance() {};
-	};
+class server_instance {
+public:
+	static std::shared_ptr<ipc::server_instance> create(server *owner, std::shared_ptr<ipc::socket> socket);
+	server_instance(){};
+	virtual ~server_instance(){};
+};
 }

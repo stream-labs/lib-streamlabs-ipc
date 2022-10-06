@@ -20,7 +20,8 @@
 #include "ipc.hpp"
 #include <iostream>
 
-ipc::function::function(const std::string & name, const std::vector<ipc::type>& params, call_handler_t ptr, void* data) {
+ipc::function::function(const std::string &name, const std::vector<ipc::type> &params, call_handler_t ptr, void *data)
+{
 	this->m_name = name;
 	this->m_nameUnique = ipc::base::make_unique_id(m_name, params);
 	this->m_params = params;
@@ -28,38 +29,34 @@ ipc::function::function(const std::string & name, const std::vector<ipc::type>& 
 	this->m_callHandler.second = data;
 }
 
-ipc::function::function(const std::string & name, const std::vector<ipc::type>& params, call_handler_t ptr)
-	: function(name, params, ptr, nullptr) {}
+ipc::function::function(const std::string &name, const std::vector<ipc::type> &params, call_handler_t ptr) : function(name, params, ptr, nullptr) {}
 
-ipc::function::function(const std::string & name, const std::vector<ipc::type>& params, void* data)
-	: function(name, params, nullptr, data) {}
+ipc::function::function(const std::string &name, const std::vector<ipc::type> &params, void *data) : function(name, params, nullptr, data) {}
 
-ipc::function::function(const std::string & name, const std::vector<ipc::type>& params)
-	: function(name, params, nullptr, nullptr) {}
+ipc::function::function(const std::string &name, const std::vector<ipc::type> &params) : function(name, params, nullptr, nullptr) {}
 
-ipc::function::function(const std::string & name, call_handler_t ptr, void* data)
-	: function(name, std::vector<ipc::type>(), ptr, data) {}
+ipc::function::function(const std::string &name, call_handler_t ptr, void *data) : function(name, std::vector<ipc::type>(), ptr, data) {}
 
-ipc::function::function(const std::string & name, call_handler_t ptr)
-	: function(name, std::vector<ipc::type>(), ptr, nullptr) {}
+ipc::function::function(const std::string &name, call_handler_t ptr) : function(name, std::vector<ipc::type>(), ptr, nullptr) {}
 
-ipc::function::function(const std::string & name, void* data)
-	: function(name, std::vector<ipc::type>(), nullptr, data) {}
+ipc::function::function(const std::string &name, void *data) : function(name, std::vector<ipc::type>(), nullptr, data) {}
 
-ipc::function::function(const std::string & name)
-	: function(name, std::vector<ipc::type>(), nullptr, nullptr) {}
+ipc::function::function(const std::string &name) : function(name, std::vector<ipc::type>(), nullptr, nullptr) {}
 
 ipc::function::~function() {}
 
-std::string ipc::function::get_unique_name() {
+std::string ipc::function::get_unique_name()
+{
 	return m_nameUnique;
 }
 
-std::string ipc::function::get_name() {
+std::string ipc::function::get_name()
+{
 	return m_name;
 }
 
-void ipc::function::call(const int64_t id, const std::vector<ipc::value>& args, std::vector<ipc::value>& rval) {
+void ipc::function::call(const int64_t id, const std::vector<ipc::value> &args, std::vector<ipc::value> &rval)
+{
 	if (m_callHandler.first) {
 		return m_callHandler.first(m_callHandler.second, id, args, rval);
 	}

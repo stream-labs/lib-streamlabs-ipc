@@ -20,17 +20,17 @@
 #define OS_TAGS_HPP
 
 namespace os {
-	struct create_only_t {};
+struct create_only_t {};
 
-	static const create_only_t create_only = create_only_t();
+static const create_only_t create_only = create_only_t();
 
-	struct create_or_open_t {};
+struct create_or_open_t {};
 
-	static const create_or_open_t create_or_open = create_or_open_t();
+static const create_or_open_t create_or_open = create_or_open_t();
 
-	struct open_only_t {};
+struct open_only_t {};
 
-	static const open_only_t open_only = open_only_t();
+static const open_only_t open_only = open_only_t();
 
 } // namespace os
 
