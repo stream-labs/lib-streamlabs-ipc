@@ -26,11 +26,12 @@
 #elif __APPLE__
 #include "apple/ipc-socket-osx.hpp"
 #endif
-void ipc::server::watcher() {
+void ipc::server::watcher()
+{
 	os::error ec;
-    std::cout << "server - start watcher" << std::endl;
+	std::cout << "server - start watcher" << std::endl;
 	struct pending_accept {
-		server* parent;
+		server *parent;
 		std::shared_ptr<os::async_op> op;
 #ifdef WIN32
 		std::shared_ptr<ipc::socket> socket;
@@ -39,9 +40,10 @@ void ipc::server::watcher() {
 #endif
 		std::chrono::high_resolution_clock::time_point start;
 
-		void accept_client_cb(os::error ec, size_t length) {
+		void accept_client_cb(os::error ec, size_t length)
+		{
 			if (ec == os::error::Connected) {
-                std::cout << "Spawning a new client" << std::endl;
+				std::cout << "Spawning a new client" << std::endl;
 				// A client has connected, so spawn a new client.
 				parent->spawn_client(socket);
 			}
@@ -94,7 +96,7 @@ void ipc::server::watcher() {
 			}
 		}
 		// Wait for sockets to connect.
-		std::vector<os::waitable*> waits;
+		std::vector<os::waitable *> waits;
 #ifdef WIN32
 		std::vector<std::shared_ptr<ipc::socket>> idx_to_socket;
 #elif __APPLE__
@@ -113,8 +115,9 @@ void ipc::server::watcher() {
 }
 
 #ifdef WIN32
-void ipc::server::spawn_client(std::shared_ptr<ipc::socket> socket) {
-	std::unique_lock<std::mutex>          ul(m_clients_mtx);
+void ipc::server::spawn_client(std::shared_ptr<ipc::socket> socket)
+{
+	std::unique_lock<std::mutex> ul(m_clients_mtx);
 	//std::shared_ptr<ipc::server_instance> client = std::make_shared<ipc::server_instance>(this, socket);
 	std::shared_ptr<ipc::server_instance> client = ipc::server_instance::create(this, socket);
 	if (m_handlerConnect.first) {
@@ -123,20 +126,22 @@ void ipc::server::spawn_client(std::shared_ptr<ipc::socket> socket) {
 	m_clients.insert_or_assign(socket, client);
 }
 
-void ipc::server::kill_client(std::shared_ptr<ipc::socket> socket) {
+void ipc::server::kill_client(std::shared_ptr<ipc::socket> socket)
+{
 	// First, destroy the server instance.
 	// This will wait for currently executing requests to be finished.
 	m_clients.erase(socket);
 	// Then notify the consumer about the disconnection.
 	if (m_handlerDisconnect.first) {
 		m_handlerDisconnect.first(m_handlerDisconnect.second, 0);
-	}	
+	}
 }
 #endif
 
 #ifdef __APPLE__
-void ipc::server::spawn_client(std::shared_ptr<ipc::socket> socket) {
-    std::cout << "Server - spawn_client" << std::endl;
+void ipc::server::spawn_client(std::shared_ptr<ipc::socket> socket)
+{
+	std::cout << "Server - spawn_client" << std::endl;
 	std::unique_lock<std::mutex> ul(m_clients_mtx);
 
 	// std::shared_ptr<ipc::server_instance> client = std::make_shared<ipc::server_instance>(this, socket);
@@ -147,7 +152,8 @@ void ipc::server::spawn_client(std::shared_ptr<ipc::socket> socket) {
 	m_clients.insert_or_assign(socket, client);
 }
 
-void ipc::server::kill_client(std::shared_ptr<ipc::socket> socket) {
+void ipc::server::kill_client(std::shared_ptr<ipc::socket> socket)
+{
 	m_clients.erase(socket);
 	if (m_handlerDisconnect.first) {
 		m_handlerDisconnect.first(m_handlerDisconnect.second, 0);
@@ -155,13 +161,15 @@ void ipc::server::kill_client(std::shared_ptr<ipc::socket> socket) {
 }
 #endif
 
-ipc::server::server() {
+ipc::server::server()
+{
 	// Start Watcher
 	m_watcher.stop = false;
 	m_watcher.worker = std::thread(std::bind(&ipc::server::watcher, this));
 }
 
-ipc::server::~server() {
+ipc::server::~server()
+{
 	finalize();
 
 	m_watcher.stop = true;
@@ -170,25 +178,17 @@ ipc::server::~server() {
 	}
 }
 
-void ipc::server::initialize(std::string socketPath) {
+void ipc::server::initialize(std::string socketPath)
+{
 	// Start a few sockets.
 
 	try {
 #ifdef WIN32
 		std::unique_lock<std::mutex> ul(m_sockets_mtx);
-		m_sockets.insert(
-		    m_sockets.end(),
-		    std::make_shared<os::windows::socket_win>(
-		        os::create_only,
-		        socketPath,
-		        255,
-		        os::windows::pipe_type::Byte,
-		        os::windows::pipe_read_mode::Byte,
-		        true));
+		m_sockets.insert(m_sockets.end(), std::make_shared<os::windows::socket_win>(os::create_only, socketPath, 255, os::windows::pipe_type::Byte, os::windows::pipe_read_mode::Byte, true));
 #elif __APPLE__
 		std::unique_lock<std::mutex> ul(m_sockets_mtx);
-		m_sockets.insert(m_sockets.end(),
-			std::make_shared<os::apple::socket_osx>(os::create_only, socketPath));
+		m_sockets.insert(m_sockets.end(), std::make_shared<os::apple::socket_osx>(os::create_only, socketPath));
 #endif
 	} catch (std::exception e) {
 		throw e;
@@ -198,7 +198,8 @@ void ipc::server::initialize(std::string socketPath) {
 	m_socketPath = std::move(socketPath);
 }
 
-void ipc::server::finalize() {
+void ipc::server::finalize()
+{
 	if (!m_isInitialized) {
 		return;
 	}
@@ -217,27 +218,33 @@ void ipc::server::finalize() {
 	m_sockets.clear();
 }
 
-void ipc::server::set_connect_handler(server_connect_handler_t handler, void* data) {
+void ipc::server::set_connect_handler(server_connect_handler_t handler, void *data)
+{
 	m_handlerConnect = std::make_pair(handler, data);
 }
 
-void ipc::server::set_disconnect_handler(server_disconnect_handler_t handler, void* data) {
+void ipc::server::set_disconnect_handler(server_disconnect_handler_t handler, void *data)
+{
 	m_handlerDisconnect = std::make_pair(handler, data);
 }
 
-void ipc::server::set_message_handler(server_message_handler_t handler, void* data) {
+void ipc::server::set_message_handler(server_message_handler_t handler, void *data)
+{
 	m_handlerMessage = std::make_pair(handler, data);
 }
 
-void ipc::server::set_pre_callback(server_pre_callback_t handler, void* data) {
+void ipc::server::set_pre_callback(server_pre_callback_t handler, void *data)
+{
 	m_preCallback = std::make_pair(handler, data);
 }
 
-void ipc::server::set_post_callback(server_post_callback_t handler, void* data) {
+void ipc::server::set_post_callback(server_post_callback_t handler, void *data)
+{
 	m_postCallback = std::make_pair(handler, data);
 }
 
-bool ipc::server::register_collection(std::shared_ptr<ipc::collection> cls) {
+bool ipc::server::register_collection(std::shared_ptr<ipc::collection> cls)
+{
 	if (m_classes.count(cls->get_name()) > 0)
 		return false;
 
@@ -245,7 +252,8 @@ bool ipc::server::register_collection(std::shared_ptr<ipc::collection> cls) {
 	return true;
 }
 
-bool ipc::server::client_call_function(int64_t cid, const std::string & cname, const std::string &fname, std::vector<ipc::value>& args, std::vector<ipc::value>& rval, std::string& errormsg) {
+bool ipc::server::client_call_function(int64_t cid, const std::string &cname, const std::string &fname, std::vector<ipc::value> &args, std::vector<ipc::value> &rval, std::string &errormsg)
+{
 	if (m_classes.count(cname) == 0) {
 		errormsg = "Class '" + cname + "' is not registered.";
 		return false;

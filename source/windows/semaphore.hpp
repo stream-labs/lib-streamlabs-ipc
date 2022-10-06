@@ -28,21 +28,21 @@
 #include "../../include/semaphore.hpp"
 
 namespace os {
-	namespace windows {
-		class semaphore : public os::semaphore {
-			HANDLE handle;
+namespace windows {
+class semaphore : public os::semaphore {
+	HANDLE handle;
 
-			public:
-			semaphore(int32_t initial_count = 0, int32_t maximum_count = std::numeric_limits<int32_t>::max());
-			virtual ~semaphore();
+public:
+	semaphore(int32_t initial_count = 0, int32_t maximum_count = std::numeric_limits<int32_t>::max());
+	virtual ~semaphore();
 
-			virtual os::error signal(uint32_t count = 1) override;
+	virtual os::error signal(uint32_t count = 1) override;
 
-			// os::waitable
-			protected:
-			virtual void *get_waitable() override;
-		};
-	} // namespace windows
+	// os::waitable
+protected:
+	virtual void *get_waitable() override;
+};
+} // namespace windows
 } // namespace os
 
 #endif // OS_WINDOWS_SEMAPHORE_HPP

@@ -1,5 +1,5 @@
 // Shared code for all tests.
-// 
+//
 
 #include "lib.h"
 #include <fstream>
@@ -26,47 +26,58 @@ static bool log_file_enabled = false;
 static std::string log_file_path = "";
 static std::ofstream log_file_stream;
 
-bool shared::logger::is_timestamp_relative_to_start() {
+bool shared::logger::is_timestamp_relative_to_start()
+{
 	return log_timestamp_relative_to_start;
 }
 
-void shared::logger::is_timestamp_relative_to_start(bool v) {
+void shared::logger::is_timestamp_relative_to_start(bool v)
+{
 	log_timestamp_relative_to_start = v;
 }
 
-bool shared::logger::to_stdout() {
+bool shared::logger::to_stdout()
+{
 	return log_stdout_enabled;
 }
 
-void shared::logger::to_stdout(bool v) {
+void shared::logger::to_stdout(bool v)
+{
 	log_stdout_enabled = v;
 }
 
-bool shared::logger::to_stderr() {
+bool shared::logger::to_stderr()
+{
 	return log_stderr_enabled;
 }
 
-void shared::logger::to_stderr(bool v) {
+void shared::logger::to_stderr(bool v)
+{
 	log_stderr_enabled = v;
 }
 
-bool shared::logger::to_debug() {
+bool shared::logger::to_debug()
+{
 	return log_debug_enabled;
 }
 
-void shared::logger::to_debug(bool v) {
+void shared::logger::to_debug(bool v)
+{
 	log_debug_enabled = v;
 }
 
-bool shared::logger::to_file() {
+bool shared::logger::to_file()
+{
 	return log_file_enabled;
 }
 
-std::string shared::logger::to_file_path() {
+std::string shared::logger::to_file_path()
+{
 	return log_file_path;
 }
 
-bool shared::logger::to_file(bool v, std::string path) {
+bool shared::logger::to_file(bool v, std::string path)
+{
 	log_file_enabled = v;
 	if (log_file_enabled) {
 		if ((path != log_file_path) || (!log_file_stream.is_open())) {
@@ -88,7 +99,8 @@ bool shared::logger::to_file(bool v, std::string path) {
 	}
 }
 
-void shared::logger::log(std::string format, ...) {
+void shared::logger::log(std::string format, ...)
+{
 	std::vector<char> message_buffer;
 	std::vector<char> timestamp_buffer;
 
@@ -107,11 +119,11 @@ void shared::logger::log(std::string format, ...) {
 		timeSinceStart -= microseconds;
 		auto nanoseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(timeSinceStart);
 
-		const char* timestamp_format = "%.2d:%.2d:%.2d.%.3d.%.3d.%.3d";
-	#define timestamp_args hours.count(), minutes.count(), seconds.count(),	milliseconds.count(), microseconds.count(), nanoseconds.count()
+		const char *timestamp_format = "%.2d:%.2d:%.2d.%.3d.%.3d.%.3d";
+#define timestamp_args hours.count(), minutes.count(), seconds.count(), milliseconds.count(), microseconds.count(), nanoseconds.count()
 		timestamp_buffer.resize(_scprintf(timestamp_format, timestamp_args) + 1);
 		sprintf_s(timestamp_buffer.data(), timestamp_buffer.size(), timestamp_format, timestamp_args);
-	#undef timestamp_args
+#undef timestamp_args
 	} else {
 		std::time_t t = std::time(0);
 		timestamp_buffer.resize(sizeof("0000-00-00T00:00:00+0000"));
@@ -129,7 +141,7 @@ void shared::logger::log(std::string format, ...) {
 	size_t message_begin = 0;
 	size_t message_end = 0;
 	std::string message;
-	const char* final_format = "[%.*s] %.*s";
+	const char *final_format = "[%.*s] %.*s";
 	std::vector<char> final_buffer;
 	for (size_t p = 0, end = message_buffer.size(); p < end; p++) {
 		char c = message_buffer[p];
@@ -147,12 +159,8 @@ void shared::logger::log(std::string format, ...) {
 		}
 
 		if (message_end != 0) {
-			final_buffer.resize(_scprintf(final_format,
-				timestamp_buffer.size(), timestamp_buffer.data(),
-				message.length(), message.data()) + 1);
-			snprintf(final_buffer.data(), final_buffer.size(), final_format,
-				timestamp_buffer.size(), timestamp_buffer.data(),
-				message.length(), message.data());
+			final_buffer.resize(_scprintf(final_format, timestamp_buffer.size(), timestamp_buffer.data(), message.length(), message.data()) + 1);
+			snprintf(final_buffer.data(), final_buffer.size(), final_format, timestamp_buffer.size(), timestamp_buffer.data(), message.length(), message.data());
 			final_buffer[final_buffer.size() - 1] = '\n';
 
 			if (log_stdout_enabled) {
@@ -162,20 +170,19 @@ void shared::logger::log(std::string format, ...) {
 				fwrite(final_buffer.data(), sizeof(char), final_buffer.size(), stderr);
 			}
 			if (log_debug_enabled) {
-			#ifdef _WIN32
+#ifdef _WIN32
 				if (IsDebuggerPresent()) {
 					int wNum = MultiByteToWideChar(CP_UTF8, 0, final_buffer.data(), -1, NULL, 0);
 					if (wNum > 1) {
 						std::wstring wide_buf;
 						wide_buf.reserve(wNum + 1);
 						wide_buf.resize(wNum - 1);
-						MultiByteToWideChar(CP_UTF8, 0, final_buffer.data(), -1, &wide_buf[0],
-							wNum);
+						MultiByteToWideChar(CP_UTF8, 0, final_buffer.data(), -1, &wide_buf[0], wNum);
 
 						OutputDebugStringW(wide_buf.c_str());
 					}
 				}
-			#endif
+#endif
 			}
 			if (log_file_enabled) {
 				if (log_file_stream.is_open()) {
@@ -190,7 +197,8 @@ void shared::logger::log(std::string format, ...) {
 #pragma endregion shared::logger
 
 #pragma region shared::os
-std::string shared::os::get_working_directory() {
+std::string shared::os::get_working_directory()
+{
 #ifdef _WIN32
 	std::vector<wchar_t> bufUTF16 = std::vector<wchar_t>(65535);
 	std::vector<char> bufUTF8;
@@ -198,15 +206,9 @@ std::string shared::os::get_working_directory() {
 	_wgetcwd(bufUTF16.data(), int(bufUTF16.size()));
 
 	// Convert from Wide-char to UTF8
-	DWORD bufferSize = WideCharToMultiByte(CP_UTF8, 0,
-		bufUTF16.data(), int(bufUTF16.size()),
-		nullptr, 0,
-		NULL, NULL);
+	DWORD bufferSize = WideCharToMultiByte(CP_UTF8, 0, bufUTF16.data(), int(bufUTF16.size()), nullptr, 0, NULL, NULL);
 	bufUTF8.resize(bufferSize + 1);
-	DWORD finalSize = WideCharToMultiByte(CP_UTF8, 0,
-		bufUTF16.data(), int(bufUTF16.size()),
-		bufUTF8.data(), int(bufUTF8.size()),
-		NULL, NULL);
+	DWORD finalSize = WideCharToMultiByte(CP_UTF8, 0, bufUTF16.data(), int(bufUTF16.size()), bufUTF8.data(), int(bufUTF8.size()), NULL, NULL);
 	if (finalSize == 0) {
 		// Conversion failed.
 		DWORD errorCode = GetLastError();
@@ -219,19 +221,17 @@ std::string shared::os::get_working_directory() {
 #pragma endregion shared::os
 
 #pragma region shared::time
-shared::time::measure_timer::measure_timer() {
+shared::time::measure_timer::measure_timer() {}
 
-}
+shared::time::measure_timer::~measure_timer() {}
 
-shared::time::measure_timer::~measure_timer() {
-
-}
-
-std::unique_ptr<shared::time::measure_timer::instance> shared::time::measure_timer::track() {
+std::unique_ptr<shared::time::measure_timer::instance> shared::time::measure_timer::track()
+{
 	return std::make_unique<instance>(this);
 }
 
-void shared::time::measure_timer::track(std::chrono::nanoseconds dur) {
+void shared::time::measure_timer::track(std::chrono::nanoseconds dur)
+{
 	auto el = timings.find(dur);
 	if (el != timings.end()) {
 		el->second++;
@@ -241,11 +241,13 @@ void shared::time::measure_timer::track(std::chrono::nanoseconds dur) {
 	calls++;
 }
 
-uint64_t shared::time::measure_timer::count() {
+uint64_t shared::time::measure_timer::count()
+{
 	return calls;
 }
 
-std::chrono::nanoseconds shared::time::measure_timer::total() {
+std::chrono::nanoseconds shared::time::measure_timer::total()
+{
 	if (timings.size() == 0) {
 		return std::chrono::nanoseconds(0);
 	}
@@ -257,7 +259,8 @@ std::chrono::nanoseconds shared::time::measure_timer::total() {
 	return val;
 }
 
-double_t shared::time::measure_timer::average() {
+double_t shared::time::measure_timer::average()
+{
 	if (timings.size() == 0) {
 		return 0;
 	}
@@ -269,7 +272,8 @@ double_t shared::time::measure_timer::average() {
 	return (val / calls);
 }
 
-std::chrono::nanoseconds shared::time::measure_timer::percentile(double_t pct, bool by_time /*= false*/) {
+std::chrono::nanoseconds shared::time::measure_timer::percentile(double_t pct, bool by_time /*= false*/)
+{
 	if (timings.size() == 0) {
 		return std::chrono::nanoseconds(0);
 	}
@@ -314,11 +318,13 @@ std::chrono::nanoseconds shared::time::measure_timer::percentile(double_t pct, b
 	}
 }
 
-shared::time::measure_timer::instance::instance(measure_timer* parent) : parent(parent) {
+shared::time::measure_timer::instance::instance(measure_timer *parent) : parent(parent)
+{
 	begin = std::chrono::high_resolution_clock::now();
 }
 
-shared::time::measure_timer::instance::~instance() {
+shared::time::measure_timer::instance::~instance()
+{
 	auto end = std::chrono::high_resolution_clock::now();
 	if (parent) {
 		auto dur = end - begin;
@@ -326,11 +332,13 @@ shared::time::measure_timer::instance::~instance() {
 	}
 }
 
-void shared::time::measure_timer::instance::cancel() {
+void shared::time::measure_timer::instance::cancel()
+{
 	parent = nullptr;
 }
 
-void shared::time::measure_timer::instance::reparent(measure_timer* new_parent) {
+void shared::time::measure_timer::instance::reparent(measure_timer *new_parent)
+{
 	parent = new_parent;
 }
 

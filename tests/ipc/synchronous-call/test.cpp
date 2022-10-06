@@ -13,14 +13,16 @@
 std::chrono::high_resolution_clock hrc;
 std::chrono::high_resolution_clock::time_point tp = std::chrono::high_resolution_clock::now();
 
-inline std::string varlog(const char* format, va_list& args) {
+inline std::string varlog(const char *format, va_list &args)
+{
 	size_t length = _vscprintf(format, args);
 	std::vector<char> buf = std::vector<char>(length + 1, '\0');
 	size_t written = vsprintf_s(buf.data(), buf.size(), format, args);
 	return std::string(buf.begin(), buf.begin() + length);
 }
 
-static void blog(const char* format, ...) {
+static void blog(const char *format, ...)
+{
 	va_list args;
 	va_start(args, format);
 	std::string text = varlog(format, args);
@@ -40,18 +42,8 @@ static void blog(const char* format, ...) {
 	auto nanoseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(timeSinceStart);
 
 	std::vector<char> timebuf(65535, '\0');
-	std::string timeformat = "%.2d:%.2d:%.2d.%.3d.%.3d.%.3d:  %*s\n";// "%*s";
-	sprintf_s(
-		timebuf.data(),
-		timebuf.size(),
-		timeformat.c_str(),
-		hours.count(),
-		minutes.count(),
-		seconds.count(),
-		milliseconds.count(),
-		microseconds.count(),
-		nanoseconds.count(),
-		text.length(), text.c_str());
+	std::string timeformat = "%.2d:%.2d:%.2d.%.3d.%.3d.%.3d:  %*s\n"; // "%*s";
+	sprintf_s(timebuf.data(), timebuf.size(), timeformat.c_str(), hours.count(), minutes.count(), seconds.count(), milliseconds.count(), microseconds.count(), nanoseconds.count(), text.length(), text.c_str());
 	std::cout << timebuf.data();
 }
 #pragma endregion Logging
@@ -62,7 +54,8 @@ static void blog(const char* format, ...) {
 #include <direct.h>
 #include <wchar.h>
 
-bool spawn(std::string program, std::string commandLine, std::string workingDirectory) {
+bool spawn(std::string program, std::string commandLine, std::string workingDirectory)
+{
 	PROCESS_INFORMATION m_win32_processInformation;
 	STARTUPINFOW m_win32_startupInfo;
 
@@ -73,24 +66,16 @@ bool spawn(std::string program, std::string commandLine, std::string workingDire
 
 	// Convert to WideChar
 	DWORD wr;
-	programBuf.resize(MultiByteToWideChar(CP_UTF8, 0,
-		program.data(), (int)program.size(),
-		nullptr, 0) + 1);
-	wr = MultiByteToWideChar(CP_UTF8, 0,
-		program.data(), (int)program.size(),
-		programBuf.data(), (int)programBuf.size());
+	programBuf.resize(MultiByteToWideChar(CP_UTF8, 0, program.data(), (int)program.size(), nullptr, 0) + 1);
+	wr = MultiByteToWideChar(CP_UTF8, 0, program.data(), (int)program.size(), programBuf.data(), (int)programBuf.size());
 	if (wr == 0) {
 		// Conversion failed.
 		DWORD errorCode = GetLastError();
 		return false;
 	}
 
-	commandLineBuf.resize(MultiByteToWideChar(CP_UTF8, 0,
-		commandLine.data(), (int)commandLine.size(),
-		nullptr, 0) + 1);
-	wr = MultiByteToWideChar(CP_UTF8, 0,
-		commandLine.data(), (int)commandLine.size(),
-		commandLineBuf.data(), (int)commandLineBuf.size());
+	commandLineBuf.resize(MultiByteToWideChar(CP_UTF8, 0, commandLine.data(), (int)commandLine.size(), nullptr, 0) + 1);
+	wr = MultiByteToWideChar(CP_UTF8, 0, commandLine.data(), (int)commandLine.size(), commandLineBuf.data(), (int)commandLineBuf.size());
 	if (wr == 0) {
 		// Conversion failed.
 		DWORD errorCode = GetLastError();
@@ -98,13 +83,9 @@ bool spawn(std::string program, std::string commandLine, std::string workingDire
 	}
 
 	if (workingDirectory.length() > 1) {
-		workingDirectoryBuf.resize(MultiByteToWideChar(CP_UTF8, 0,
-			workingDirectory.data(), (int)workingDirectory.size(),
-			nullptr, 0) + 1);
+		workingDirectoryBuf.resize(MultiByteToWideChar(CP_UTF8, 0, workingDirectory.data(), (int)workingDirectory.size(), nullptr, 0) + 1);
 		if (workingDirectoryBuf.size() > 0) {
-			wr = MultiByteToWideChar(CP_UTF8, 0,
-				workingDirectory.data(), (int)workingDirectory.size(),
-				workingDirectoryBuf.data(), (int)workingDirectoryBuf.size());
+			wr = MultiByteToWideChar(CP_UTF8, 0, workingDirectory.data(), (int)workingDirectory.size(), workingDirectoryBuf.data(), (int)workingDirectoryBuf.size());
 			if (wr == 0) {
 				// Conversion failed.
 				DWORD errorCode = GetLastError();
@@ -119,17 +100,7 @@ bool spawn(std::string program, std::string commandLine, std::string workingDire
 
 	// Launch process
 	size_t attempts = 0;
-	while (!CreateProcessW(
-		programBuf.data(),
-		commandLineBuf.data(),
-		nullptr,
-		nullptr,
-		false,
-		CREATE_NEW_CONSOLE,
-		nullptr,
-		workingDirectory.length() > 0 ? workingDirectoryBuf.data() : nullptr,
-		&m_win32_startupInfo,
-		&m_win32_processInformation)) {
+	while (!CreateProcessW(programBuf.data(), commandLineBuf.data(), nullptr, nullptr, false, CREATE_NEW_CONSOLE, nullptr, workingDirectory.length() > 0 ? workingDirectoryBuf.data() : nullptr, &m_win32_startupInfo, &m_win32_processInformation)) {
 		if (attempts >= 5) {
 			break;
 		}
@@ -144,22 +115,17 @@ bool spawn(std::string program, std::string commandLine, std::string workingDire
 	}
 }
 
-std::string get_working_directory() {
+std::string get_working_directory()
+{
 	std::vector<wchar_t> bufUTF16 = std::vector<wchar_t>(65535);
 	std::vector<char> bufUTF8;
 
 	_wgetcwd(bufUTF16.data(), bufUTF16.size());
 
 	// Convert from Wide-char to UTF8
-	DWORD bufferSize = WideCharToMultiByte(CP_UTF8, 0,
-		bufUTF16.data(), bufUTF16.size(),
-		nullptr, 0,
-		NULL, NULL);
+	DWORD bufferSize = WideCharToMultiByte(CP_UTF8, 0, bufUTF16.data(), bufUTF16.size(), nullptr, 0, NULL, NULL);
 	bufUTF8.resize(bufferSize + 1);
-	DWORD finalSize = WideCharToMultiByte(CP_UTF8, 0,
-		bufUTF16.data(), bufUTF16.size(),
-		bufUTF8.data(), bufUTF8.size(),
-		NULL, NULL);
+	DWORD finalSize = WideCharToMultiByte(CP_UTF8, 0, bufUTF16.data(), bufUTF16.size(), bufUTF8.data(), bufUTF8.size(), NULL, NULL);
 	if (finalSize == 0) {
 		// Conversion failed.
 		DWORD errorCode = GetLastError();
@@ -175,10 +141,11 @@ std::string get_working_directory() {
 #define CONN "HelloWorldIPC2"
 #define CLIENTCOUNT 4ull
 
-static int server(int argc, char* argv[]);
-static int client(int argc, char* argv[]);
+static int server(int argc, char *argv[]);
+static int client(int argc, char *argv[]);
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[])
+{
 	if ((argc >= 2) || (strcmp(argv[0], "client") == 0)) {
 		client(argc, argv);
 	} else {
@@ -186,7 +153,8 @@ int main(int argc, char* argv[]) {
 	}
 }
 
-static void function1(void* data, const int64_t id, const std::vector<ipc::value>& args, std::vector<ipc::value>& rval) {
+static void function1(void *data, const int64_t id, const std::vector<ipc::value> &args, std::vector<ipc::value> &rval)
+{
 	rval.resize(args.size());
 	for (size_t idx = 0; idx < args.size(); idx++) {
 		rval[idx] = args[idx];
@@ -194,7 +162,8 @@ static void function1(void* data, const int64_t id, const std::vector<ipc::value
 	rval.push_back(ipc::value(0));
 }
 
-int server(int argc, char* argv[]) {
+int server(int argc, char *argv[])
+{
 	blog("Starting server...");
 
 	ipc::server socket;
@@ -229,17 +198,19 @@ struct ClientCallData {
 	std::mutex mtx;
 	std::condition_variable cv;
 	bool called = false;
-	size_t* inbox = nullptr;
+	size_t *inbox = nullptr;
 };
 
-void client_call_handler(const void* data, const std::vector<ipc::value>& rval) {
-	ClientCallData* mydata = static_cast<ClientCallData*>(const_cast<void*>(data));
+void client_call_handler(const void *data, const std::vector<ipc::value> &rval)
+{
+	ClientCallData *mydata = static_cast<ClientCallData *>(const_cast<void *>(data));
 	(*mydata->inbox)++;
 	mydata->called = true;
 	mydata->cv.notify_all();
 }
 
-int client(int argc, char* argv[]) {
+int client(int argc, char *argv[])
+{
 	blog("Starting client...");
 
 	std::shared_ptr<ipc::client> socket;

@@ -5,50 +5,47 @@
 #include "ipc-client-win.hpp"
 #include "semaphore.hpp"
 
-call_return_t g_fn   = NULL;
-void*         g_data = NULL;
-int64_t       g_cbid = NULL;
+call_return_t g_fn = NULL;
+void *g_data = NULL;
+int64_t g_cbid = NULL;
 
 using namespace std::placeholders;
 
-std::shared_ptr<ipc::client> ipc::client::create(
-	const std::string& socketPath,
-	call_on_disconnect_t disconnectionCallback)
+std::shared_ptr<ipc::client> ipc::client::create(const std::string &socketPath, call_on_disconnect_t disconnectionCallback)
 {
 	return std::make_unique<ipc::client_win>(socketPath, disconnectionCallback);
 }
 
-std::shared_ptr<ipc::client> ipc::client::create(std::string socketPath) {
+std::shared_ptr<ipc::client> ipc::client::create(std::string socketPath)
+{
 	return std::make_unique<ipc::client_win>(socketPath);
 }
 
-ipc::client_win::client_win(
-	const std::string& socketPath,
-	call_on_disconnect_t disconnectionCallback)
-	: m_socketPath(socketPath)
-	, m_disconnectionCallback(disconnectionCallback)
+ipc::client_win::client_win(const std::string &socketPath, call_on_disconnect_t disconnectionCallback) : m_socketPath(socketPath), m_disconnectionCallback(disconnectionCallback)
 {
 	start();
 }
 
-ipc::client_win::client_win(std::string socketPath)
-	: m_socketPath(socketPath)
+ipc::client_win::client_win(std::string socketPath) : m_socketPath(socketPath)
 {
 	start();
 }
 
-ipc::client_win::~client_win() {
+ipc::client_win::~client_win()
+{
 	stop();
 }
 
-void ipc::client_win::start() {
+void ipc::client_win::start()
+{
 	if (m_watcher.stop.exchange(false)) {
 		m_socket = os::windows::socket_win::create(os::open_only, m_socketPath);
 		m_watcher.worker = std::thread(std::bind(&ipc::client_win::worker, this));
 	}
 }
 
-void ipc::client_win::stop() {
+void ipc::client_win::stop()
+{
 	if (!m_watcher.stop.exchange(true)) {
 		if (m_watcher.worker.joinable()) {
 			m_watcher.worker.join();
@@ -57,20 +54,14 @@ void ipc::client_win::stop() {
 	}
 }
 
-bool ipc::client_win::call(
-    const std::string& cname,
-    const std::string& fname,
-    std::vector<ipc::value> args,
-    call_return_t fn,
-    void* data,
-    int64_t& cbid)
+bool ipc::client_win::call(const std::string &cname, const std::string &fname, std::vector<ipc::value> args, call_return_t fn, void *data, int64_t &cbid)
 {
-	static std::mutex             mtx;
-	static uint64_t               timestamp = 0;
-	os::error                     ec;
+	static std::mutex mtx;
+	static uint64_t timestamp = 0;
+	os::error ec;
 	std::shared_ptr<os::async_op> write_op;
-	ipc::message::function_call   fnc_call_msg;
-	std::vector<char>             outbuf;
+	ipc::message::function_call fnc_call_msg;
+	std::vector<char> outbuf;
 
 	if (!m_socket)
 		return false;
@@ -82,15 +73,15 @@ bool ipc::client_win::call(
 	}
 
 	// Set
-	fnc_call_msg.class_name    = ipc::value(cname);
+	fnc_call_msg.class_name = ipc::value(cname);
 	fnc_call_msg.function_name = ipc::value(fname);
-	fnc_call_msg.arguments     = std::move(args);
+	fnc_call_msg.arguments = std::move(args);
 
 	// Serialize
 	std::vector<char> buf(fnc_call_msg.size() + sizeof(ipc_size_t));
 	try {
 		fnc_call_msg.serialize(buf, sizeof(ipc_size_t));
-	} catch (std::exception& e) {
+	} catch (std::exception &e) {
 		ipc::log("(write) %8llu: Failed to serialize, error %s.", fnc_call_msg.uid.value_union.ui64, e.what());
 		throw e;
 	}
@@ -119,23 +110,19 @@ bool ipc::client_win::call(
 	return true;
 }
 
-std::vector<ipc::value> ipc::client_win::call_synchronous_helper(
-    const std::string& cname,
-    const std::string& fname,
-    const std::vector<ipc::value>& args)
+std::vector<ipc::value> ipc::client_win::call_synchronous_helper(const std::string &cname, const std::string &fname, const std::vector<ipc::value> &args)
 {
 	// Set up call reference data.
-	struct CallData
-	{
-		std::shared_ptr<os::windows::semaphore>        sgn    = std::make_shared<os::windows::semaphore>();
-		bool                                           called = false;
-		std::chrono::high_resolution_clock::time_point start  = std::chrono::high_resolution_clock::now();
+	struct CallData {
+		std::shared_ptr<os::windows::semaphore> sgn = std::make_shared<os::windows::semaphore>();
+		bool called = false;
+		std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
 
 		std::vector<ipc::value> values;
 	} cd;
 
-	auto cb = [](void* data, const std::vector<ipc::value>& rval) {
-		CallData& cd = *static_cast<CallData*>(data);
+	auto cb = [](void *data, const std::vector<ipc::value> &rval) {
+		CallData &cd = *static_cast<CallData *>(data);
 
 		// This copies the data off of the reply thread to the main thread.
 		cd.values.reserve(rval.size());
@@ -145,30 +132,28 @@ std::vector<ipc::value> ipc::client_win::call_synchronous_helper(
 		cd.sgn->signal();
 	};
 
-	int64_t cbid    = 0;
-	bool    success = call(cname, fname, std::move(args), cb, &cd, cbid);
+	int64_t cbid = 0;
+	bool success = call(cname, fname, std::move(args), cb, &cd, cbid);
 	if (!success) {
 		return {};
 	}
 
 	static std::chrono::nanoseconds freez_timeout = std::chrono::seconds(1);
 	bool freez_flagged = false;
-	while ( cd.sgn->wait(freez_timeout) == os::error::TimedOut ) {
+	while (cd.sgn->wait(freez_timeout) == os::error::TimedOut) {
 		if (freez_flagged)
 			continue;
 		freez_flagged = true;
 
-		int t = std::chrono::duration_cast<std::chrono::milliseconds>(
-				std::chrono::high_resolution_clock::now() - cd.start).count();
+		int t = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - cd.start).count();
 
 		if (freez_cb)
-			freez_cb(true, app_state_path, cname+"::"+fname, t);
+			freez_cb(true, app_state_path, cname + "::" + fname, t);
 	}
 	if (freez_flagged) {
-		int t = std::chrono::duration_cast<std::chrono::milliseconds>(
-				std::chrono::high_resolution_clock::now() - cd.start).count();
+		int t = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - cd.start).count();
 		if (freez_cb)
-			freez_cb(false, app_state_path, cname+"::"+fname, t);
+			freez_cb(false, app_state_path, cname + "::" + fname, t);
 	}
 	if (!cd.called) {
 		cancel(cbid);
@@ -183,7 +168,8 @@ void ipc::client::set_freez_callback(call_on_freez_t cb, std::string app_state)
 	app_state_path = app_state;
 }
 
-void ipc::client_win::worker() {
+void ipc::client_win::worker()
+{
 	os::error ec = os::error::Success;
 	std::vector<ipc::value> proc_rval;
 
@@ -222,7 +208,7 @@ void ipc::client_win::worker() {
 
 	{
 		std::unique_lock<std::mutex> ulock(m_lock);
-		for (auto& cb : m_cb) {
+		for (auto &cb : m_cb) {
 			cb.second.first(cb.second.second, proc_rval);
 		}
 
@@ -236,7 +222,8 @@ void ipc::client_win::worker() {
 	}
 }
 
-void ipc::client_win::read_callback_init(os::error ec, size_t size) {
+void ipc::client_win::read_callback_init(os::error ec, size_t size)
+{
 	os::error ec2 = os::error::Success;
 
 	m_rop->invalidate();
@@ -257,15 +244,16 @@ void ipc::client_win::read_callback_init(os::error ec, size_t size) {
 	}
 }
 
-void ipc::client_win::read_callback_msg(os::error ec, size_t size) {
-	std::pair<call_return_t, void*> cb;
+void ipc::client_win::read_callback_msg(os::error ec, size_t size)
+{
+	std::pair<call_return_t, void *> cb;
 	ipc::message::function_reply fnc_reply_msg;
 
 	m_rop->invalidate();
 
 	try {
 		fnc_reply_msg.deserialize(m_watcher.buf, 0);
-	} catch (std::exception& e) {
+	} catch (std::exception &e) {
 		ipc::log("Deserialize failed with error %s.", e.what());
 		throw e;
 	}
@@ -292,7 +280,8 @@ void ipc::client_win::read_callback_msg(os::error ec, size_t size) {
 	m_cb.erase(fnc_reply_msg.uid.value_union.ui64);
 }
 
-bool ipc::client_win::cancel(int64_t const& id) {
+bool ipc::client_win::cancel(int64_t const &id)
+{
 	std::unique_lock<std::mutex> ulock(m_lock);
 	return m_cb.erase(id) != 0;
 }

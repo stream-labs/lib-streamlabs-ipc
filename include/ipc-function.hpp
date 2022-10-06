@@ -22,40 +22,40 @@
 #include <memory>
 
 namespace ipc {
-	typedef void(*call_handler_t)(void* data, const int64_t id, const std::vector<ipc::value>& args, std::vector<ipc::value>& rval);
+typedef void (*call_handler_t)(void *data, const int64_t id, const std::vector<ipc::value> &args, std::vector<ipc::value> &rval);
 
-	class function {
-		public:
-		function(const std::string & name, const std::vector<ipc::type>& params, call_handler_t ptr, void* data);
-		function(const std::string & name, const std::vector<ipc::type>& params, call_handler_t ptr);
-		function(const std::string & name, const std::vector<ipc::type>& params, void* data);
-		function(const std::string & name, const std::vector<ipc::type>& params);
-		function(const std::string & name, call_handler_t ptr, void* data);
-		function(const std::string & name, call_handler_t ptr);
-		function(const std::string & name, void* data);
-		function(const std::string & name);
-		virtual ~function();
+class function {
+public:
+	function(const std::string &name, const std::vector<ipc::type> &params, call_handler_t ptr, void *data);
+	function(const std::string &name, const std::vector<ipc::type> &params, call_handler_t ptr);
+	function(const std::string &name, const std::vector<ipc::type> &params, void *data);
+	function(const std::string &name, const std::vector<ipc::type> &params);
+	function(const std::string &name, call_handler_t ptr, void *data);
+	function(const std::string &name, call_handler_t ptr);
+	function(const std::string &name, void *data);
+	function(const std::string &name);
+	virtual ~function();
 
-		/** Get the unique name for this function used to identify it.
+	/** Get the unique name for this function used to identify it.
 		 * 
 		 * This produces a similar result to what native compilers do to allow
 		 * overloading of the same name but with different functions.
 		 * 
 		 * @return A std::string containing the unique name of the function.
 		 */
-		std::string get_unique_name();
+	std::string get_unique_name();
 
-		std::string get_name();
+	std::string get_name();
 
-		/** Call this function
+	/** Call this function
 		*
 		*/
-		void call(const int64_t id, const std::vector<ipc::value>& args, std::vector<ipc::value>& rval);
-		
-		private:
-		std::string m_name, m_nameUnique;
-		std::vector<ipc::type> m_params;
+	void call(const int64_t id, const std::vector<ipc::value> &args, std::vector<ipc::value> &rval);
 
-		std::pair<call_handler_t, void*> m_callHandler;
-	};
+private:
+	std::string m_name, m_nameUnique;
+	std::vector<ipc::type> m_params;
+
+	std::pair<call_handler_t, void *> m_callHandler;
+};
 }

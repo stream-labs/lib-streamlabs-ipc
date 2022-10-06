@@ -1,11 +1,12 @@
 #include "ipc-server-instance-osx.hpp"
 
-std::shared_ptr<ipc::server_instance> ipc::server_instance::create(server* owner, std::shared_ptr<ipc::socket> socket)
+std::shared_ptr<ipc::server_instance> ipc::server_instance::create(server *owner, std::shared_ptr<ipc::socket> socket)
 {
 	return std::make_unique<ipc::server_instance_osx>(owner, socket);
 }
 
-ipc::server_instance_osx::server_instance_osx(ipc::server* owner, std::shared_ptr<ipc::socket> conn) {
+ipc::server_instance_osx::server_instance_osx(ipc::server *owner, std::shared_ptr<ipc::socket> conn)
+{
 	m_parent = owner;
 	m_socket = std::dynamic_pointer_cast<os::apple::socket_osx>(conn);
 	m_clientId = 0;
@@ -24,7 +25,8 @@ ipc::server_instance_osx::server_instance_osx(ipc::server* owner, std::shared_pt
 	m_worker_replies = std::thread(std::bind(&ipc::server_instance_osx::worker_rep, this));
 }
 
-ipc::server_instance_osx::~server_instance_osx() {
+ipc::server_instance_osx::~server_instance_osx()
+{
 	// Threading
 	m_stopWorkers = true;
 
@@ -44,7 +46,8 @@ ipc::server_instance_osx::~server_instance_osx() {
 	m_socket->clean_file_descriptors();
 }
 
-bool ipc::server_instance_osx::is_alive() {
+bool ipc::server_instance_osx::is_alive()
+{
 	if (!m_socket->is_connected())
 		return false;
 
@@ -54,18 +57,19 @@ bool ipc::server_instance_osx::is_alive() {
 	return true;
 }
 
-void ipc::server_instance_osx::worker_req() {
+void ipc::server_instance_osx::worker_req()
+{
 	// Loop
 	while ((!m_stopWorkers) && m_socket->is_connected()) {
 		sem_wait(m_reader_sem);
-        m_rbuf.resize(sizeof(ipc_size_t));
-		os::error ec = (os::error) m_socket->read(m_rbuf.data(),
-						m_rbuf.size(), true, REQUEST);
+		m_rbuf.resize(sizeof(ipc_size_t));
+		os::error ec = (os::error)m_socket->read(m_rbuf.data(), m_rbuf.size(), true, REQUEST);
 		read_callback_init(ec, m_rbuf.size());
 	}
 }
 
-void ipc::server_instance_osx::worker_rep() {
+void ipc::server_instance_osx::worker_rep()
+{
 	// Loop
 	while ((!m_stopWorkers) && m_socket->is_connected()) {
 		sem_wait(m_writer_sem);
@@ -86,9 +90,7 @@ void ipc::server_instance_osx::worker_rep() {
 		msg_mtx.unlock();
 
 		proc_rval.resize(0);
-		success = m_parent->client_call_function(m_clientId,
-			fnc_call_msg.class_name.value_str, fnc_call_msg.function_name.value_str,
-			fnc_call_msg.arguments, proc_rval, proc_error);
+		success = m_parent->client_call_function(m_clientId, fnc_call_msg.class_name.value_str, fnc_call_msg.function_name.value_str, fnc_call_msg.arguments, proc_rval, proc_error);
 
 		// Set
 		fnc_reply_msg.uid = fnc_call_msg.uid;
@@ -101,9 +103,8 @@ void ipc::server_instance_osx::worker_rep() {
 		write_buffer.resize(fnc_reply_msg.size() + sizeof(ipc_size_t));
 		try {
 			fnc_reply_msg.serialize(write_buffer, sizeof(ipc_size_t));
-		} catch (std::exception & e) {
-			ipc::log("%8llu: Serialization of Function Reply message failed with error %s.",
-				fnc_reply_msg.uid.value_union.ui64, e.what());
+		} catch (std::exception &e) {
+			ipc::log("%8llu: Serialization of Function Reply message failed with error %s.", fnc_reply_msg.uid.value_union.ui64, e.what());
 			return;
 		}
 		read_callback_msg_write(write_buffer);
@@ -111,15 +112,15 @@ void ipc::server_instance_osx::worker_rep() {
 	}
 }
 
-void ipc::server_instance_osx::read_callback_init(os::error ec, size_t size) {
+void ipc::server_instance_osx::read_callback_init(os::error ec, size_t size)
+{
 	os::error ec2 = os::error::Success;
 
 	if (ec == os::error::Success || ec == os::error::MoreData) {
 		ipc_size_t n_size = read_size(m_rbuf);
 		if (n_size > 1) {
 			m_rbuf.resize(n_size);
-			ec2 = (os::error) m_socket->read(m_rbuf.data(),
-				m_rbuf.size(), false, REQUEST);
+			ec2 = (os::error)m_socket->read(m_rbuf.data(), m_rbuf.size(), false, REQUEST);
 			read_callback_msg(ec, m_rbuf.size());
 		} else {
 			sem_post(m_writer_sem);
@@ -127,12 +128,13 @@ void ipc::server_instance_osx::read_callback_init(os::error ec, size_t size) {
 	}
 }
 
-void ipc::server_instance_osx::read_callback_msg(os::error ec, size_t size) {
+void ipc::server_instance_osx::read_callback_msg(os::error ec, size_t size)
+{
 	ipc::message::function_call fnc_call_msg;
 
 	try {
 		fnc_call_msg.deserialize(m_rbuf, 0);
-	} catch (std::exception & e) {
+	} catch (std::exception &e) {
 		ipc::log("????????: Deserialization of Function Call message failed with error %s.", e.what());
 		return;
 	}
@@ -145,7 +147,7 @@ void ipc::server_instance_osx::read_callback_msg(os::error ec, size_t size) {
 	sem_post(m_writer_sem);
 }
 
-void ipc::server_instance_osx::read_callback_msg_write(std::vector<char>& write_buffer)
+void ipc::server_instance_osx::read_callback_msg_write(std::vector<char> &write_buffer)
 {
 	if (write_buffer.size() != 0) {
 		if ((!m_wop || !m_wop->is_valid()) && (m_write_queue.size() == 0)) {
@@ -159,7 +161,8 @@ void ipc::server_instance_osx::read_callback_msg_write(std::vector<char>& write_
 	}
 }
 
-void ipc::server_instance_osx::write_callback(os::error ec, size_t size) {
+void ipc::server_instance_osx::write_callback(os::error ec, size_t size)
+{
 	m_wop->invalidate();
 	m_rop->invalidate();
 }

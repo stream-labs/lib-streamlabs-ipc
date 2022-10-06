@@ -27,42 +27,42 @@
 #include "overlapped.hpp"
 
 namespace os {
-	namespace windows {
-		class socket_win;
+namespace windows {
+class socket_win;
 
-		class async_request : public os::async_op, protected os::windows::overlapped {
-			public:
-			HANDLE                  handle = {0};
+class async_request : public os::async_op, protected os::windows::overlapped {
+public:
+	HANDLE handle = {0};
 
-			void set_handle(HANDLE handle);
+	void set_handle(HANDLE handle);
 
-			void set_valid(bool valid);
+	void set_valid(bool valid);
 
-			static void CALLBACK completion_routine(DWORD dwErrorCode, DWORD dwBytesTransmitted, LPVOID ov);
+	static void CALLBACK completion_routine(DWORD dwErrorCode, DWORD dwBytesTransmitted, LPVOID ov);
 
-			public:
-			virtual ~async_request();
+public:
+	virtual ~async_request();
 
-			virtual bool is_valid() override;
+	virtual bool is_valid() override;
 
-			virtual void invalidate() override;
+	virtual void invalidate() override;
 
-			virtual bool is_complete() override;
+	virtual bool is_complete() override;
 
-			virtual bool cancel() override;
+	virtual bool cancel() override;
 
-			virtual void call_callback() override;
+	virtual void call_callback() override;
 
-			virtual void call_callback(os::error ec, size_t length) override;
+	virtual void call_callback(os::error ec, size_t length) override;
 
-			// os::waitable
-			virtual void *get_waitable() override;
+	// os::waitable
+	virtual void *get_waitable() override;
 
-			public:
-			friend class os::windows::socket_win;
-			friend class os::waitable;
-		};
-	} // namespace windows
+public:
+	friend class os::windows::socket_win;
+	friend class os::waitable;
+};
+} // namespace windows
 } // namespace os
 
 #endif // OS_WINDOWS_ASYNC_REQUEST_HPP

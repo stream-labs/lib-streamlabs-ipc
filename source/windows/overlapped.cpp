@@ -18,34 +18,40 @@
 
 #include "overlapped.hpp"
 
-os::windows::overlapped::overlapped() {
+os::windows::overlapped::overlapped()
+{
 	ov_buf.resize(sizeof(void *) + sizeof(OVERLAPPED));
 	*reinterpret_cast<void **>(&ov_buf[0]) = this;
-	ov                                     = reinterpret_cast<OVERLAPPED *>(&ov_buf[sizeof(void *)]);
+	ov = reinterpret_cast<OVERLAPPED *>(&ov_buf[sizeof(void *)]);
 
 	// Initialize OVERLAPPED
 	memset(ov, 0, sizeof(OVERLAPPED));
 	ov->hEvent = CreateEventW(NULL, FALSE, FALSE, NULL);
 }
 
-os::windows::overlapped::~overlapped() {
+os::windows::overlapped::~overlapped()
+{
 	if (ov_buf.size()) {
 		CloseHandle(ov->hEvent);
 	}
 }
 
-OVERLAPPED *os::windows::overlapped::get_overlapped_pointer() {
+OVERLAPPED *os::windows::overlapped::get_overlapped_pointer()
+{
 	return ov;
 }
 
-os::windows::overlapped *os::windows::overlapped::get_pointer_from_overlapped(OVERLAPPED *ov) {
-	return *reinterpret_cast<os::windows::overlapped**>(reinterpret_cast<char *>(ov) - sizeof(void*));
+os::windows::overlapped *os::windows::overlapped::get_pointer_from_overlapped(OVERLAPPED *ov)
+{
+	return *reinterpret_cast<os::windows::overlapped **>(reinterpret_cast<char *>(ov) - sizeof(void *));
 }
 
-void os::windows::overlapped::signal() {
+void os::windows::overlapped::signal()
+{
 	SetEvent(ov->hEvent);
 }
 
-void *os::windows::overlapped::get_waitable() {
+void *os::windows::overlapped::get_waitable()
+{
 	return (void *)ov->hEvent;
 }

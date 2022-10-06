@@ -22,46 +22,46 @@
 #include <vector>
 
 typedef float float_t;
-typedef double double_t; 
+typedef double double_t;
 
 namespace ipc {
-	enum class type : uint32_t{
-		Null,
-		Float,
-		Double,
-		Int32,
-		Int64,
-		UInt32,
-		UInt64,
-		String,
-		Binary,
-	};
+enum class type : uint32_t {
+	Null,
+	Float,
+	Double,
+	Int32,
+	Int64,
+	UInt32,
+	UInt64,
+	String,
+	Binary,
+};
 
-	struct value {
-		type type;
-		union {
-			float fp32;
-			double fp64;
-			int32_t i32;
-			int64_t i64;
-			uint32_t ui32;
-			uint64_t ui64;
-		} value_union;
-		std::string value_str;
-		std::vector<char> value_bin;
+struct value {
+	type type;
+	union {
+		float fp32;
+		double fp64;
+		int32_t i32;
+		int64_t i64;
+		uint32_t ui32;
+		uint64_t ui64;
+	} value_union;
+	std::string value_str;
+	std::vector<char> value_bin;
 
-		value();
-		value(float);
-		value(double);
-		value(int32_t);
-		value(int64_t);
-		value(uint32_t);
-		value(uint64_t);
-		value(const std::string & p_value);
-		value(const std::vector<char>& p_value);
+	value();
+	value(float);
+	value(double);
+	value(int32_t);
+	value(int64_t);
+	value(uint32_t);
+	value(uint64_t);
+	value(const std::string &p_value);
+	value(const std::vector<char> &p_value);
 
-		size_t size();
-		size_t serialize(std::vector<char>& buf, size_t offset);
-		size_t deserialize(const std::vector<char>& buf, size_t offset);
-	};
+	size_t size();
+	size_t serialize(std::vector<char> &buf, size_t offset);
+	size_t deserialize(const std::vector<char> &buf, size_t offset);
+};
 }
