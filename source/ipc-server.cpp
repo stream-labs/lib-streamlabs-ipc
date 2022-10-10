@@ -80,13 +80,15 @@ void ipc::server::watcher()
 					pa.start = std::chrono::high_resolution_clock::now();
 					pa.socket = socket;
 #ifdef WIN32
-					ec = socket->accept(pa.op, std::bind(&pending_accept::accept_client_cb, &pa, std::placeholders::_1, std::placeholders::_2));
+					ec = socket->accept(pa.op,
+							    std::bind(&pending_accept::accept_client_cb, &pa, std::placeholders::_1, std::placeholders::_2));
 					if (ec == os::error::Success) {
 						// There was no client waiting to connect, but there might be one in the future.
 						pa_map.insert_or_assign(socket, pa);
 					}
 #elif __APPLE__
-					ec = socket->accept(pa.op, std::bind(&pending_accept::accept_client_cb, &pa, std::placeholders::_1, std::placeholders::_2));
+					ec = socket->accept(pa.op,
+							    std::bind(&pending_accept::accept_client_cb, &pa, std::placeholders::_1, std::placeholders::_2));
 					if (ec == os::error::Success) {
 						// There was no client waiting to connect, but there might be one in the future.
 						pa_map.insert_or_assign(socket, pa);
@@ -185,7 +187,8 @@ void ipc::server::initialize(std::string socketPath)
 	try {
 #ifdef WIN32
 		std::unique_lock<std::mutex> ul(m_sockets_mtx);
-		m_sockets.insert(m_sockets.end(), std::make_shared<os::windows::socket_win>(os::create_only, socketPath, 255, os::windows::pipe_type::Byte, os::windows::pipe_read_mode::Byte, true));
+		m_sockets.insert(m_sockets.end(), std::make_shared<os::windows::socket_win>(os::create_only, socketPath, 255, os::windows::pipe_type::Byte,
+											    os::windows::pipe_read_mode::Byte, true));
 #elif __APPLE__
 		std::unique_lock<std::mutex> ul(m_sockets_mtx);
 		m_sockets.insert(m_sockets.end(), std::make_shared<os::apple::socket_osx>(os::create_only, socketPath));
@@ -252,7 +255,8 @@ bool ipc::server::register_collection(std::shared_ptr<ipc::collection> cls)
 	return true;
 }
 
-bool ipc::server::client_call_function(int64_t cid, const std::string &cname, const std::string &fname, std::vector<ipc::value> &args, std::vector<ipc::value> &rval, std::string &errormsg)
+bool ipc::server::client_call_function(int64_t cid, const std::string &cname, const std::string &fname, std::vector<ipc::value> &args,
+				       std::vector<ipc::value> &rval, std::string &errormsg)
 {
 	if (m_classes.count(cname) == 0) {
 		errormsg = "Class '" + cname + "' is not registered.";

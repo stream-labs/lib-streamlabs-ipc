@@ -132,7 +132,8 @@ void ipc::server_instance_win::read_callback_msg(os::error ec, size_t size)
 
 	// Execute
 	proc_rval.resize(0);
-	success = m_parent->client_call_function(m_clientId, fnc_call_msg.class_name.value_str, fnc_call_msg.function_name.value_str, fnc_call_msg.arguments, proc_rval, proc_error);
+	success = m_parent->client_call_function(m_clientId, fnc_call_msg.class_name.value_str, fnc_call_msg.function_name.value_str, fnc_call_msg.arguments,
+						 proc_rval, proc_error);
 
 	// Set
 	fnc_reply_msg.uid = fnc_call_msg.uid;
@@ -158,13 +159,15 @@ void ipc::server_instance_win::read_callback_msg_write(std::vector<char> &write_
 	if (write_buffer.size() != 0) {
 		if ((!m_wop || !m_wop->is_valid()) && (m_write_queue.size() == 0)) {
 			ipc::make_sendable(write_buffer);
-			os::error ec2 = m_socket->write(write_buffer.data(), write_buffer.size(), m_wop, std::bind(&ipc::server_instance_win::write_callback, this, _1, _2));
+			os::error ec2 = m_socket->write(write_buffer.data(), write_buffer.size(), m_wop,
+							std::bind(&ipc::server_instance_win::write_callback, this, _1, _2));
 			if (ec2 != os::error::Success && ec2 != os::error::Pending) {
 				if (ec2 == os::error::Disconnected) {
 					return;
 				} else {
 					const DWORD parent_proc_exit_code = os::windows::utility::get_parent_process_exit_code();
-					ipc::log("Write buffer operation failed with error %d %p, pp_exit_code=%d", static_cast<int>(ec2), &write_buffer, parent_proc_exit_code);
+					ipc::log("Write buffer operation failed with error %d %p, pp_exit_code=%d", static_cast<int>(ec2), &write_buffer,
+						 parent_proc_exit_code);
 					throw std::exception("Write buffer operation failed");
 				}
 			}
