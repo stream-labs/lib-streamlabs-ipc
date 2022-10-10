@@ -52,7 +52,8 @@ inline std::string make_windows_compatible(std::string &name)
 	return {"\\\\.\\pipe\\" + out};
 }
 
-inline void create_logic(HANDLE &handle, std::wstring name, size_t max_instances, os::windows::pipe_type type, os::windows::pipe_read_mode mode, bool is_unique, SECURITY_ATTRIBUTES &attr)
+inline void create_logic(HANDLE &handle, std::wstring name, size_t max_instances, os::windows::pipe_type type, os::windows::pipe_read_mode mode, bool is_unique,
+			 SECURITY_ATTRIBUTES &attr)
 {
 	DWORD pipe_open_mode = PIPE_ACCESS_DUPLEX | FILE_FLAG_WRITE_THROUGH | FILE_FLAG_OVERLAPPED;
 	DWORD pipe_type = 0;
@@ -81,7 +82,8 @@ inline void create_logic(HANDLE &handle, std::wstring name, size_t max_instances
 	}
 
 	SetLastError(ERROR_SUCCESS);
-	handle = CreateNamedPipeW(name.c_str(), pipe_open_mode, pipe_type | pipe_read_mode | PIPE_WAIT, DWORD(max_instances), DEFAULT_BUFFER_SIZE, DEFAULT_BUFFER_SIZE, DEFAULT_WAIT_TIME, &attr);
+	handle = CreateNamedPipeW(name.c_str(), pipe_open_mode, pipe_type | pipe_read_mode | PIPE_WAIT, DWORD(max_instances), DEFAULT_BUFFER_SIZE,
+				  DEFAULT_BUFFER_SIZE, DEFAULT_WAIT_TIME, &attr);
 	if (handle == INVALID_HANDLE_VALUE) {
 		std::vector<char> msg(2048);
 		sprintf_s(msg.data(), msg.size(), "Creating Named Pipe failed with error code %lX.\0", GetLastError());
@@ -92,7 +94,8 @@ inline void create_logic(HANDLE &handle, std::wstring name, size_t max_instances
 inline void open_logic(HANDLE &handle, std::wstring name, os::windows::pipe_read_mode mode)
 {
 	SetLastError(ERROR_SUCCESS);
-	handle = CreateFileW(name.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED | FILE_FLAG_NO_BUFFERING | FILE_FLAG_WRITE_THROUGH, NULL);
+	handle = CreateFileW(name.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING,
+			     FILE_FLAG_OVERLAPPED | FILE_FLAG_NO_BUFFERING | FILE_FLAG_WRITE_THROUGH, NULL);
 	if (!handle || (GetLastError() != ERROR_SUCCESS)) {
 		std::vector<char> msg(2048);
 		sprintf_s(msg.data(), msg.size(), "Opening Named Pipe failed with error code %lX.\0", GetLastError());
@@ -137,7 +140,8 @@ os::windows::socket_win::socket_win()
 	set_connected(false);
 }
 
-os::windows::socket_win::socket_win(os::create_only_t, const std::string &name, size_t max_instances, pipe_type type, pipe_read_mode mode, bool is_unique) : socket_win()
+os::windows::socket_win::socket_win(os::create_only_t, const std::string &name, size_t max_instances, pipe_type type, pipe_read_mode mode, bool is_unique)
+	: socket_win()
 {
 	validate_create_param(name, max_instances);
 
@@ -292,7 +296,8 @@ os::error os::windows::socket_win::read(char *buffer, size_t buffer_length, std:
 	ar->set_handle(handle);
 
 	SetLastError(ERROR_SUCCESS);
-	BOOL suc = ReadFileEx(handle, buffer, DWORD(buffer_length), ar->get_overlapped_pointer(), (LPOVERLAPPED_COMPLETION_ROUTINE)&os::windows::async_request::completion_routine);
+	BOOL suc = ReadFileEx(handle, buffer, DWORD(buffer_length), ar->get_overlapped_pointer(),
+			      (LPOVERLAPPED_COMPLETION_ROUTINE)&os::windows::async_request::completion_routine);
 
 	os::error ec = utility::translate_error(GetLastError());
 
@@ -320,7 +325,8 @@ os::error os::windows::socket_win::write(const char *buffer, size_t buffer_lengt
 	ar->set_handle(handle);
 
 	SetLastError(ERROR_SUCCESS);
-	BOOL suc = WriteFileEx(handle, buffer, DWORD(buffer_length), ar->get_overlapped_pointer(), (LPOVERLAPPED_COMPLETION_ROUTINE)&os::windows::async_request::completion_routine);
+	BOOL suc = WriteFileEx(handle, buffer, DWORD(buffer_length), ar->get_overlapped_pointer(),
+			       (LPOVERLAPPED_COMPLETION_ROUTINE)&os::windows::async_request::completion_routine);
 
 	os::error ec = utility::translate_error(GetLastError());
 

@@ -90,7 +90,8 @@ void ipc::server_instance_osx::worker_rep()
 		msg_mtx.unlock();
 
 		proc_rval.resize(0);
-		success = m_parent->client_call_function(m_clientId, fnc_call_msg.class_name.value_str, fnc_call_msg.function_name.value_str, fnc_call_msg.arguments, proc_rval, proc_error);
+		success = m_parent->client_call_function(m_clientId, fnc_call_msg.class_name.value_str, fnc_call_msg.function_name.value_str,
+							 fnc_call_msg.arguments, proc_rval, proc_error);
 
 		// Set
 		fnc_reply_msg.uid = fnc_call_msg.uid;

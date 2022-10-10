@@ -36,7 +36,8 @@ public:
 	static std::unique_ptr<os::windows::socket_win> create(os::open_only_t, const std::string &name);
 
 	socket_win();
-	socket_win(os::create_only_t, const std::string &name, size_t max_instances = PIPE_UNLIMITED_INSTANCES, pipe_type type = pipe_type::Byte, pipe_read_mode mode = pipe_read_mode::Byte, bool is_unique = true);
+	socket_win(os::create_only_t, const std::string &name, size_t max_instances = PIPE_UNLIMITED_INSTANCES, pipe_type type = pipe_type::Byte,
+		   pipe_read_mode mode = pipe_read_mode::Byte, bool is_unique = true);
 	socket_win(os::open_only_t, const std::string &name, pipe_read_mode mode = pipe_read_mode::Byte);
 	~socket_win();
 

@@ -160,7 +160,8 @@ void shared::logger::log(std::string format, ...)
 
 		if (message_end != 0) {
 			final_buffer.resize(_scprintf(final_format, timestamp_buffer.size(), timestamp_buffer.data(), message.length(), message.data()) + 1);
-			snprintf(final_buffer.data(), final_buffer.size(), final_format, timestamp_buffer.size(), timestamp_buffer.data(), message.length(), message.data());
+			snprintf(final_buffer.data(), final_buffer.size(), final_format, timestamp_buffer.size(), timestamp_buffer.data(), message.length(),
+				 message.data());
 			final_buffer[final_buffer.size() - 1] = '\n';
 
 			if (log_stdout_enabled) {

@@ -43,7 +43,8 @@ static void blog(const char *format, ...)
 
 	std::vector<char> timebuf(65535, '\0');
 	std::string timeformat = "%.2d:%.2d:%.2d.%.3d.%.3d.%.3d:  %*s\n"; // "%*s";
-	sprintf_s(timebuf.data(), timebuf.size(), timeformat.c_str(), hours.count(), minutes.count(), seconds.count(), milliseconds.count(), microseconds.count(), nanoseconds.count(), text.length(), text.c_str());
+	sprintf_s(timebuf.data(), timebuf.size(), timeformat.c_str(), hours.count(), minutes.count(), seconds.count(), milliseconds.count(),
+		  microseconds.count(), nanoseconds.count(), text.length(), text.c_str());
 	std::cout << timebuf.data();
 }
 #pragma endregion Logging
@@ -85,7 +86,8 @@ bool spawn(std::string program, std::string commandLine, std::string workingDire
 	if (workingDirectory.length() > 1) {
 		workingDirectoryBuf.resize(MultiByteToWideChar(CP_UTF8, 0, workingDirectory.data(), (int)workingDirectory.size(), nullptr, 0) + 1);
 		if (workingDirectoryBuf.size() > 0) {
-			wr = MultiByteToWideChar(CP_UTF8, 0, workingDirectory.data(), (int)workingDirectory.size(), workingDirectoryBuf.data(), (int)workingDirectoryBuf.size());
+			wr = MultiByteToWideChar(CP_UTF8, 0, workingDirectory.data(), (int)workingDirectory.size(), workingDirectoryBuf.data(),
+						 (int)workingDirectoryBuf.size());
 			if (wr == 0) {
 				// Conversion failed.
 				DWORD errorCode = GetLastError();
@@ -100,7 +102,8 @@ bool spawn(std::string program, std::string commandLine, std::string workingDire
 
 	// Launch process
 	size_t attempts = 0;
-	while (!CreateProcessW(programBuf.data(), commandLineBuf.data(), nullptr, nullptr, false, CREATE_NEW_CONSOLE, nullptr, workingDirectory.length() > 0 ? workingDirectoryBuf.data() : nullptr, &m_win32_startupInfo, &m_win32_processInformation)) {
+	while (!CreateProcessW(programBuf.data(), commandLineBuf.data(), nullptr, nullptr, false, CREATE_NEW_CONSOLE, nullptr,
+			       workingDirectory.length() > 0 ? workingDirectoryBuf.data() : nullptr, &m_win32_startupInfo, &m_win32_processInformation)) {
 		if (attempts >= 5) {
 			break;
 		}
