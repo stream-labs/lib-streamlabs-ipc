@@ -101,7 +101,11 @@ bool ipc::client_win::call(const std::string &cname, const std::string &fname, s
 		return false;
 	}
 
-	ec = write_op->wait();
+	while ((ec = write_op->wait(std::chrono::seconds(15))) == os::error::TimedOut) {
+		if (freez_cb)
+			freez_cb(false, app_state_path, cname + "::" + fname + " sync", 15000);
+	}
+
 	if (ec != os::error::Success) {
 		cancel(cbid);
 		write_op->cancel();
