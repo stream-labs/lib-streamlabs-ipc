@@ -102,7 +102,8 @@ bool ipc::client_win::call(const std::string &cname, const std::string &fname, s
 	}
 
 	while ((ec = write_op->wait(std::chrono::seconds(15))) == os::error::TimedOut) {
-		ipc::log("Ipc wait timed out, trying again, cname = %s, fname = %s", cname.c_str(), fname.c_str());
+		if (freez_cb)
+			freez_cb(false, app_state_path, cname + "::" + fname + " sync", 15000);
 	}
 
 	if (ec != os::error::Success) {
