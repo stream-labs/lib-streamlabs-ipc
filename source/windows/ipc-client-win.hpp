@@ -18,7 +18,7 @@ public:
 	void stop() override;
 
 	virtual bool call(const std::string &cname, const std::string &fname, std::vector<ipc::value> args, call_return_t fn = g_fn, void *data = g_data,
-			  int64_t &cbid = g_cbid) override;
+			  int64_t &cbid = g_cbid, bool expect_reply = true) override;
 
 	virtual std::vector<ipc::value> call_synchronous_helper(const std::string &cname, const std::string &fname, const std::vector<ipc::value> &args,
 								bool expect_reply = true) override;
