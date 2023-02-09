@@ -91,6 +91,9 @@ bool ipc::client_osx::call(const std::string &cname, const std::string &fname, s
 			std::this_thread::sleep_for(std::chrono::milliseconds(2));
 	}
 
+	if (!expect_reply)
+		return true;
+
 	buffer.resize(sizeof(ipc_size_t));
 	ec = (os::error)m_socket->read(buffer.data(), buffer.size(), true, REPLY);
 	read_callback_init(ec, buffer.size());
@@ -127,7 +130,7 @@ std::vector<ipc::value> ipc::client_osx::call_synchronous_helper(const std::stri
 	}
 
 	int64_t cbid = 0;
-	bool success = call(cname, fname, std::move(args), cb, &cd, cbid);
+	bool success = call(cname, fname, std::move(args), cb, &cd, cbid, expect_reply);
 	if (!success) {
 		return {};
 	}
