@@ -90,6 +90,10 @@ bool ipc::client_osx::call(const std::string &cname, const std::string &fname, s
 			std::this_thread::sleep_for(std::chrono::milliseconds(2));
 	}
 
+	// Reply from "Shutdown" is unreliable
+	if (m_shutting_down)
+		return true;
+
 	buffer.resize(sizeof(ipc_size_t));
 	ec = (os::error)m_socket->read(buffer.data(), buffer.size(), true, REPLY);
 	read_callback_init(ec, buffer.size());
