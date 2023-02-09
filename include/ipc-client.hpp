@@ -51,9 +51,10 @@ public:
 	virtual void stop() = 0;
 
 	virtual bool call(const std::string &cname, const std::string &fname, std::vector<ipc::value> args, call_return_t fn = g_fn, void *data = g_data,
-			  int64_t &cbid = g_cbid) = 0;
+			  int64_t &cbid = g_cbid, bool expect_reply = true) = 0;
 
-	virtual std::vector<ipc::value> call_synchronous_helper(const std::string &cname, const std::string &fname, const std::vector<ipc::value> &args) = 0;
+	virtual std::vector<ipc::value> call_synchronous_helper(const std::string &cname, const std::string &fname, const std::vector<ipc::value> &args,
+								bool expect_reply = true) = 0;
 
 	call_on_freez_t freez_cb = nullptr;
 	std::string app_state_path;

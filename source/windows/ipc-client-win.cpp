@@ -55,7 +55,8 @@ void ipc::client_win::stop()
 	}
 }
 
-bool ipc::client_win::call(const std::string &cname, const std::string &fname, std::vector<ipc::value> args, call_return_t fn, void *data, int64_t &cbid)
+bool ipc::client_win::call(const std::string &cname, const std::string &fname, std::vector<ipc::value> args, call_return_t fn, void *data, int64_t &cbid,
+			   bool expect_reply)
 {
 	static std::mutex mtx;
 	static uint64_t timestamp = 0;
@@ -115,7 +116,8 @@ bool ipc::client_win::call(const std::string &cname, const std::string &fname, s
 	return true;
 }
 
-std::vector<ipc::value> ipc::client_win::call_synchronous_helper(const std::string &cname, const std::string &fname, const std::vector<ipc::value> &args)
+std::vector<ipc::value> ipc::client_win::call_synchronous_helper(const std::string &cname, const std::string &fname, const std::vector<ipc::value> &args,
+								 bool expect_reply)
 {
 	// Set up call reference data.
 	struct CallData {
