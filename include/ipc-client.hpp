@@ -55,6 +55,7 @@ public:
 
 	virtual std::vector<ipc::value> call_synchronous_helper(const std::string &cname, const std::string &fname, const std::vector<ipc::value> &args) = 0;
 
+	std::atomic_bool m_shutting_down = false;
 	call_on_freez_t freez_cb = nullptr;
 	std::string app_state_path;
 	void set_freez_callback(call_on_freez_t cb, std::string app_state);
