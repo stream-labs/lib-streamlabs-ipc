@@ -73,7 +73,8 @@ void ipc::server_instance_win::worker()
 						break;
 					} else {
 						const DWORD parent_proc_exit_code = os::windows::utility::get_parent_process_exit_code();
-						ipc::log("Write buffer operation failed with error %d %p, pp_exit_code=%d", static_cast<int>(ec), &fbuf, parent_proc_exit_code);
+						ipc::log("Write buffer operation failed with error %d %p, pp_exit_code=%d", static_cast<int>(ec), &fbuf,
+							 parent_proc_exit_code);
 						throw std::exception("Write buffer operation failed");
 					}
 				}
