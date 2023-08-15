@@ -7,7 +7,7 @@ class server;
 
 class server_instance_osx : public server_instance {
 public:
-	server_instance_osx(server *owner, std::shared_ptr<ipc::socket> socket, bool activate_watchdog);
+	server_instance_osx(server *owner, std::shared_ptr<ipc::socket> socket, int call_timeout);
 	~server_instance_osx();
 
 private:
