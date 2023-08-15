@@ -52,6 +52,7 @@ class server {
 	std::list<std::shared_ptr<ipc::socket>> m_sockets;
 #endif
 	std::string m_socketPath = "";
+	bool m_activateWatchdog = false;
 
 	// Client management.
 	std::mutex m_clients_mtx;
@@ -96,6 +97,7 @@ public:
 public: // Status
 	void initialize(std::string socketPath);
 	void finalize();
+	void set_watchdog(bool activateWatchdog);
 
 public: // Events
 	void set_connect_handler(server_connect_handler_t handler, void *data);

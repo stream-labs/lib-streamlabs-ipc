@@ -25,7 +25,7 @@ private:
 	bool m_write_waiting = false;
 
 public:
-	server_instance_win(server *owner, std::shared_ptr<ipc::socket> socket);
+	server_instance_win(server *owner, std::shared_ptr<ipc::socket> socket, bool activate_watchdog);
 	~server_instance_win();
 
 public:
