@@ -5,12 +5,12 @@
 
 using namespace std::placeholders;
 
-std::shared_ptr<ipc::server_instance> ipc::server_instance::create(server *owner, std::shared_ptr<ipc::socket> socket, bool activate_watchdog)
+std::shared_ptr<ipc::server_instance> ipc::server_instance::create(server *owner, std::shared_ptr<ipc::socket> socket, int call_timeout)
 {
-	return std::make_unique<ipc::server_instance_win>(owner, socket, activate_watchdog);
+	return std::make_unique<ipc::server_instance_win>(owner, socket, call_timeout);
 }
 
-ipc::server_instance_win::server_instance_win(server *owner, std::shared_ptr<ipc::socket> socket, bool activate_watchdog)
+ipc::server_instance_win::server_instance_win(server *owner, std::shared_ptr<ipc::socket> socket, int call_timeout)
 {
 	m_stopWorkers = false;
 	m_parent = owner;
@@ -18,8 +18,8 @@ ipc::server_instance_win::server_instance_win(server *owner, std::shared_ptr<ipc
 	m_socket = std::dynamic_pointer_cast<os::windows::socket_win>(socket);
 	m_worker = std::thread(std::bind(&ipc::server_instance_win::worker, this));
 
-	if (activate_watchdog)
-		m_watchdog_thread = std::thread(std::bind(&server_instance_win::watchdog_callbacks, this));
+	if (call_timeout)
+		m_watchdog_thread = std::thread(std::bind(&server_instance_win::watchdog_callbacks, this, call_timeout));
 }
 
 ipc::server_instance_win::~server_instance_win()
@@ -32,12 +32,12 @@ ipc::server_instance_win::~server_instance_win()
 		m_watchdog_thread.join();
 }
 
-void ipc::server_instance_win::watchdog_callbacks()
+void ipc::server_instance_win::watchdog_callbacks(int call_timeout)
 {
 	while (!m_stopWorkers) {
 		std::unique_lock<std::mutex> lock(m_watchdog_mutex);
 		if (m_write_waiting) {
-			if (std::chrono::steady_clock::now() - last_write_time > std::chrono::seconds(30)) {
+			if (std::chrono::steady_clock::now() - m_last_write_time > std::chrono::seconds(call_timeout)) {
 				throw std::exception("No write in 30 seconds");
 			}
 		}
@@ -145,7 +145,7 @@ void ipc::server_instance_win::read_callback_msg(os::error ec, size_t size)
 
 	std::unique_lock<std::mutex> lock(m_watchdog_mutex);
 	m_write_waiting = true;
-	last_write_time = std::chrono::steady_clock::now();
+	m_last_write_time = std::chrono::steady_clock::now();
 	lock.unlock();
 
 	if (ec != os::error::Success) {
