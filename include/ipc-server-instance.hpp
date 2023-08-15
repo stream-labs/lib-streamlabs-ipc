@@ -25,7 +25,7 @@ class server;
 
 class server_instance {
 public:
-	static std::shared_ptr<ipc::server_instance> create(server *owner, std::shared_ptr<ipc::socket> socket);
+	static std::shared_ptr<ipc::server_instance> create(server *owner, std::shared_ptr<ipc::socket> socket, int call_timeout);
 	server_instance(){};
 	virtual ~server_instance(){};
 };

@@ -1,11 +1,11 @@
 #include "ipc-server-instance-osx.hpp"
 
-std::shared_ptr<ipc::server_instance> ipc::server_instance::create(server *owner, std::shared_ptr<ipc::socket> socket)
+std::shared_ptr<ipc::server_instance> ipc::server_instance::create(server *owner, std::shared_ptr<ipc::socket> socket, int call_timeout)
 {
-	return std::make_unique<ipc::server_instance_osx>(owner, socket);
+	return std::make_unique<ipc::server_instance_osx>(owner, socket, call_timeout);
 }
 
-ipc::server_instance_osx::server_instance_osx(ipc::server *owner, std::shared_ptr<ipc::socket> conn)
+ipc::server_instance_osx::server_instance_osx(ipc::server *owner, std::shared_ptr<ipc::socket> conn, int call_timeout)
 {
 	m_parent = owner;
 	m_socket = std::dynamic_pointer_cast<os::apple::socket_osx>(conn);

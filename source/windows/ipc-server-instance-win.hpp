@@ -18,8 +18,14 @@ private:
 	server *m_parent = nullptr;
 	int64_t m_clientId;
 
+	std::thread m_watchdog_thread;
+	std::mutex m_watchdog_mutex;
+	void watchdog_callbacks(int call_timeout);
+	std::chrono::steady_clock::time_point m_last_write_time;
+	bool m_write_waiting = false;
+
 public:
-	server_instance_win(server *owner, std::shared_ptr<ipc::socket> socket);
+	server_instance_win(server *owner, std::shared_ptr<ipc::socket> socket, int call_timeout);
 	~server_instance_win();
 
 public:

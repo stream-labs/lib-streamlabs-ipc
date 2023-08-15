@@ -5,18 +5,21 @@
 
 using namespace std::placeholders;
 
-std::shared_ptr<ipc::server_instance> ipc::server_instance::create(server *owner, std::shared_ptr<ipc::socket> socket)
+std::shared_ptr<ipc::server_instance> ipc::server_instance::create(server *owner, std::shared_ptr<ipc::socket> socket, int call_timeout)
 {
-	return std::make_unique<ipc::server_instance_win>(owner, socket);
+	return std::make_unique<ipc::server_instance_win>(owner, socket, call_timeout);
 }
 
-ipc::server_instance_win::server_instance_win(server *owner, std::shared_ptr<ipc::socket> socket)
+ipc::server_instance_win::server_instance_win(server *owner, std::shared_ptr<ipc::socket> socket, int call_timeout)
 {
 	m_stopWorkers = false;
 	m_parent = owner;
 	m_clientId = 0;
 	m_socket = std::dynamic_pointer_cast<os::windows::socket_win>(socket);
 	m_worker = std::thread(std::bind(&ipc::server_instance_win::worker, this));
+
+	if (call_timeout)
+		m_watchdog_thread = std::thread(std::bind(&server_instance_win::watchdog_callbacks, this, call_timeout));
 }
 
 ipc::server_instance_win::~server_instance_win()
@@ -25,6 +28,22 @@ ipc::server_instance_win::~server_instance_win()
 	m_stopWorkers = true;
 	if (m_worker.joinable())
 		m_worker.join();
+	if (m_watchdog_thread.joinable())
+		m_watchdog_thread.join();
+}
+
+void ipc::server_instance_win::watchdog_callbacks(int call_timeout)
+{
+	while (!m_stopWorkers) {
+		std::unique_lock<std::mutex> lock(m_watchdog_mutex);
+		if (m_write_waiting) {
+			if (std::chrono::steady_clock::now() - m_last_write_time > std::chrono::seconds(call_timeout)) {
+				throw std::exception("No write in 30 seconds");
+			}
+		}
+		lock.unlock();
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+	}
 }
 
 void ipc::server_instance_win::worker()
@@ -54,9 +73,16 @@ void ipc::server_instance_win::worker()
 					if (ec == os::error::Disconnected) {
 						break;
 					} else {
-						throw std::exception("Unexpected error.");
+						const DWORD parent_proc_exit_code = os::windows::utility::get_parent_process_exit_code();
+						ipc::log("Write buffer operation failed with error %d %p, pp_exit_code=%d", static_cast<int>(ec), &fbuf,
+							 parent_proc_exit_code);
+						throw std::exception("Write buffer operation failed");
 					}
 				}
+
+				std::unique_lock<std::mutex> lock(m_watchdog_mutex);
+				m_write_waiting = false;
+				lock.unlock();
 				m_write_queue.pop();
 			}
 		}
@@ -117,7 +143,13 @@ void ipc::server_instance_win::read_callback_msg(os::error ec, size_t size)
 	ipc::message::function_call fnc_call_msg;
 	ipc::message::function_reply fnc_reply_msg;
 
+	std::unique_lock<std::mutex> lock(m_watchdog_mutex);
+	m_write_waiting = true;
+	m_last_write_time = std::chrono::steady_clock::now();
+	lock.unlock();
+
 	if (ec != os::error::Success) {
+		throw std::exception("Unexpected error.");
 		return;
 	}
 
@@ -127,6 +159,7 @@ void ipc::server_instance_win::read_callback_msg(os::error ec, size_t size)
 		fnc_call_msg.deserialize(m_rbuf, 0);
 	} catch (std::exception &e) {
 		ipc::log("????????: Deserialization of Function Call message failed with error %s.", e.what());
+		throw std::exception("Deserialization of Function Call message failed.");
 		return;
 	}
 
@@ -148,6 +181,7 @@ void ipc::server_instance_win::read_callback_msg(os::error ec, size_t size)
 		fnc_reply_msg.serialize(write_buffer, sizeof(ipc_size_t));
 	} catch (std::exception &e) {
 		ipc::log("%8llu: Serialization of Function Reply message failed with error %s.", fnc_reply_msg.uid.value_union.ui64, e.what());
+		throw std::exception("Serialization of Function Reply message failed.");
 		return;
 	}
 
@@ -157,23 +191,7 @@ void ipc::server_instance_win::read_callback_msg(os::error ec, size_t size)
 void ipc::server_instance_win::read_callback_msg_write(std::vector<char> &write_buffer)
 {
 	if (write_buffer.size() != 0) {
-		if ((!m_wop || !m_wop->is_valid()) && (m_write_queue.size() == 0)) {
-			ipc::make_sendable(write_buffer);
-			os::error ec2 = m_socket->write(write_buffer.data(), write_buffer.size(), m_wop,
-							std::bind(&ipc::server_instance_win::write_callback, this, _1, _2));
-			if (ec2 != os::error::Success && ec2 != os::error::Pending) {
-				if (ec2 == os::error::Disconnected) {
-					return;
-				} else {
-					const DWORD parent_proc_exit_code = os::windows::utility::get_parent_process_exit_code();
-					ipc::log("Write buffer operation failed with error %d %p, pp_exit_code=%d", static_cast<int>(ec2), &write_buffer,
-						 parent_proc_exit_code);
-					throw std::exception("Write buffer operation failed");
-				}
-			}
-		} else {
-			m_write_queue.push(std::move(write_buffer));
-		}
+		m_write_queue.push(std::move(write_buffer));
 	} else {
 		m_rop->invalidate();
 	}

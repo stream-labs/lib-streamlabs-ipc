@@ -121,7 +121,7 @@ void ipc::server::spawn_client(std::shared_ptr<ipc::socket> socket)
 {
 	std::unique_lock<std::mutex> ul(m_clients_mtx);
 	//std::shared_ptr<ipc::server_instance> client = std::make_shared<ipc::server_instance>(this, socket);
-	std::shared_ptr<ipc::server_instance> client = ipc::server_instance::create(this, socket);
+	std::shared_ptr<ipc::server_instance> client = ipc::server_instance::create(this, socket, m_callTimeout);
 	if (m_handlerConnect.first) {
 		m_handlerConnect.first(m_handlerConnect.second, 0);
 	}
@@ -147,7 +147,7 @@ void ipc::server::spawn_client(std::shared_ptr<ipc::socket> socket)
 	std::unique_lock<std::mutex> ul(m_clients_mtx);
 
 	// std::shared_ptr<ipc::server_instance> client = std::make_shared<ipc::server_instance>(this, socket);
-	std::shared_ptr<ipc::server_instance> client = ipc::server_instance::create(this, socket);
+	std::shared_ptr<ipc::server_instance> client = ipc::server_instance::create(this, socket, m_callTimeout);
 	if (m_handlerConnect.first) {
 		m_handlerConnect.first(m_handlerConnect.second, 0);
 	}
@@ -219,6 +219,11 @@ void ipc::server::finalize()
 
 	// Kill any remaining sockets
 	m_sockets.clear();
+}
+
+void ipc::server::set_call_timeout(int callTimeout)
+{
+	m_callTimeout = callTimeout;
 }
 
 void ipc::server::set_connect_handler(server_connect_handler_t handler, void *data)
